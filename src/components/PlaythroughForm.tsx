@@ -37,7 +37,7 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
       setCampaignType('Official')
       setCampaignName('')
       setCustomCampaignName('')
-      setInvestigators([])
+      setInvestigators([{ playerName: '', investigatorName: '', archetype: 'Guardian' }])
     }
   }, [editPlaythrough, open])
 
@@ -48,10 +48,12 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
   }
 
   const handleAddInvestigator = () => {
-    setInvestigators([
-      ...investigators,
-      { playerName: '', investigatorName: '', archetype: 'Guardian' }
-    ])
+    if (investigators.length < 4) {
+      setInvestigators([
+        ...investigators,
+        { playerName: '', investigatorName: '', archetype: 'Guardian' }
+      ])
+    }
   }
 
   const handleRemoveInvestigator = (index: number) => {
@@ -80,6 +82,10 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
     
     if (!finalCampaignName.trim()) return
 
+    const validInvestigators = investigators.filter(inv => inv.investigatorName.trim() !== '')
+    
+    if (validInvestigators.length === 0 || validInvestigators.length > 4) return
+
     const campaignSet = campaignType === 'Official' ? getCampaignSet(finalCampaignName) : undefined
 
     const playthroughData = {
@@ -89,7 +95,7 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
       campaignName: finalCampaignName,
       ...(campaignSet && { campaignSet }),
       ...(campaignType === 'Fan-Made' && { customCampaignName }),
-      investigators: investigators.filter(inv => inv.investigatorName.trim() !== '')
+      investigators: validInvestigators
     }
 
     onSave(playthroughData as Playthrough)
@@ -98,9 +104,12 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
 
   const availableCampaigns = getAllCampaignNames()
   const availableInvestigators = getAllInvestigatorNames()
-  const isFormValid = campaignType === 'Fan-Made' 
+  const isFormValid = (campaignType === 'Fan-Made' 
     ? customCampaignName.trim() !== ''
-    : campaignName.trim() !== ''
+    : campaignName.trim() !== '') && 
+    investigators.length >= 1 && 
+    investigators.length <= 4 &&
+    investigators.every(inv => inv.investigatorName.trim() !== '')
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -163,12 +172,18 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
 
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <Label>Investigators</Label>
+                <div>
+                  <Label>Investigators</Label>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Add 1-4 investigators for this game ({investigators.length}/4)
+                  </p>
+                </div>
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   onClick={handleAddInvestigator}
+                  disabled={investigators.length >= 4}
                   className="gap-2"
                 >
                   <Plus size={16} />
@@ -177,9 +192,11 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
               </div>
 
               {investigators.length === 0 ? (
-                <p className="text-sm text-muted-foreground italic">
-                  No investigators added yet. Click "Add Investigator" to record who played.
-                </p>
+                <div className="p-4 border border-dashed rounded-lg text-center">
+                  <p className="text-sm text-muted-foreground">
+                    No investigators added yet. Add at least one investigator to log this game.
+                  </p>
+                </div>
               ) : (
                 <div className="space-y-4">
                   {investigators.map((inv, index) => (
@@ -190,6 +207,7 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
                       availableInvestigators={availableInvestigators}
                       onUpdate={handleUpdateInvestigator}
                       onRemove={handleRemoveInvestigator}
+                      canRemove={investigators.length > 1}
                     />
                   ))}
                 </div>
@@ -217,9 +235,10 @@ interface InvestigatorFormItemProps {
   availableInvestigators: string[]
   onUpdate: (index: number, field: keyof InvestigatorAssignment, value: string) => void
   onRemove: (index: number) => void
+  canRemove: boolean
 }
 
-function InvestigatorFormItem({ index, investigator, availableInvestigators, onUpdate, onRemove }: InvestigatorFormItemProps) {
+function InvestigatorFormItem({ index, investigator, availableInvestigators, onUpdate, onRemove, canRemove }: InvestigatorFormItemProps) {
   const [investigatorSearchOpen, setInvestigatorSearchOpen] = useState(false)
   const [archetypeSelectOpen, setArchetypeSelectOpen] = useState(false)
   
@@ -231,14 +250,15 @@ function InvestigatorFormItem({ index, investigator, availableInvestigators, onU
     <div className="p-4 border rounded-lg space-y-3 bg-card">
       <div className="flex items-center justify-between">
         <span className="text-sm font-medium text-muted-foreground">
-          Investigator {index + 1}
+          Player {index + 1}
         </span>
         <Button
           type="button"
           variant="ghost"
           size="icon"
           onClick={() => onRemove(index)}
-          className="h-8 w-8 text-destructive hover:text-destructive"
+          disabled={!canRemove}
+          className="h-8 w-8 text-destructive hover:text-destructive disabled:opacity-50"
         >
           <Trash size={16} />
         </Button>
