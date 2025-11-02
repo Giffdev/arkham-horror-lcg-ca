@@ -142,7 +142,7 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
                           <Label htmlFor={`player-${index}`}>Player Name</Label>
                           <Input
                             id={`player-${index}`}
-                            placeholder="e.g., Alice"
+                            placeholder="Player name"
                             value={inv.playerName}
                             onChange={(e) => handleUpdateInvestigator(index, 'playerName', e.target.value)}
                           />
