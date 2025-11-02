@@ -143,13 +143,13 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
                 <div className="space-y-2">
                   <Label htmlFor="campaign-name">Campaign</Label>
                   <Select value={campaignName} onValueChange={setCampaignName}>
-                    <SelectTrigger id="campaign-name">
+                    <SelectTrigger id="campaign-name" className="truncate">
                       <SelectValue placeholder="Select a campaign" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="max-w-[400px]">
                       <ScrollArea className="h-72">
                         {availableCampaigns.map((campaign) => (
-                          <SelectItem key={campaign} value={campaign}>
+                          <SelectItem key={campaign} value={campaign} className="max-w-[380px]">
                             {campaign}
                           </SelectItem>
                         ))}
