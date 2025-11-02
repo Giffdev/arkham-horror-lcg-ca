@@ -13,11 +13,11 @@ A campaign playthrough tracker for Arkham Horror: The Card Game that allows play
 ## Essential Features
 
 ### Log a Playthrough
-- **Functionality**: Create a new campaign playthrough record with campaign selection from official sets or custom fan-made campaigns, players, and investigator assignments
-- **Purpose**: Capture gaming memories with accurate campaign information from the official product catalog
+- **Functionality**: Create a new campaign playthrough record with campaign selection from a comprehensive list of official campaigns or custom fan-made campaigns, players, and investigator assignments with automatic class detection
+- **Purpose**: Capture gaming memories quickly with accurate campaign and investigator information from the official product catalog
 - **Trigger**: User clicks "Log New Game" button
-- **Progression**: Click "Log New Game" → Modal/form appears → Select campaign type (Official/Fan-Made) → If Official: Select campaign set (Core, The Dunwich Legacy, etc.) then select specific campaign → If Fan-Made: Enter custom campaign name → Add player names, investigator selections with archetypes → Save → Returns to log list with new entry visible
-- **Success criteria**: Record persists between sessions, displays in the main list with accurate campaign and set information, fan-made campaigns allow free-text entry
+- **Progression**: Click "Log New Game" → Modal/form appears → Select campaign type (Official/Fan-Made) → If Official: Select campaign from searchable dropdown (set is automatically associated) → If Fan-Made: Enter custom campaign name → Add investigators by selecting from searchable dropdown (class is automatically set for single-class investigators, dual-class investigators like Agatha Crane require manual selection) → Optionally add player names → Save → Returns to log list with new entry visible
+- **Success criteria**: Record persists between sessions, displays in the main list with accurate campaign and set information, investigator classes are automatically assigned except for dual-class characters, fan-made campaigns allow free-text entry
 
 ### View Playthrough History
 - **Functionality**: Display all logged playthroughs in a scannable card format showing campaign name, set (for official campaigns), campaign type, date, players, and investigators
@@ -50,7 +50,8 @@ A campaign playthrough tracker for Arkham Horror: The Card Game that allows play
 ## Edge Case Handling
 
 - **Fan-made campaigns**: Allow free-text entry for campaign names when Fan-Made type is selected
-- **Official campaign sets**: Cascade selection ensures valid set/campaign combinations based on official product catalog
+- **Dual-class investigators**: Investigators like Agatha Crane who can be either Seeker or Mystic show a class selector; single-class investigators auto-assign their class
+- **Official campaign selection**: Single searchable dropdown lists all official campaigns; set information is automatically associated
 - **Duplicate investigators**: Multiple players can select the same investigator (helpful for tracking different builds or repeated favorites)
 - **Very long campaign or player names**: Truncate with ellipsis, show full name on hover
 - **No playthroughs yet**: Show welcoming empty state with prominent "Log Your First Game" call-to-action
@@ -99,15 +100,18 @@ Animations should feel like turning pages in a journal or placing cards on a tab
 
 - **Components**: 
   - Dialog for add/edit playthrough forms with form fields for all optional inputs
+  - Command (searchable combobox) for investigator selection with autocomplete
+  - Select dropdown for campaign selection from comprehensive list
   - Card components for each playthrough entry with subtle hover states (border color shift, shadow increase)
   - Badge components for archetype tags with archetype-specific colors (Guardian: red, Seeker: orange, Rogue: green, Mystic: purple, Survivor: blue, Neutral: grey)
   - Button with primary variant for "Log New Game", ghost variants for filters
-  - Select dropdowns for investigators and campaign types
-  - Input fields for player names and campaign names
+  - Select dropdowns for dual-class investigator class selection and campaign types
+  - Input fields for player names and custom campaign names
   - Separator for visual organization between sections
-  - Scroll-area for long lists of playthroughs
+  - Scroll-area for long lists of playthroughs and dropdown contents
   - Label components for form fields
   - Alert-dialog for delete confirmation
+  - Popover for command palette positioning
 
 - **Customizations**:
   - Custom archetype badge colors using class-variance-authority

@@ -4,10 +4,15 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Playthrough, InvestigatorAssignment, CAMPAIGN_TYPES, ARCHETYPES, Archetype, CampaignType } from '@/lib/types'
-import { SET_NAMES, getCampaignsForSet } from '@/lib/campaign-data'
+import { Playthrough, InvestigatorAssignment, CAMPAIGN_TYPES, Archetype, CampaignType } from '@/lib/types'
+import { getAllCampaignNames, getCampaignSet } from '@/lib/campaign-data'
+import { getAllInvestigatorNames, getInvestigatorByName, isDualClassInvestigator } from '@/lib/investigator-data'
 import { Plus, Trash } from '@phosphor-icons/react'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Check, CaretUpDown } from '@phosphor-icons/react'
+import { cn } from '@/lib/utils'
 
 interface PlaythroughFormProps {
   open: boolean
@@ -18,7 +23,6 @@ interface PlaythroughFormProps {
 
 export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }: PlaythroughFormProps) {
   const [campaignType, setCampaignType] = useState<CampaignType>('Official')
-  const [campaignSet, setCampaignSet] = useState('')
   const [campaignName, setCampaignName] = useState('')
   const [customCampaignName, setCustomCampaignName] = useState('')
   const [investigators, setInvestigators] = useState<InvestigatorAssignment[]>([])
@@ -26,13 +30,11 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
   useEffect(() => {
     if (editPlaythrough) {
       setCampaignType(editPlaythrough.campaignType)
-      setCampaignSet(editPlaythrough.campaignSet || '')
       setCampaignName(editPlaythrough.campaignName)
       setCustomCampaignName(editPlaythrough.customCampaignName || '')
       setInvestigators(editPlaythrough.investigators)
     } else {
       setCampaignType('Official')
-      setCampaignSet('')
       setCampaignName('')
       setCustomCampaignName('')
       setInvestigators([])
@@ -41,14 +43,8 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
 
   const handleCampaignTypeChange = (value: CampaignType) => {
     setCampaignType(value)
-    setCampaignSet('')
     setCampaignName('')
     setCustomCampaignName('')
-  }
-
-  const handleCampaignSetChange = (value: string) => {
-    setCampaignSet(value)
-    setCampaignName('')
   }
 
   const handleAddInvestigator = () => {
@@ -63,9 +59,20 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
   }
 
   const handleUpdateInvestigator = (index: number, field: keyof InvestigatorAssignment, value: string) => {
-    setInvestigators(investigators.map((inv, i) => 
-      i === index ? { ...inv, [field]: value } : inv
-    ))
+    setInvestigators(investigators.map((inv, i) => {
+      if (i !== index) return inv
+      
+      const updated = { ...inv, [field]: value }
+      
+      if (field === 'investigatorName') {
+        const investigatorData = getInvestigatorByName(value)
+        if (investigatorData && investigatorData.archetypes.length === 1) {
+          updated.archetype = investigatorData.archetypes[0]
+        }
+      }
+      
+      return updated
+    }))
   }
 
   const handleSubmit = () => {
@@ -73,12 +80,14 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
     
     if (!finalCampaignName.trim()) return
 
+    const campaignSet = campaignType === 'Official' ? getCampaignSet(finalCampaignName) : undefined
+
     const playthroughData = {
       ...(editPlaythrough ? { id: editPlaythrough.id } : {}),
       date: editPlaythrough?.date || new Date().toISOString(),
       campaignType,
       campaignName: finalCampaignName,
-      ...(campaignType === 'Official' && campaignSet && { campaignSet }),
+      ...(campaignSet && { campaignSet }),
       ...(campaignType === 'Fan-Made' && { customCampaignName }),
       investigators: investigators.filter(inv => inv.investigatorName.trim() !== '')
     }
@@ -87,7 +96,8 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
     onOpenChange(false)
   }
 
-  const availableCampaigns = campaignSet ? getCampaignsForSet(campaignSet) : []
+  const availableCampaigns = getAllCampaignNames()
+  const availableInvestigators = getAllInvestigatorNames()
   const isFormValid = campaignType === 'Fan-Made' 
     ? customCampaignName.trim() !== ''
     : campaignName.trim() !== ''
@@ -120,41 +130,23 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
             </div>
 
             {campaignType === 'Official' ? (
-              <>
-                <div className="space-y-2">
-                  <Label htmlFor="campaign-set">Campaign Set</Label>
-                  <Select value={campaignSet} onValueChange={handleCampaignSetChange}>
-                    <SelectTrigger id="campaign-set">
-                      <SelectValue placeholder="Select a set" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {SET_NAMES.map((setName) => (
-                        <SelectItem key={setName} value={setName}>
-                          {setName}
+              <div className="space-y-2">
+                <Label htmlFor="campaign-name">Campaign</Label>
+                <Select value={campaignName} onValueChange={setCampaignName}>
+                  <SelectTrigger id="campaign-name">
+                    <SelectValue placeholder="Select a campaign" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <ScrollArea className="h-72">
+                      {availableCampaigns.map((campaign) => (
+                        <SelectItem key={campaign} value={campaign}>
+                          {campaign}
                         </SelectItem>
                       ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {campaignSet && (
-                  <div className="space-y-2">
-                    <Label htmlFor="campaign-name">Campaign</Label>
-                    <Select value={campaignName} onValueChange={setCampaignName}>
-                      <SelectTrigger id="campaign-name">
-                        <SelectValue placeholder="Select a campaign" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableCampaigns.map((campaign) => (
-                          <SelectItem key={campaign} value={campaign}>
-                            {campaign}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-              </>
+                    </ScrollArea>
+                  </SelectContent>
+                </Select>
+              </div>
             ) : (
               <div className="space-y-2">
                 <Label htmlFor="custom-campaign-name">Campaign Name</Label>
@@ -189,63 +181,14 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
               ) : (
                 <div className="space-y-4">
                   {investigators.map((inv, index) => (
-                    <div key={index} className="p-4 border rounded-lg space-y-3 bg-card">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-muted-foreground">
-                          Investigator {index + 1}
-                        </span>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleRemoveInvestigator(index)}
-                          className="h-8 w-8 text-destructive hover:text-destructive"
-                        >
-                          <Trash size={16} />
-                        </Button>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <div className="space-y-2">
-                          <Label htmlFor={`player-${index}`}>Player Name</Label>
-                          <Input
-                            id={`player-${index}`}
-                            placeholder="Player name"
-                            value={inv.playerName}
-                            onChange={(e) => handleUpdateInvestigator(index, 'playerName', e.target.value)}
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor={`investigator-${index}`}>Investigator</Label>
-                          <Input
-                            id={`investigator-${index}`}
-                            placeholder="e.g., Roland Banks"
-                            value={inv.investigatorName}
-                            onChange={(e) => handleUpdateInvestigator(index, 'investigatorName', e.target.value)}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor={`archetype-${index}`}>Archetype</Label>
-                        <Select 
-                          value={inv.archetype} 
-                          onValueChange={(value) => handleUpdateInvestigator(index, 'archetype', value)}
-                        >
-                          <SelectTrigger id={`archetype-${index}`}>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {ARCHETYPES.map((archetype) => (
-                              <SelectItem key={archetype} value={archetype}>
-                                {archetype}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
+                    <InvestigatorFormItem
+                      key={index}
+                      index={index}
+                      investigator={inv}
+                      availableInvestigators={availableInvestigators}
+                      onUpdate={handleUpdateInvestigator}
+                      onRemove={handleRemoveInvestigator}
+                    />
                   ))}
                 </div>
               )}
@@ -263,5 +206,129 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  )
+}
+
+interface InvestigatorFormItemProps {
+  index: number
+  investigator: InvestigatorAssignment
+  availableInvestigators: string[]
+  onUpdate: (index: number, field: keyof InvestigatorAssignment, value: string) => void
+  onRemove: (index: number) => void
+}
+
+function InvestigatorFormItem({ index, investigator, availableInvestigators, onUpdate, onRemove }: InvestigatorFormItemProps) {
+  const [investigatorSearchOpen, setInvestigatorSearchOpen] = useState(false)
+  const [archetypeSelectOpen, setArchetypeSelectOpen] = useState(false)
+  
+  const investigatorData = getInvestigatorByName(investigator.investigatorName)
+  const needsArchetypeSelection = investigatorData && isDualClassInvestigator(investigator.investigatorName)
+  const availableArchetypes = investigatorData?.archetypes || []
+
+  return (
+    <div className="p-4 border rounded-lg space-y-3 bg-card">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-medium text-muted-foreground">
+          Investigator {index + 1}
+        </span>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={() => onRemove(index)}
+          className="h-8 w-8 text-destructive hover:text-destructive"
+        >
+          <Trash size={16} />
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="space-y-2">
+          <Label htmlFor={`player-${index}`}>Player Name</Label>
+          <Input
+            id={`player-${index}`}
+            placeholder="Player name"
+            value={investigator.playerName}
+            onChange={(e) => onUpdate(index, 'playerName', e.target.value)}
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor={`investigator-${index}`}>Investigator</Label>
+          <Popover open={investigatorSearchOpen} onOpenChange={setInvestigatorSearchOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                id={`investigator-${index}`}
+                className="w-full justify-between"
+              >
+                {investigator.investigatorName || "Select investigator"}
+                <CaretUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[250px] p-0">
+              <Command>
+                <CommandInput placeholder="Search investigators..." />
+                <CommandList>
+                  <CommandEmpty>No investigator found.</CommandEmpty>
+                  <CommandGroup>
+                    <ScrollArea className="h-72">
+                      {availableInvestigators.map((name) => (
+                        <CommandItem
+                          key={name}
+                          value={name}
+                          onSelect={() => {
+                            onUpdate(index, 'investigatorName', name)
+                            setInvestigatorSearchOpen(false)
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              investigator.investigatorName === name ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          {name}
+                        </CommandItem>
+                      ))}
+                    </ScrollArea>
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+        </div>
+      </div>
+
+      {needsArchetypeSelection && (
+        <div className="space-y-2">
+          <Label htmlFor={`archetype-${index}`}>Class</Label>
+          <Select 
+            value={investigator.archetype} 
+            onValueChange={(value) => onUpdate(index, 'archetype', value)}
+            open={archetypeSelectOpen}
+            onOpenChange={setArchetypeSelectOpen}
+          >
+            <SelectTrigger id={`archetype-${index}`}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {availableArchetypes.map((archetype) => (
+                <SelectItem key={archetype} value={archetype}>
+                  {archetype}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+      
+      {investigatorData && !needsArchetypeSelection && (
+        <div className="text-sm text-muted-foreground">
+          Class: <span className="font-medium text-foreground">{investigatorData.archetypes[0]}</span>
+        </div>
+      )}
+    </div>
   )
 }
