@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Playthrough, InvestigatorAssignment, CAMPAIGN_TYPES, Archetype, CampaignType } from '@/lib/types'
-import { getAllCampaignNames, getCampaignSet } from '@/lib/campaign-data'
+import { getFullCampaignNames, getStandaloneCampaignNames, getCampaignSet } from '@/lib/campaign-data'
 import { getAllInvestigatorNames, getInvestigatorByName, isDualClassInvestigator } from '@/lib/investigator-data'
 import { Plus, Trash } from '@phosphor-icons/react'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -22,7 +22,7 @@ interface PlaythroughFormProps {
 }
 
 export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }: PlaythroughFormProps) {
-  const [campaignType, setCampaignType] = useState<CampaignType>('Official')
+  const [campaignType, setCampaignType] = useState<CampaignType>('Full Campaign')
   const [campaignName, setCampaignName] = useState('')
   const [customCampaignName, setCustomCampaignName] = useState('')
   const [investigators, setInvestigators] = useState<InvestigatorAssignment[]>([])
@@ -34,7 +34,7 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
       setCustomCampaignName(editPlaythrough.customCampaignName || '')
       setInvestigators(editPlaythrough.investigators)
     } else {
-      setCampaignType('Official')
+      setCampaignType('Full Campaign')
       setCampaignName('')
       setCustomCampaignName('')
       setInvestigators([{ playerName: '', investigatorName: '', archetype: 'Guardian' }])
@@ -86,7 +86,7 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
     
     if (validInvestigators.length === 0 || validInvestigators.length > 4) return
 
-    const campaignSet = campaignType === 'Official' ? getCampaignSet(finalCampaignName) : undefined
+    const campaignSet = (campaignType === 'Full Campaign' || campaignType === 'Standalone') ? getCampaignSet(finalCampaignName) : undefined
 
     const playthroughData = {
       ...(editPlaythrough ? { id: editPlaythrough.id } : {}),
@@ -102,7 +102,8 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
     onOpenChange(false)
   }
 
-  const availableCampaigns = getAllCampaignNames()
+  const availableFullCampaigns = getFullCampaignNames()
+  const availableStandaloneCampaigns = getStandaloneCampaignNames()
   const availableInvestigators = getAllInvestigatorNames()
   const isFormValid = (campaignType === 'Fan-Made' 
     ? customCampaignName.trim() !== ''
@@ -139,17 +140,35 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
                 </Select>
               </div>
 
-              {campaignType === 'Official' ? (
+              {campaignType === 'Full Campaign' ? (
                 <div className="space-y-2">
                   <Label htmlFor="campaign-name">Campaign</Label>
                   <Select value={campaignName} onValueChange={setCampaignName}>
-                    <SelectTrigger id="campaign-name" className="truncate">
+                    <SelectTrigger id="campaign-name">
                       <SelectValue placeholder="Select a campaign" />
                     </SelectTrigger>
                     <SelectContent className="max-w-[400px]">
                       <ScrollArea className="h-72">
-                        {availableCampaigns.map((campaign) => (
-                          <SelectItem key={campaign} value={campaign} className="max-w-[380px]">
+                        {availableFullCampaigns.map((campaign) => (
+                          <SelectItem key={campaign} value={campaign}>
+                            {campaign}
+                          </SelectItem>
+                        ))}
+                      </ScrollArea>
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : campaignType === 'Standalone' ? (
+                <div className="space-y-2">
+                  <Label htmlFor="campaign-name">Scenario</Label>
+                  <Select value={campaignName} onValueChange={setCampaignName}>
+                    <SelectTrigger id="campaign-name">
+                      <SelectValue placeholder="Select a scenario" />
+                    </SelectTrigger>
+                    <SelectContent className="max-w-[400px]">
+                      <ScrollArea className="h-72">
+                        {availableStandaloneCampaigns.map((campaign) => (
+                          <SelectItem key={campaign} value={campaign}>
                             {campaign}
                           </SelectItem>
                         ))}

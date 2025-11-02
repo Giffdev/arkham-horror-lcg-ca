@@ -1,6 +1,6 @@
 export type Archetype = 'Guardian' | 'Survivor' | 'Seeker' | 'Rogue' | 'Mystic' | 'Neutral'
 
-export type CampaignType = 'Official' | 'Fan-Made'
+export type CampaignType = 'Full Campaign' | 'Standalone' | 'Fan-Made'
 
 export interface InvestigatorAssignment {
   playerName: string
@@ -20,7 +20,7 @@ export interface Playthrough {
 
 export const ARCHETYPES: Archetype[] = ['Guardian', 'Survivor', 'Seeker', 'Rogue', 'Mystic', 'Neutral']
 
-export const CAMPAIGN_TYPES: CampaignType[] = ['Official', 'Fan-Made']
+export const CAMPAIGN_TYPES: CampaignType[] = ['Full Campaign', 'Standalone', 'Fan-Made']
 
 export const ARCHETYPE_COLORS: Record<Archetype, string> = {
   'Guardian': 'bg-blue-100 text-blue-800 border-blue-300',
