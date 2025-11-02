@@ -6,8 +6,11 @@ import { PlaythroughCard } from '@/components/PlaythroughCard'
 import { PlaythroughForm } from '@/components/PlaythroughForm'
 import { EmptyState } from '@/components/EmptyState'
 import { Filters } from '@/components/Filters'
-import { Plus, BookOpen } from '@phosphor-icons/react'
+import { PlayerStats } from '@/components/PlayerStats'
+import { Plus, BookOpen, User } from '@phosphor-icons/react'
 import { Separator } from '@/components/ui/separator'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Card } from '@/components/ui/card'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { Toaster, toast } from 'sonner'
 
@@ -18,6 +21,7 @@ function App() {
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [selectedArchetypes, setSelectedArchetypes] = useState<Archetype[]>([])
   const [selectedCampaignTypes, setSelectedCampaignTypes] = useState<CampaignType[]>([])
+  const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null)
 
   const filteredPlaythroughs = useMemo(() => {
     if (!playthroughs) return []
@@ -97,6 +101,21 @@ function App() {
     setSelectedCampaignTypes([])
   }
 
+  const allPlayers = useMemo(() => {
+    if (!playthroughs) return []
+    
+    const playerSet = new Set<string>()
+    playthroughs.forEach(playthrough => {
+      playthrough.investigators.forEach(inv => {
+        if (inv.playerName.trim()) {
+          playerSet.add(inv.playerName)
+        }
+      })
+    })
+    
+    return Array.from(playerSet).sort((a, b) => a.localeCompare(b))
+  }, [playthroughs])
+
   return (
     <div className="min-h-screen bg-background">
       <Toaster position="top-center" />
@@ -117,38 +136,97 @@ function App() {
       </header>
 
       <main className="container mx-auto px-6 py-8">
-        <div className="space-y-8">
-          <Filters
-            selectedArchetypes={selectedArchetypes}
-            selectedCampaignTypes={selectedCampaignTypes}
-            onArchetypeToggle={handleArchetypeToggle}
-            onCampaignTypeToggle={handleCampaignTypeToggle}
-            onClearFilters={handleClearFilters}
-          />
+        <Tabs defaultValue="games" className="space-y-6">
+          <TabsList className="grid w-full max-w-md mx-auto grid-cols-2">
+            <TabsTrigger value="games" className="gap-2">
+              <BookOpen size={18} weight="duotone" />
+              All Games
+            </TabsTrigger>
+            <TabsTrigger value="players" className="gap-2">
+              <User size={18} weight="duotone" />
+              Players
+            </TabsTrigger>
+          </TabsList>
 
-          <Separator />
+          <TabsContent value="games" className="space-y-8">
+            <Filters
+              selectedArchetypes={selectedArchetypes}
+              selectedCampaignTypes={selectedCampaignTypes}
+              onArchetypeToggle={handleArchetypeToggle}
+              onCampaignTypeToggle={handleCampaignTypeToggle}
+              onClearFilters={handleClearFilters}
+            />
 
-          {!playthroughs || playthroughs.length === 0 ? (
-            <EmptyState />
-          ) : filteredPlaythroughs.length === 0 ? (
-            <div className="text-center py-16">
-              <p className="text-muted-foreground">
-                No playthroughs match your selected filters.
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {filteredPlaythroughs.map((playthrough) => (
-                <PlaythroughCard
-                  key={playthrough.id}
-                  playthrough={playthrough}
-                  onEdit={handleEdit}
-                  onDelete={setDeleteId}
-                />
-              ))}
-            </div>
-          )}
-        </div>
+            <Separator />
+
+            {!playthroughs || playthroughs.length === 0 ? (
+              <EmptyState />
+            ) : filteredPlaythroughs.length === 0 ? (
+              <div className="text-center py-16">
+                <p className="text-muted-foreground">
+                  No playthroughs match your selected filters.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {filteredPlaythroughs.map((playthrough) => (
+                  <PlaythroughCard
+                    key={playthrough.id}
+                    playthrough={playthrough}
+                    onEdit={handleEdit}
+                    onDelete={setDeleteId}
+                  />
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="players" className="space-y-6">
+            {!playthroughs || playthroughs.length === 0 ? (
+              <EmptyState />
+            ) : allPlayers.length === 0 ? (
+              <Card className="p-12 text-center">
+                <p className="text-muted-foreground">
+                  No players found. Add player names when logging games to see player statistics.
+                </p>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                <div className="lg:col-span-1">
+                  <Card className="p-4">
+                    <h3 className="font-semibold mb-4">Players ({allPlayers.length})</h3>
+                    <div className="space-y-2">
+                      {allPlayers.map((player) => (
+                        <Button
+                          key={player}
+                          variant={selectedPlayer === player ? 'default' : 'ghost'}
+                          className="w-full justify-start gap-2"
+                          onClick={() => setSelectedPlayer(player)}
+                        >
+                          <User size={16} weight={selectedPlayer === player ? 'fill' : 'regular'} />
+                          {player}
+                        </Button>
+                      ))}
+                    </div>
+                  </Card>
+                </div>
+
+                <div className="lg:col-span-3">
+                  {selectedPlayer ? (
+                    <PlayerStats playerName={selectedPlayer} playthroughs={playthroughs} />
+                  ) : (
+                    <Card className="p-12 text-center">
+                      <User size={48} weight="duotone" className="mx-auto mb-4 text-muted-foreground" />
+                      <p className="text-muted-foreground">
+                        Select a player to view their statistics and campaign history
+                      </p>
+                    </Card>
+                  )}
+                </div>
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
       </main>
 
       <PlaythroughForm

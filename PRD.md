@@ -47,8 +47,16 @@ A campaign playthrough tracker for Arkham Horror: The Card Game that allows play
 - **Progression**: Click edit → Same form as creation pre-filled with existing data → Modify → Save / Click delete → Confirm → Entry removed
 - **Success criteria**: Changes persist, deletion requires confirmation, UI updates immediately
 
+### View Player Statistics
+- **Functionality**: Browse all players who have been logged in playthroughs and view detailed statistics for each player including campaigns played, investigators used, and favorite classes
+- **Purpose**: Allow players to see their own gaming history and track which campaigns they've experienced and characters they've played
+- **Trigger**: User switches to the "Players" tab
+- **Progression**: Click "Players" tab → View list of all unique players → Select a player → View player statistics dashboard showing: total games played, number of unique investigators used, favorite class (most played archetype), complete list of investigators they've played, chronological campaign history with investigator and archetype details for each game
+- **Success criteria**: All players with logged names appear in the list, statistics accurately reflect playthrough data, campaign history is sorted chronologically (newest first), empty states guide users when no player data exists
+
 ## Edge Case Handling
 
+- **Missing player names**: Players without names are excluded from the player statistics view; playthroughs still appear in main log
 - **Fan-made campaigns**: Allow free-text entry for campaign names when Fan-Made type is selected
 - **Dual-class investigators**: Investigators like Agatha Crane who can be either Seeker or Mystic show a class selector; single-class investigators auto-assign their class
 - **Full campaign vs. standalone**: Separate dropdowns for full campaigns and standalone scenarios for better organization and findability
@@ -56,6 +64,7 @@ A campaign playthrough tracker for Arkham Horror: The Card Game that allows play
 - **Duplicate investigators**: Multiple players can select the same investigator (helpful for tracking different builds or repeated favorites)
 - **Very long campaign or player names**: Truncate with ellipsis, show full name on hover
 - **No playthroughs yet**: Show welcoming empty state with prominent "Log Your First Game" call-to-action
+- **No players logged**: Show helpful message explaining that player names need to be added when logging games
 - **Many playthroughs (100+)**: Virtual scrolling or pagination to maintain performance
 - **Browser back button**: Standard navigation, no special handling needed for this SPA
 
@@ -100,12 +109,14 @@ Animations should feel like turning pages in a journal or placing cards on a tab
 ## Component Selection
 
 - **Components**: 
+  - Tabs for switching between "All Games" and "Players" views
   - Dialog for add/edit playthrough forms with form fields for all optional inputs
   - Command (searchable combobox) for investigator selection with autocomplete
   - Select dropdown for campaign selection from comprehensive list
   - Card components for each playthrough entry with subtle hover states (border color shift, shadow increase)
+  - Card components for player statistics showing key metrics (total games, investigators used, favorite class)
   - Badge components for archetype tags with archetype-specific colors (Guardian: blue, Seeker: orange, Rogue: green, Mystic: purple, Survivor: red, Neutral: grey)
-  - Button with primary variant for "Log New Game", ghost variants for filters
+  - Button with primary variant for "Log New Game", ghost variants for filters and player list
   - Select dropdowns for dual-class investigator class selection and campaign types
   - Input fields for player names and custom campaign names
   - Separator for visual organization between sections
@@ -132,8 +143,10 @@ Animations should feel like turning pages in a journal or placing cards on a tab
   - Funnel/FunnelSimple for filter toggle
   - X for clear filters
   - Calendar or Clock for dates
-  - Users or UsersThree for players
+  - Users or UsersThree for players/investigators count
+  - User for individual player
   - BookOpen or Notebook for campaigns
+  - Briefcase for total games metric
 
 - **Spacing**: 
   - Page padding: p-6 (24px)
@@ -144,8 +157,8 @@ Animations should feel like turning pages in a journal or placing cards on a tab
   - Badge gaps: gap-2 (8px)
 
 - **Mobile**: 
-  - Desktop: Two-column card grid for playthroughs, filters in horizontal row
-  - Tablet: Single column cards, filters remain horizontal but may wrap
-  - Mobile: Full-width stacked cards, filters convert to scrollable horizontal chips, dialog forms become full-screen sheets
+  - Desktop: Two-column card grid for playthroughs, filters in horizontal row, player list as sidebar with stats panel
+  - Tablet: Single column cards, filters remain horizontal but may wrap, player list stacks above stats
+  - Mobile: Full-width stacked cards, filters convert to scrollable horizontal chips, dialog forms become full-screen sheets, tabs for switching between games and players
   - Touch targets: Minimum 44x44px for all interactive elements
   - Bottom sheet for add/edit on mobile instead of centered dialog
