@@ -35,8 +35,50 @@ export const CAMPAIGNS: Campaign[] = [
   { name: 'Against the Wendigo', set: 'Fan-Made' },
 ]
 
+const RELEASE_ORDER = [
+  'The Night of the Zealot',
+  'Curse of the Rougarou',
+  'The Dunwich Legacy',
+  'Carnevale of Horrors',
+  'The Path to Carcosa',
+  'The Labyrinths of Lunacy',
+  'The Forgotten Age',
+  'The Circle Undone',
+  'Return to The Night of the Zealot',
+  'Return to The Dunwich Legacy',
+  'The Dream-Eaters',
+  'Murder at the Excelsior Hotel',
+  'Return to The Path to Carcosa',
+  'The Innsmouth Conspiracy',
+  'Return to The Forgotten Age',
+  'The Blob That Ate Everything',
+  'Edge of the Earth',
+  'Return to The Circle Undone',
+  'The Scarlet Keys',
+  'War of the Outer Gods',
+  'Machinations Through Time',
+  'The Feast of Hemlock Vale',
+  'Fortune and Folly',
+  'The Midwinter Gala',
+  'The Drowned City',
+  'Film Fatale',
+  'Guardians of the Abyss',
+  'Barkham Horror: The Meddling of Meowlathotep',
+]
+
 export function getAllCampaignNames(): string[] {
-  return CAMPAIGNS.filter(c => c.set !== 'Fan-Made').map(c => c.name).sort()
+  const officialCampaigns = CAMPAIGNS.filter(c => c.set !== 'Fan-Made')
+  
+  return officialCampaigns.sort((a, b) => {
+    const indexA = RELEASE_ORDER.indexOf(a.name)
+    const indexB = RELEASE_ORDER.indexOf(b.name)
+    
+    if (indexA === -1 && indexB === -1) return a.name.localeCompare(b.name)
+    if (indexA === -1) return 1
+    if (indexB === -1) return -1
+    
+    return indexA - indexB
+  }).map(c => c.name)
 }
 
 export function getCampaignSet(campaignName: string): string {
