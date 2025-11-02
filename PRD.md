@@ -13,18 +13,18 @@ A campaign playthrough tracker for Arkham Horror: The Card Game that allows play
 ## Essential Features
 
 ### Log a Playthrough
-- **Functionality**: Create a new campaign playthrough record with optional fields for campaign name, campaign type, players, and investigator assignments
-- **Purpose**: Capture gaming memories while they're fresh, without forcing users to fill out every field
+- **Functionality**: Create a new campaign playthrough record with campaign selection from official sets or custom fan-made campaigns, players, and investigator assignments
+- **Purpose**: Capture gaming memories with accurate campaign information from the official product catalog
 - **Trigger**: User clicks "Log New Game" button
-- **Progression**: Click "Log New Game" → Modal/form appears → Fill in any combination of: campaign name, type (official/side story/fan-made), player names, investigator selections with archetypes → Save → Returns to log list with new entry visible
-- **Success criteria**: Record persists between sessions, displays in the main list, all fields are optional and can be left blank
+- **Progression**: Click "Log New Game" → Modal/form appears → Select campaign type (Official/Fan-Made) → If Official: Select campaign set (Core, The Dunwich Legacy, etc.) then select specific campaign → If Fan-Made: Enter custom campaign name → Add player names, investigator selections with archetypes → Save → Returns to log list with new entry visible
+- **Success criteria**: Record persists between sessions, displays in the main list with accurate campaign and set information, fan-made campaigns allow free-text entry
 
 ### View Playthrough History
-- **Functionality**: Display all logged playthroughs in a scannable list/card format showing campaign, date, players, and investigators
-- **Purpose**: Allow users to reminisce and see their gaming history at a glance
+- **Functionality**: Display all logged playthroughs in a scannable card format showing campaign name, set (for official campaigns), campaign type, date, players, and investigators
+- **Purpose**: Allow users to reminisce and see their gaming history at a glance with complete campaign context
 - **Trigger**: Default view on app load
-- **Progression**: App loads → Displays list of all playthroughs sorted by date (newest first) → Each entry shows available information (campaign, players, investigators with archetypes)
-- **Success criteria**: All logged games appear, empty fields don't break layout, dates are human-readable
+- **Progression**: App loads → Displays list of all playthroughs sorted by date (newest first) → Each entry shows campaign name, set badge (if official), campaign type, players, and investigators with archetypes
+- **Success criteria**: All logged games appear with proper campaign metadata, dates are human-readable, set badges display for official campaigns
 
 ### Filter by Archetype
 - **Functionality**: Filter playthrough list to show only games where specific archetypes (Guardian, Survivor, Seeker, Rogue, Mystic, Neutral) were played
@@ -34,10 +34,10 @@ A campaign playthrough tracker for Arkham Horror: The Card Game that allows play
 - **Success criteria**: Filtering is instant, multiple selections work as OR logic, empty states show helpful message
 
 ### Filter by Campaign Type
-- **Functionality**: Filter to show official campaigns, side stories, or fan-made content separately
-- **Purpose**: Distinguish between full campaign experiences and one-off scenarios
+- **Functionality**: Filter to show official campaigns or fan-made content separately
+- **Purpose**: Distinguish between official products and community content
 - **Trigger**: User selects campaign type filter
-- **Progression**: View playthrough list → Select type filter → List updates → Can combine with archetype filters
+- **Progression**: View playthrough list → Select type filter (Official/Fan-Made) → List updates → Can combine with archetype filters
 - **Success criteria**: Filters work together, clear indication of active filters
 
 ### Edit/Delete Playthroughs
@@ -49,9 +49,10 @@ A campaign playthrough tracker for Arkham Horror: The Card Game that allows play
 
 ## Edge Case Handling
 
-- **Completely empty playthrough**: Allow saving with just a date - sometimes you remember playing but nothing else
+- **Fan-made campaigns**: Allow free-text entry for campaign names when Fan-Made type is selected
+- **Official campaign sets**: Cascade selection ensures valid set/campaign combinations based on official product catalog
 - **Duplicate investigators**: Multiple players can select the same investigator (helpful for tracking different builds or repeated favorites)
-- **Very long player names or investigator names**: Truncate with ellipsis, show full name on hover
+- **Very long campaign or player names**: Truncate with ellipsis, show full name on hover
 - **No playthroughs yet**: Show welcoming empty state with prominent "Log Your First Game" call-to-action
 - **Many playthroughs (100+)**: Virtual scrolling or pagination to maintain performance
 - **Browser back button**: Standard navigation, no special handling needed for this SPA

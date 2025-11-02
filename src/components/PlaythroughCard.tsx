@@ -13,22 +13,29 @@ interface PlaythroughCardProps {
 }
 
 export function PlaythroughCard({ playthrough, onEdit, onDelete }: PlaythroughCardProps) {
+  const displayName = playthrough.campaignType === 'Fan-Made' 
+    ? playthrough.customCampaignName || playthrough.campaignName
+    : playthrough.campaignName
+
   return (
     <Card className="p-6 hover:border-accent transition-all duration-200 hover:shadow-lg group">
       <div className="flex flex-col gap-4">
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
             <h3 className="text-xl font-semibold mb-1 truncate">
-              {playthrough.campaignName || 'Untitled Campaign'}
+              {displayName || 'Untitled Campaign'}
             </h3>
             <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
               <div className="flex items-center gap-1">
                 <Clock size={16} weight="duotone" />
                 <span>{formatDate(playthrough.date)}</span>
               </div>
-              {playthrough.campaignType && (
-                <Badge variant="secondary" className="text-xs">
-                  {playthrough.campaignType}
+              <Badge variant="secondary" className="text-xs">
+                {playthrough.campaignType}
+              </Badge>
+              {playthrough.campaignSet && (
+                <Badge variant="outline" className="text-xs">
+                  {playthrough.campaignSet}
                 </Badge>
               )}
             </div>

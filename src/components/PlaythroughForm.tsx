@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Playthrough, InvestigatorAssignment, CAMPAIGN_TYPES, ARCHETYPES, Archetype, CampaignType } from '@/lib/types'
+import { SET_NAMES, getCampaignsForSet } from '@/lib/campaign-data'
 import { Plus, Trash } from '@phosphor-icons/react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 
@@ -16,21 +17,39 @@ interface PlaythroughFormProps {
 }
 
 export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }: PlaythroughFormProps) {
+  const [campaignType, setCampaignType] = useState<CampaignType>('Official')
+  const [campaignSet, setCampaignSet] = useState('')
   const [campaignName, setCampaignName] = useState('')
-  const [campaignType, setCampaignType] = useState<CampaignType | ''>('')
+  const [customCampaignName, setCustomCampaignName] = useState('')
   const [investigators, setInvestigators] = useState<InvestigatorAssignment[]>([])
 
   useEffect(() => {
     if (editPlaythrough) {
-      setCampaignName(editPlaythrough.campaignName || '')
-      setCampaignType(editPlaythrough.campaignType || '')
+      setCampaignType(editPlaythrough.campaignType)
+      setCampaignSet(editPlaythrough.campaignSet || '')
+      setCampaignName(editPlaythrough.campaignName)
+      setCustomCampaignName(editPlaythrough.customCampaignName || '')
       setInvestigators(editPlaythrough.investigators)
     } else {
+      setCampaignType('Official')
+      setCampaignSet('')
       setCampaignName('')
-      setCampaignType('')
+      setCustomCampaignName('')
       setInvestigators([])
     }
   }, [editPlaythrough, open])
+
+  const handleCampaignTypeChange = (value: CampaignType) => {
+    setCampaignType(value)
+    setCampaignSet('')
+    setCampaignName('')
+    setCustomCampaignName('')
+  }
+
+  const handleCampaignSetChange = (value: string) => {
+    setCampaignSet(value)
+    setCampaignName('')
+  }
 
   const handleAddInvestigator = () => {
     setInvestigators([
@@ -50,17 +69,28 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
   }
 
   const handleSubmit = () => {
+    const finalCampaignName = campaignType === 'Fan-Made' ? customCampaignName : campaignName
+    
+    if (!finalCampaignName.trim()) return
+
     const playthroughData = {
       ...(editPlaythrough ? { id: editPlaythrough.id } : {}),
       date: editPlaythrough?.date || new Date().toISOString(),
-      ...(campaignName && { campaignName }),
-      ...(campaignType && { campaignType }),
+      campaignType,
+      campaignName: finalCampaignName,
+      ...(campaignType === 'Official' && campaignSet && { campaignSet }),
+      ...(campaignType === 'Fan-Made' && { customCampaignName }),
       investigators: investigators.filter(inv => inv.investigatorName.trim() !== '')
     }
 
     onSave(playthroughData as Playthrough)
     onOpenChange(false)
   }
+
+  const availableCampaigns = campaignSet ? getCampaignsForSet(campaignSet) : []
+  const isFormValid = campaignType === 'Fan-Made' 
+    ? customCampaignName.trim() !== ''
+    : campaignName.trim() !== ''
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -74,20 +104,10 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
         <ScrollArea className="max-h-[60vh] pr-4">
           <div className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="campaign-name">Campaign Name</Label>
-              <Input
-                id="campaign-name"
-                placeholder="e.g., The Dunwich Legacy"
-                value={campaignName}
-                onChange={(e) => setCampaignName(e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-2">
               <Label htmlFor="campaign-type">Campaign Type</Label>
-              <Select value={campaignType} onValueChange={(value) => setCampaignType(value as CampaignType)}>
+              <Select value={campaignType} onValueChange={handleCampaignTypeChange}>
                 <SelectTrigger id="campaign-type">
-                  <SelectValue placeholder="Select type (optional)" />
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {CAMPAIGN_TYPES.map((type) => (
@@ -98,6 +118,54 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
                 </SelectContent>
               </Select>
             </div>
+
+            {campaignType === 'Official' ? (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="campaign-set">Campaign Set</Label>
+                  <Select value={campaignSet} onValueChange={handleCampaignSetChange}>
+                    <SelectTrigger id="campaign-set">
+                      <SelectValue placeholder="Select a set" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SET_NAMES.map((setName) => (
+                        <SelectItem key={setName} value={setName}>
+                          {setName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {campaignSet && (
+                  <div className="space-y-2">
+                    <Label htmlFor="campaign-name">Campaign</Label>
+                    <Select value={campaignName} onValueChange={setCampaignName}>
+                      <SelectTrigger id="campaign-name">
+                        <SelectValue placeholder="Select a campaign" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableCampaigns.map((campaign) => (
+                          <SelectItem key={campaign} value={campaign}>
+                            {campaign}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="space-y-2">
+                <Label htmlFor="custom-campaign-name">Campaign Name</Label>
+                <Input
+                  id="custom-campaign-name"
+                  placeholder="Enter custom campaign name"
+                  value={customCampaignName}
+                  onChange={(e) => setCustomCampaignName(e.target.value)}
+                />
+              </div>
+            )}
 
             <div className="space-y-4">
               <div className="flex items-center justify-between">
@@ -189,7 +257,7 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit}>
+          <Button onClick={handleSubmit} disabled={!isFormValid}>
             {editPlaythrough ? 'Save Changes' : 'Log Game'}
           </Button>
         </DialogFooter>

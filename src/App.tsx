@@ -31,7 +31,7 @@ function App() {
       }
 
       if (selectedCampaignTypes.length > 0) {
-        if (!playthrough.campaignType || !selectedCampaignTypes.includes(playthrough.campaignType)) {
+        if (!selectedCampaignTypes.includes(playthrough.campaignType)) {
           return false
         }
       }
