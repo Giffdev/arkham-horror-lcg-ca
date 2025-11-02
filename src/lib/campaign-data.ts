@@ -16,12 +16,12 @@ export const FULL_CAMPAIGNS: Campaign[] = [
   { name: 'The Scarlet Keys', set: 'The Scarlet Keys', type: 'Full Campaign' },
   { name: 'The Feast of Hemlock Vale', set: 'The Feast of Hemlock Vale', type: 'Full Campaign' },
   { name: 'The Drowned City', set: 'The Drowned City', type: 'Full Campaign' },
-  { name: 'Barkham Horror: The Meddling of Meowlathotep', set: 'Barkham Horror', type: 'Full Campaign' },
   { name: 'Return to The Night of the Zealot', set: 'Return to The Night of the Zealot', type: 'Full Campaign' },
   { name: 'Return to The Dunwich Legacy', set: 'Return to The Dunwich Legacy', type: 'Full Campaign' },
   { name: 'Return to The Path to Carcosa', set: 'Return to The Path to Carcosa', type: 'Full Campaign' },
   { name: 'Return to The Forgotten Age', set: 'Return to The Forgotten Age', type: 'Full Campaign' },
   { name: 'Return to The Circle Undone', set: 'Return to The Circle Undone', type: 'Full Campaign' },
+  { name: 'Barkham Horror: The Meddling of Meowlathotep', set: 'Barkham Horror', type: 'Full Campaign' },
 ]
 
 export const STANDALONE_SCENARIOS: Campaign[] = [
