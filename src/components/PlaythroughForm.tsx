@@ -113,51 +113,53 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
 
         <ScrollArea className="max-h-[60vh] pr-4">
           <div className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="campaign-type">Campaign Type</Label>
-              <Select value={campaignType} onValueChange={handleCampaignTypeChange}>
-                <SelectTrigger id="campaign-type">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {CAMPAIGN_TYPES.map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {type}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {campaignType === 'Official' ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="campaign-name">Campaign</Label>
-                <Select value={campaignName} onValueChange={setCampaignName}>
-                  <SelectTrigger id="campaign-name">
-                    <SelectValue placeholder="Select a campaign" />
+                <Label htmlFor="campaign-type">Campaign Type</Label>
+                <Select value={campaignType} onValueChange={handleCampaignTypeChange}>
+                  <SelectTrigger id="campaign-type">
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <ScrollArea className="h-72">
-                      {availableCampaigns.map((campaign) => (
-                        <SelectItem key={campaign} value={campaign}>
-                          {campaign}
-                        </SelectItem>
-                      ))}
-                    </ScrollArea>
+                    {CAMPAIGN_TYPES.map((type) => (
+                      <SelectItem key={type} value={type}>
+                        {type}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
-            ) : (
-              <div className="space-y-2">
-                <Label htmlFor="custom-campaign-name">Campaign Name</Label>
-                <Input
-                  id="custom-campaign-name"
-                  placeholder="Enter custom campaign name"
-                  value={customCampaignName}
-                  onChange={(e) => setCustomCampaignName(e.target.value)}
-                />
-              </div>
-            )}
+
+              {campaignType === 'Official' ? (
+                <div className="space-y-2">
+                  <Label htmlFor="campaign-name">Campaign</Label>
+                  <Select value={campaignName} onValueChange={setCampaignName}>
+                    <SelectTrigger id="campaign-name">
+                      <SelectValue placeholder="Select a campaign" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <ScrollArea className="h-72">
+                        {availableCampaigns.map((campaign) => (
+                          <SelectItem key={campaign} value={campaign}>
+                            {campaign}
+                          </SelectItem>
+                        ))}
+                      </ScrollArea>
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label htmlFor="custom-campaign-name">Campaign Name</Label>
+                  <Input
+                    id="custom-campaign-name"
+                    placeholder="Enter custom campaign name"
+                    value={customCampaignName}
+                    onChange={(e) => setCustomCampaignName(e.target.value)}
+                  />
+                </div>
+              )}
+            </div>
 
             <div className="space-y-4">
               <div className="flex items-center justify-between">
