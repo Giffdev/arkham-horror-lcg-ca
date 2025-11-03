@@ -4,8 +4,10 @@
   }
   
   h1 {
-    font-family: 'UnifrakturMaguntia', cursive;
-    font-weight: 400;
+    font-family: 'Teko', sans-serif;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
   }
   
   h2, h3, h4, h5, h6 {

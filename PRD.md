@@ -93,10 +93,10 @@ Custom palette inspired by Arkham Horror's atmospheric noir aesthetic with vinta
 
 ## Font Selection
 
-Typography should balance readability with period atmosphere - a clean sans-serif for UI clarity paired with gothic/blackletter touches for authentic Arkham Horror LCG flavor.
+Typography should balance readability with period atmosphere - a clean sans-serif for UI clarity paired with a condensed display font that echoes Arkham Horror LCG's title treatment.
 
 - **Typographic Hierarchy**:
-  - H1 (Page Title): UnifrakturMaguntia Regular / 32px / normal letter-spacing (Gothic blackletter font matching Arkham Horror LCG's distinctive title treatment)
+  - H1 (Page Title): Teko Semi-Bold / 32px / 0.02em letter-spacing / uppercase (Condensed sans-serif matching Arkham Horror LCG's card title style)
   - H2 (Section Headers): Crimson Text Semi-Bold / 24px / normal letter-spacing
   - H3 (Card Titles): Inter Semi-Bold / 18px / -0.01em letter-spacing
   - Body (Content): Inter Regular / 15px / 1.6 line-height
