@@ -37,7 +37,9 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
       setCampaignType(editPlaythrough.campaignType)
       setCampaignName(editPlaythrough.campaignName === 'Unknown Campaign' ? '' : editPlaythrough.campaignName)
       setCustomCampaignName(editPlaythrough.customCampaignName || '')
-      setSideStories(editPlaythrough.sideStories || [])
+      const stories = editPlaythrough.sideStories || []
+      setSideStories(stories)
+      setSideStoriesOpen(stories.length > 0)
       setInvestigators(editPlaythrough.investigators.map(inv => ({
         ...inv,
         isUnknown: inv.isUnknown || inv.investigatorName === 'Unknown' || inv.archetype === 'Unknown',
@@ -50,6 +52,7 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
       setCampaignName('')
       setCustomCampaignName('')
       setSideStories([])
+      setSideStoriesOpen(false)
       setInvestigators([{ playerName: '', investigatorName: '', archetype: 'Unknown', isUnknown: false, isCustom: false, investigatorSet: undefined }])
     }
   }, [editPlaythrough, open])
@@ -370,21 +373,21 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
             </div>
 
             {campaignType === 'Full Campaign' && campaignName && (
-              <div className="space-y-3">
+              <div className="space-y-3 p-4 border rounded-lg bg-card/50">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Sparkle size={18} weight="duotone" className="text-accent" />
-                    <Label>Side Stories ({sideStories.length})</Label>
+                    <Label className="text-base font-semibold">Side Stories ({sideStories.length})</Label>
                   </div>
                   <Button 
-                    variant="ghost" 
+                    variant="outline" 
                     size="sm" 
                     className="gap-2"
                     onClick={() => setSideStoriesOpen(!sideStoriesOpen)}
                     type="button"
                   >
                     {sideStoriesOpen ? 'Hide' : 'Show'}
-                    <CaretUpDown size={16} />
+                    <CaretUpDown size={16} className={cn("transition-transform", sideStoriesOpen && "rotate-180")} />
                   </Button>
                 </div>
 
