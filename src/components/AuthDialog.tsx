@@ -7,6 +7,7 @@ import { Separator } from '@/components/ui/separator'
 import { createAccount, signIn, setCurrentSession, User, signInWithGoogle, signInWithMicrosoft } from '@/lib/auth'
 import { toast } from 'sonner'
 import { Eye, EyeSlash } from '@phosphor-icons/react'
+import { PasswordResetDialog } from '@/components/PasswordResetDialog'
 
 interface AuthDialogProps {
   open: boolean
@@ -22,6 +23,7 @@ export function AuthDialog({ open, onOpenChange, onSuccess }: AuthDialogProps) {
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [resetDialogOpen, setResetDialogOpen] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -220,6 +222,23 @@ export function AuthDialog({ open, onOpenChange, onSuccess }: AuthDialogProps) {
               </div>
             </div>
           )}
+          
+          {mode === 'signin' && (
+            <div className="flex justify-end">
+              <Button
+                type="button"
+                variant="link"
+                className="text-xs px-0 h-auto text-primary hover:text-primary/80"
+                onClick={() => {
+                  onOpenChange(false)
+                  setResetDialogOpen(true)
+                }}
+              >
+                Forgot password?
+              </Button>
+            </div>
+          )}
+
           <div className="flex flex-col gap-3 pt-2">
             <Button type="submit" disabled={loading} className="w-full">
               {loading ? 'Please wait...' : mode === 'signin' ? 'Sign In' : 'Create Account'}
@@ -284,6 +303,15 @@ export function AuthDialog({ open, onOpenChange, onSuccess }: AuthDialogProps) {
         </div>
 
       </DialogContent>
+
+      <PasswordResetDialog
+        open={resetDialogOpen}
+        onOpenChange={setResetDialogOpen}
+        onBackToSignIn={() => {
+          setResetDialogOpen(false)
+          onOpenChange(true)
+        }}
+      />
     </Dialog>
   )
 }

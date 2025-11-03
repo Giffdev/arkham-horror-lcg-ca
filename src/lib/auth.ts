@@ -290,3 +290,105 @@ export const signInWithMicrosoft = async (): Promise<{ success: boolean; error?:
     return { success: false, error: 'An unexpected error occurred' }
   }
 }
+
+interface PasswordResetToken {
+  email: string
+  token: string
+  expiresAt: number
+  used: boolean
+}
+
+const generateResetToken = (): string => {
+  const array = new Uint8Array(32)
+  crypto.getRandomValues(array)
+  return Array.from(array).map(b => b.toString(16).padStart(2, '0')).join('')
+}
+
+export const requestPasswordReset = async (email: string): Promise<{ success: boolean; error?: string; token?: string }> => {
+  const normalizedEmail = email.toLowerCase().trim()
+  
+  if (!normalizedEmail) {
+    return { success: false, error: 'Email is required' }
+  }
+  
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+    return { success: false, error: 'Invalid email address' }
+  }
+  
+  const user = await spark.kv.get<User>(`user:${normalizedEmail}`)
+  if (!user) {
+    return { success: true }
+  }
+  
+  if (user.authProvider !== 'email') {
+    return { success: false, error: `This account uses ${user.authProvider} authentication. Please sign in with ${user.authProvider}.` }
+  }
+  
+  const token = generateResetToken()
+  const resetData: PasswordResetToken = {
+    email: normalizedEmail,
+    token,
+    expiresAt: Date.now() + (15 * 60 * 1000),
+    used: false
+  }
+  
+  await spark.kv.set(`password-reset:${normalizedEmail}`, resetData)
+  
+  return { success: true, token }
+}
+
+export const validateResetToken = async (email: string, token: string): Promise<{ valid: boolean; error?: string }> => {
+  const normalizedEmail = email.toLowerCase().trim()
+  
+  const resetData = await spark.kv.get<PasswordResetToken>(`password-reset:${normalizedEmail}`)
+  
+  if (!resetData) {
+    return { valid: false, error: 'Invalid or expired reset link' }
+  }
+  
+  if (resetData.used) {
+    return { valid: false, error: 'This reset link has already been used' }
+  }
+  
+  if (Date.now() > resetData.expiresAt) {
+    await spark.kv.delete(`password-reset:${normalizedEmail}`)
+    return { valid: false, error: 'This reset link has expired. Please request a new one.' }
+  }
+  
+  if (resetData.token !== token) {
+    return { valid: false, error: 'Invalid reset link' }
+  }
+  
+  return { valid: true }
+}
+
+export const resetPassword = async (email: string, token: string, newPassword: string): Promise<{ success: boolean; error?: string }> => {
+  const normalizedEmail = email.toLowerCase().trim()
+  
+  if (!newPassword || newPassword.length < 8) {
+    return { success: false, error: 'Password must be at least 8 characters' }
+  }
+  
+  const validation = await validateResetToken(normalizedEmail, token)
+  if (!validation.valid) {
+    return { success: false, error: validation.error }
+  }
+  
+  const user = await spark.kv.get<User>(`user:${normalizedEmail}`)
+  if (!user) {
+    return { success: false, error: 'Account not found' }
+  }
+  
+  const salt = generateSalt()
+  const hashedPassword = await hashPassword(newPassword, salt)
+  
+  await spark.kv.set(`user:${normalizedEmail}:password`, { hash: hashedPassword, salt })
+  
+  const resetData = await spark.kv.get<PasswordResetToken>(`password-reset:${normalizedEmail}`)
+  if (resetData) {
+    resetData.used = true
+    await spark.kv.set(`password-reset:${normalizedEmail}`, resetData)
+  }
+  
+  return { success: true }
+}
