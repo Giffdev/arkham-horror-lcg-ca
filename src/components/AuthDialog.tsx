@@ -57,7 +57,14 @@ export function AuthDialog({ open, onOpenChange, onSuccess }: AuthDialogProps) {
           onOpenChange(false)
           resetForm()
         } else {
-          toast.error(result.error || 'Failed to sign in')
+          if (result.error?.includes('No account found')) {
+            toast.error('Account does not exist', {
+              description: 'Click the "Sign up" button below to create a new account.',
+              duration: 6000,
+            })
+          } else {
+            toast.error(result.error || 'Failed to sign in')
+          }
         }
       }
     } catch (error) {
