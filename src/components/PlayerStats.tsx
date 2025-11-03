@@ -142,8 +142,8 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
           <div className="space-y-3">
             {playerData.campaigns.map((campaign, idx) => (
               <Card key={idx} className="p-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="flex-1 min-w-0">
+                <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-4 items-start">
+                  <div className="min-w-0">
                     <h4 className="font-medium truncate">{campaign.name}</h4>
                     <div className="flex flex-wrap items-center gap-2 mt-2 text-sm text-muted-foreground">
                       <span>{formatDate(campaign.date)}</span>
@@ -157,18 +157,22 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <ArchetypeBadge archetype={campaign.investigator.archetype} />
-                    <span className="text-sm font-medium">
-                      {campaign.investigator.isUnknown || campaign.investigator.investigatorName === 'Unknown' 
-                        ? 'Unknown' 
-                        : campaign.investigator.investigatorName}
-                    </span>
-                    {campaign.investigator.investigatorSet && !campaign.investigator.isCustom && (
-                      <Badge variant="outline" className="text-xs">
-                        {getDisplaySetName(campaign.investigator.investigatorName, campaign.investigator.investigatorSet)}
-                      </Badge>
-                    )}
+                  <div className="flex items-center gap-2 lg:justify-end">
+                    <div className="w-20 flex justify-start">
+                      <ArchetypeBadge archetype={campaign.investigator.archetype} />
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-medium">
+                        {campaign.investigator.isUnknown || campaign.investigator.investigatorName === 'Unknown' 
+                          ? 'Unknown' 
+                          : campaign.investigator.investigatorName}
+                      </span>
+                      {campaign.investigator.investigatorSet && !campaign.investigator.isCustom && (
+                        <Badge variant="outline" className="text-xs">
+                          {getDisplaySetName(campaign.investigator.investigatorName, campaign.investigator.investigatorSet)}
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                 </div>
               </Card>
