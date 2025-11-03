@@ -91,22 +91,24 @@ export function PlaythroughCard({ playthrough, onEdit, onDelete }: PlaythroughCa
             </div>
             <div className="space-y-2">
               {playthrough.investigators.map((inv, idx) => (
-                <div key={idx} className="flex items-center gap-3 text-sm">
-                  <ArchetypeBadge archetype={inv.archetype} />
-                  <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
-                    <span className="font-medium">
-                      {inv.isUnknown || inv.investigatorName === 'Unknown' ? 'Unknown' : inv.investigatorName}
-                    </span>
-                    {inv.investigatorSet && !inv.isUnknown && inv.investigatorName !== 'Unknown' && (
-                      <Badge variant="outline" className="text-xs">
-                        {getDisplaySetName(inv.investigatorName, inv.investigatorSet)}
-                      </Badge>
-                    )}
-                    {inv.playerName && (
-                      <span className="text-muted-foreground">
-                        ({inv.playerName})
+                <div key={idx} className="flex items-start gap-3 text-sm">
+                  <ArchetypeBadge archetype={inv.archetype} className="mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-medium">
+                        {inv.isUnknown || inv.investigatorName === 'Unknown' ? 'Unknown' : inv.investigatorName}
                       </span>
-                    )}
+                      {inv.investigatorSet && !inv.isUnknown && inv.investigatorName !== 'Unknown' && (
+                        <Badge variant="outline" className="text-xs">
+                          {getDisplaySetName(inv.investigatorName, inv.investigatorSet)}
+                        </Badge>
+                      )}
+                      {inv.playerName && (
+                        <span className="text-muted-foreground">
+                          ({inv.playerName})
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
