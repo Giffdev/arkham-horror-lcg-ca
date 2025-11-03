@@ -36,10 +36,17 @@ function AuthenticatedApp({ currentUser, playthroughsKey, onSignOut }: Authentic
   const [selectedCampaignTypes, setSelectedCampaignTypes] = useState<CampaignType[]>([])
   const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null)
   const [isLoadingPlaythroughs, setIsLoadingPlaythroughs] = useState(true)
+  const [hasInitiallyLoaded, setHasInitiallyLoaded] = useState(false)
 
   useEffect(() => {
-    setIsLoadingPlaythroughs(false)
-  }, [playthroughs])
+    if (!hasInitiallyLoaded) {
+      const timer = setTimeout(() => {
+        setIsLoadingPlaythroughs(false)
+        setHasInitiallyLoaded(true)
+      }, 100)
+      return () => clearTimeout(timer)
+    }
+  }, [playthroughs, hasInitiallyLoaded])
 
   useEffect(() => {
     if (!playthroughs || playthroughs.length === 0) return
