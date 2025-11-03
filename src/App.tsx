@@ -211,7 +211,7 @@ function AuthenticatedApp({ currentUser, playthroughsKey, onSignOut }: Authentic
                     <span className="text-sm text-muted-foreground">{currentUser.email}</span>
                   </div>
                   <Button 
-                    variant="ghost" 
+                    variant="outline" 
                     size="sm"
                     onClick={onSignOut}
                     className="gap-2"
