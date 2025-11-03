@@ -20,6 +20,10 @@ export function PlaythroughCard({ playthrough, onEdit, onDelete }: PlaythroughCa
       ? 'Unknown Campaign'
       : playthrough.campaignName
 
+  const displaySetName = playthrough.campaignType === 'Standalone'
+    ? playthrough.campaignName
+    : playthrough.campaignSet
+
   return (
     <Card className="p-6 hover:border-accent transition-all duration-200 hover:shadow-lg group">
       <div className="flex flex-col gap-4">
@@ -36,9 +40,9 @@ export function PlaythroughCard({ playthrough, onEdit, onDelete }: PlaythroughCa
               <Badge variant="secondary" className="text-xs">
                 {playthrough.campaignType}
               </Badge>
-              {playthrough.campaignSet && (
+              {displaySetName && (
                 <Badge variant="outline" className="text-xs">
-                  {playthrough.campaignSet}
+                  {displaySetName}
                 </Badge>
               )}
             </div>
