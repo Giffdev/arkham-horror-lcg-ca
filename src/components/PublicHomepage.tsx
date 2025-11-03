@@ -202,59 +202,6 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {stats.topSideScenarios.length > 0 && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-foreground">Most Included Side Scenarios</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-3">
-                        {stats.topSideScenarios.map((scenario, index) => (
-                          <div key={scenario.name} className="flex items-center justify-between">
-                            <div className="flex items-center gap-2 min-w-0 flex-1">
-                              <span className="text-muted-foreground font-mono text-sm flex-shrink-0">
-                                #{index + 1}
-                              </span>
-                              <span className="font-medium text-foreground truncate">{scenario.name}</span>
-                            </div>
-                            <span className="text-muted-foreground ml-2 flex-shrink-0">
-                              {scenario.count} {scenario.count === 1 ? 'time' : 'times'}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {stats.topStandalones.length > 0 && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-foreground">Most Played Stand Alones</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-3">
-                        {stats.topStandalones.map((standalone, index) => (
-                          <div key={standalone.name} className="flex items-center justify-between">
-                            <div className="flex items-center gap-2 min-w-0 flex-1">
-                              <span className="text-muted-foreground font-mono text-sm flex-shrink-0">
-                                #{index + 1}
-                              </span>
-                              {standalone.set && <CampaignIcon campaignSet={standalone.set} />}
-                              <span className="font-medium text-foreground truncate">{standalone.name}</span>
-                            </div>
-                            <span className="text-muted-foreground ml-2 flex-shrink-0">
-                              {standalone.count} {standalone.count === 1 ? 'play' : 'plays'}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-foreground">Most Played Campaigns</CardTitle>
@@ -306,6 +253,59 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
                     </div>
                   </CardContent>
                 </Card>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {stats.topSideScenarios.length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-foreground">Most Included Side Scenarios</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {stats.topSideScenarios.map((scenario, index) => (
+                          <div key={scenario.name} className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                              <span className="text-muted-foreground font-mono text-sm flex-shrink-0">
+                                #{index + 1}
+                              </span>
+                              <span className="font-medium text-foreground truncate">{scenario.name}</span>
+                            </div>
+                            <span className="text-muted-foreground ml-2 flex-shrink-0">
+                              {scenario.count} {scenario.count === 1 ? 'time' : 'times'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {stats.topStandalones.length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-foreground">Most Played Stand Alones</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {stats.topStandalones.map((standalone, index) => (
+                          <div key={standalone.name} className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                              <span className="text-muted-foreground font-mono text-sm flex-shrink-0">
+                                #{index + 1}
+                              </span>
+                              {standalone.set && <CampaignIcon campaignSet={standalone.set} />}
+                              <span className="font-medium text-foreground truncate">{standalone.name}</span>
+                            </div>
+                            <span className="text-muted-foreground ml-2 flex-shrink-0">
+                              {standalone.count} {standalone.count === 1 ? 'play' : 'plays'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
               </div>
 
               <div className="text-center pt-6">
