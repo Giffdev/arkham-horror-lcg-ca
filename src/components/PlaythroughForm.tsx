@@ -258,6 +258,12 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
                                   key={campaign}
                                   value={campaign}
                                   onSelect={() => handleCampaignNameChange(campaign)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Tab') {
+                                      e.preventDefault()
+                                      handleCampaignNameChange(campaign)
+                                    }
+                                  }}
                                 >
                                   <Check
                                     className={cn(
@@ -302,6 +308,12 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
                                   key={campaign}
                                   value={campaign}
                                   onSelect={() => handleCampaignNameChange(campaign)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Tab') {
+                                      e.preventDefault()
+                                      handleCampaignNameChange(campaign)
+                                    }
+                                  }}
                                 >
                                   <Check
                                     className={cn(
@@ -546,6 +558,13 @@ function InvestigatorFormItem({ index, investigator, availableInvestigators, onU
                             onSelect={() => {
                               onUpdate(index, 'investigatorName', name)
                               setInvestigatorSearchOpen(false)
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Tab') {
+                                e.preventDefault()
+                                onUpdate(index, 'investigatorName', name)
+                                setInvestigatorSearchOpen(false)
+                              }
                             }}
                           >
                             <Check
