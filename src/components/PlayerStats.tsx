@@ -3,9 +3,9 @@ import { Playthrough, Archetype } from '@/lib/types'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ArchetypeBadge } from './ArchetypeBadge'
-import { User, UsersThree, Check, X, Funnel, Book, ClockCounterClockwise } from '@phosphor-icons/react'
+import { User, UsersThree, Check, X, Funnel, Book, ClockCounterClockwise, ArrowSquareOut } from '@phosphor-icons/react'
 import { formatDate } from '@/lib/date-utils'
-import { getDisplaySetName, INVESTIGATORS } from '@/lib/investigator-data'
+import { getDisplaySetName, INVESTIGATORS, getArkhamDBUrl } from '@/lib/investigator-data'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
@@ -224,6 +224,16 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
           }
         }
       })
+      .map(inv => {
+        const displayArchetypes = selectedArchetypes.length > 0
+          ? inv.archetypes.filter(archetype => selectedArchetypes.includes(archetype))
+          : inv.archetypes
+        
+        return {
+          ...inv,
+          archetypes: displayArchetypes
+        }
+      })
       .sort((a, b) => a.name.localeCompare(b.name))
 
     return { playedInvestigators: playedList, unplayedInvestigators: unplayedList }
@@ -262,11 +272,6 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
                       <Badge variant="outline" className="text-xs h-5">
                         {data.type}
                       </Badge>
-                      {data.set && data.set !== 'Unknown' && (
-                        <Badge variant="secondary" className="text-xs h-5">
-                          {data.set}
-                        </Badge>
-                      )}
                     </div>
                   </div>
                   <Badge variant="default" className="ml-2 shrink-0 text-xs">
@@ -434,10 +439,20 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {playedInvestigators.map((investigator) => (
-                <Card key={investigator.name} className="p-3">
+                <Card key={investigator.name} className="p-3 group relative hover:border-accent transition-colors">
+                  <a 
+                    href={getArkhamDBUrl(investigator.name)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="absolute inset-0 z-10"
+                    aria-label={`View ${investigator.name} on ArkhamDB`}
+                  />
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
-                      <h4 className="font-medium text-sm truncate">{investigator.name}</h4>
+                      <div className="flex items-start gap-2">
+                        <h4 className="font-medium text-sm truncate flex-1">{investigator.name}</h4>
+                        <ArrowSquareOut size={16} className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+                      </div>
                       <p className="text-xs text-muted-foreground mt-1">{investigator.set}</p>
                       <div className="flex flex-wrap gap-1 mt-2">
                         {investigator.archetypes.map(archetype => (
@@ -445,7 +460,7 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
                         ))}
                       </div>
                     </div>
-                    <Badge variant="secondary" className="shrink-0">
+                    <Badge variant="secondary" className="shrink-0 relative z-20">
                       ×{investigator.count}
                     </Badge>
                   </div>
@@ -468,10 +483,20 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {unplayedInvestigators.map((investigator) => (
-                <Card key={investigator.name} className="p-3">
+                <Card key={investigator.name} className="p-3 group relative hover:border-accent transition-colors">
+                  <a 
+                    href={getArkhamDBUrl(investigator.name)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="absolute inset-0 z-10"
+                    aria-label={`View ${investigator.name} on ArkhamDB`}
+                  />
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
-                      <h4 className="font-medium text-sm truncate">{investigator.name}</h4>
+                      <div className="flex items-start gap-2">
+                        <h4 className="font-medium text-sm truncate flex-1">{investigator.name}</h4>
+                        <ArrowSquareOut size={16} className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+                      </div>
                       <p className="text-xs text-muted-foreground mt-1">{investigator.set}</p>
                       <div className="flex flex-wrap gap-1 mt-2">
                         {investigator.archetypes.map(archetype => (

@@ -7,6 +7,7 @@ import { PlaythroughForm } from '@/components/PlaythroughForm'
 import { EmptyState } from '@/components/EmptyState'
 import { Filters } from '@/components/Filters'
 import { PlayerStats } from '@/components/PlayerStats'
+import { PlayersOverview } from '@/components/PlayersOverview'
 import { Plus, BookOpen, User } from '@phosphor-icons/react'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -265,12 +266,7 @@ function App() {
                   {selectedPlayer ? (
                     <PlayerStats playerName={selectedPlayer} playthroughs={playthroughs} />
                   ) : (
-                    <Card className="p-12 text-center">
-                      <User size={48} weight="duotone" className="mx-auto mb-4 text-muted-foreground" />
-                      <p className="text-muted-foreground">
-                        Select a player to view their statistics and campaign history
-                      </p>
-                    </Card>
+                    <PlayersOverview playthroughs={playthroughs} />
                   )}
                 </div>
               </div>
