@@ -1,11 +1,4 @@
-@import 'tailwindcss';
-@import "tw-animate-css";
-
 @layer base {
-  * {
-    @apply border-border
-  }
-  
   body {
     font-family: 'Inter', sans-serif;
   }
