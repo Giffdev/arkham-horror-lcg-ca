@@ -86,8 +86,10 @@ export function PublicHomepage() {
   const handleLogin = async () => {
     try {
       const user = await spark.user()
-      if (user) {
+      if (user && user.id) {
         window.location.reload()
+      } else {
+        console.error('No user returned from authentication')
       }
     } catch (error) {
       console.error('Login failed:', error)

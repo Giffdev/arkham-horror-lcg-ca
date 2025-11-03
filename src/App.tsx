@@ -40,9 +40,13 @@ function App() {
   useEffect(() => {
     async function loadUser() {
       try {
-        const user = await (window as any).spark.user()
-        setCurrentUser(user)
-        setUserKVKey(`user-${user.id}-playthroughs`)
+        const user = await spark.user()
+        if (user && user.id) {
+          setCurrentUser(user)
+          setUserKVKey(`user-${user.id}-playthroughs`)
+        } else {
+          setCurrentUser(null)
+        }
       } catch (error) {
         console.log('User not logged in')
         setCurrentUser(null)
@@ -240,14 +244,10 @@ function App() {
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem 
-                    onClick={async () => {
-                      try {
-                        await spark.kv.delete(`user-${currentUser.id}-playthroughs`)
-                        window.location.href = '/'
-                      } catch (error) {
-                        console.error('Sign out error:', error)
-                        window.location.href = '/'
-                      }
+                    onClick={() => {
+                      setCurrentUser(null)
+                      setUserKVKey('')
+                      toast.success('Signed out successfully')
                     }} 
                     className="text-destructive focus:text-destructive"
                   >
