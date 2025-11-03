@@ -342,7 +342,12 @@ function App() {
       try {
         const session = await getCurrentSession()
         if (session) {
-          setCurrentUser({ id: session.userId, email: session.email, createdAt: Date.now() })
+          const user = await spark.kv.get<AuthUser>(`user:${session.email}`)
+          if (user) {
+            setCurrentUser(user)
+          } else {
+            setCurrentUser({ id: session.userId, email: session.email, createdAt: Date.now() })
+          }
         } else {
           setCurrentUser(null)
         }
