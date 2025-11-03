@@ -25,37 +25,14 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 
-function App() {
-  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [userKVKey, setUserKVKey] = useState<string>('')
-  const [playthroughs, setPlaythroughs] = useKV<Playthrough[]>(userKVKey || 'temp', [])
+function AuthenticatedApp({ currentUser, onSignOut }: { currentUser: AuthUser; onSignOut: () => void }) {
+  const [playthroughs, setPlaythroughs] = useKV<Playthrough[]>(`${currentUser.id}_playthroughs`, [])
   const [formOpen, setFormOpen] = useState(false)
   const [editingPlaythrough, setEditingPlaythrough] = useState<Playthrough | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [selectedArchetypes, setSelectedArchetypes] = useState<Archetype[]>([])
   const [selectedCampaignTypes, setSelectedCampaignTypes] = useState<CampaignType[]>([])
   const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null)
-
-  useEffect(() => {
-    async function loadUser() {
-      try {
-        const session = await getCurrentSession()
-        if (session) {
-          setCurrentUser({ id: session.userId, email: session.email, createdAt: Date.now() })
-          setUserKVKey(`${session.userId}_playthroughs`)
-        } else {
-          setCurrentUser(null)
-        }
-      } catch (error) {
-        console.log('No active session')
-        setCurrentUser(null)
-      } finally {
-        setLoading(false)
-      }
-    }
-    loadUser()
-  }, [])
 
   useEffect(() => {
     if (!playthroughs || playthroughs.length === 0) return
@@ -195,30 +172,6 @@ function App() {
     return Array.from(playerSet).sort((a, b) => a.localeCompare(b))
   }, [playthroughs])
 
-  const handleAuthSuccess = (user: AuthUser) => {
-    setCurrentUser(user)
-    setUserKVKey(`${user.id}_playthroughs`)
-  }
-
-  const handleSignOut = async () => {
-    await clearCurrentSession()
-    setCurrentUser(null)
-    setUserKVKey('')
-    toast.success('Signed out successfully')
-  }
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <BookOpen size={48} className="text-primary animate-pulse" weight="duotone" />
-      </div>
-    )
-  }
-
-  if (!currentUser) {
-    return <PublicHomepage onAuthSuccess={handleAuthSuccess} />
-  }
-
   return (
     <div className="min-h-screen bg-background">
       <Toaster position="top-center" />
@@ -250,7 +203,7 @@ function App() {
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem 
-                    onClick={handleSignOut} 
+                    onClick={onSignOut} 
                     className="text-destructive focus:text-destructive"
                   >
                     <SignOut size={16} className="mr-2" />
@@ -378,6 +331,54 @@ function App() {
       </AlertDialog>
     </div>
   )
+}
+
+function App() {
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function loadUser() {
+      try {
+        const session = await getCurrentSession()
+        if (session) {
+          setCurrentUser({ id: session.userId, email: session.email, createdAt: Date.now() })
+        } else {
+          setCurrentUser(null)
+        }
+      } catch (error) {
+        console.log('No active session')
+        setCurrentUser(null)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadUser()
+  }, [])
+
+  const handleAuthSuccess = (user: AuthUser) => {
+    setCurrentUser(user)
+  }
+
+  const handleSignOut = async () => {
+    await clearCurrentSession()
+    setCurrentUser(null)
+    toast.success('Signed out successfully')
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <BookOpen size={48} className="text-primary animate-pulse" weight="duotone" />
+      </div>
+    )
+  }
+
+  if (!currentUser) {
+    return <PublicHomepage onAuthSuccess={handleAuthSuccess} />
+  }
+
+  return <AuthenticatedApp currentUser={currentUser} onSignOut={handleSignOut} />
 }
 
 export default App
