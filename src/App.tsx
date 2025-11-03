@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useKV } from '@github/spark/hooks'
 import { Playthrough, Archetype, CampaignType } from '@/lib/types'
 import { Button } from '@/components/ui/button'
@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card } from '@/components/ui/card'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { Toaster, toast } from 'sonner'
+import { getInvestigatorByName } from '@/lib/investigator-data'
 
 function App() {
   const [playthroughs, setPlaythroughs] = useKV<Playthrough[]>('playthroughs', [])
@@ -22,6 +23,39 @@ function App() {
   const [selectedArchetypes, setSelectedArchetypes] = useState<Archetype[]>([])
   const [selectedCampaignTypes, setSelectedCampaignTypes] = useState<CampaignType[]>([])
   const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!playthroughs || playthroughs.length === 0) return
+
+    let needsUpdate = false
+    const updatedPlaythroughs = playthroughs.map(playthrough => {
+      const updatedInvestigators = playthrough.investigators.map(inv => {
+        if (inv.isCustom || inv.isUnknown || inv.investigatorName === 'Unknown') {
+          return inv
+        }
+        
+        if (!inv.investigatorSet) {
+          const investigatorData = getInvestigatorByName(inv.investigatorName)
+          if (investigatorData) {
+            needsUpdate = true
+            return { ...inv, investigatorSet: investigatorData.set }
+          }
+        }
+        
+        return inv
+      })
+
+      if (JSON.stringify(updatedInvestigators) !== JSON.stringify(playthrough.investigators)) {
+        return { ...playthrough, investigators: updatedInvestigators }
+      }
+      
+      return playthrough
+    })
+
+    if (needsUpdate) {
+      setPlaythroughs(updatedPlaythroughs)
+    }
+  }, [playthroughs, setPlaythroughs])
 
   const filteredPlaythroughs = useMemo(() => {
     if (!playthroughs) return []

@@ -163,7 +163,7 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
                         ? 'Unknown' 
                         : campaign.investigator.investigatorName}
                     </span>
-                    {campaign.investigator.investigatorSet && (
+                    {campaign.investigator.investigatorSet && !campaign.investigator.isCustom && (
                       <Badge variant="outline" className="text-xs">
                         {campaign.investigator.investigatorSet}
                       </Badge>
