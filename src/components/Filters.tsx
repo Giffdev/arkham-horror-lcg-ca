@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Label } from '@/components/ui/label'
 import { Archetype, CampaignType, ARCHETYPES, CAMPAIGN_TYPES, ARCHETYPE_COLORS } from '@/lib/types'
 import { X, Funnel } from '@phosphor-icons/react'
 import { cn } from '@/lib/utils'
@@ -88,8 +89,4 @@ export function Filters({
       </div>
     </div>
   )
-}
-
-function Label({ className, children }: { className?: string; children: React.ReactNode }) {
-  return <div className={className}>{children}</div>
 }
