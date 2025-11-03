@@ -1,4 +1,4 @@
-import { Playthrough } from '@/lib/types'
+import { Playthrough, Archetype } from '@/lib/types'
 import { Card } from '@/components/ui/card'
 import { ArchetypeBadge } from './ArchetypeBadge'
 import { Badge } from '@/components/ui/badge'
@@ -11,9 +11,10 @@ interface PlaythroughCardProps {
   playthrough: Playthrough
   onEdit: (playthrough: Playthrough) => void
   onDelete: (id: string) => void
+  activeArchetypeFilters?: Archetype[]
 }
 
-export function PlaythroughCard({ playthrough, onEdit, onDelete }: PlaythroughCardProps) {
+export function PlaythroughCard({ playthrough, onEdit, onDelete, activeArchetypeFilters = [] }: PlaythroughCardProps) {
   const displayName = playthrough.campaignType === 'Fan-Made' 
     ? playthrough.customCampaignName || playthrough.campaignName
     : playthrough.campaignType === 'Unknown'
@@ -23,6 +24,16 @@ export function PlaythroughCard({ playthrough, onEdit, onDelete }: PlaythroughCa
   const displaySetName = playthrough.campaignType === 'Standalone'
     ? playthrough.campaignName
     : playthrough.campaignSet
+
+  const getDisplayArchetypes = (archetypes?: Archetype[], primaryArchetype?: Archetype) => {
+    const allArchetypes = archetypes || (primaryArchetype ? [primaryArchetype] : [])
+    
+    if (activeArchetypeFilters.length === 0) {
+      return allArchetypes
+    }
+    
+    return allArchetypes.filter(archetype => activeArchetypeFilters.includes(archetype))
+  }
 
   return (
     <Card className="p-4 md:p-6 hover:border-accent transition-all duration-200 hover:shadow-lg group">
@@ -114,30 +125,36 @@ export function PlaythroughCard({ playthrough, onEdit, onDelete }: PlaythroughCa
         <div className="flex-1 min-w-0 flex flex-col gap-3">
           {playthrough.investigators.length > 0 && (
             <div className="space-y-2.5">
-              {playthrough.investigators.map((inv, idx) => (
-                <div key={idx} className="flex flex-col md:flex-row md:items-center gap-1.5 md:gap-3 text-sm">
-                  <div className="flex flex-col md:flex-row md:flex-wrap md:items-center gap-1.5 md:gap-2 min-w-0 md:min-w-[280px]">
-                    <div className="flex items-center gap-2">
-                      <ArchetypeBadge archetype={inv.archetype} />
-                      <span className="font-medium">
-                        {inv.isUnknown || inv.investigatorName === 'Unknown' ? 'Unknown' : inv.investigatorName}
-                      </span>
+              {playthrough.investigators.map((inv, idx) => {
+                const displayArchetypes = getDisplayArchetypes(inv.archetypes, inv.archetype)
+                
+                return (
+                  <div key={idx} className="flex flex-col md:flex-row md:items-center gap-1.5 md:gap-3 text-sm">
+                    <div className="flex flex-col md:flex-row md:flex-wrap md:items-center gap-1.5 md:gap-2 min-w-0 md:min-w-[280px]">
+                      <div className="flex items-center gap-2">
+                        {displayArchetypes.map((archetype, archetypeIdx) => (
+                          <ArchetypeBadge key={archetypeIdx} archetype={archetype} />
+                        ))}
+                        <span className="font-medium">
+                          {inv.isUnknown || inv.investigatorName === 'Unknown' ? 'Unknown' : inv.investigatorName}
+                        </span>
+                      </div>
+                      {inv.investigatorSet && !inv.isUnknown && inv.investigatorName !== 'Unknown' && (
+                        <Badge variant="outline" className="text-xs whitespace-nowrap">
+                          {getDisplaySetName(inv.investigatorName, inv.investigatorSet)}
+                        </Badge>
+                      )}
                     </div>
-                    {inv.investigatorSet && !inv.isUnknown && inv.investigatorName !== 'Unknown' && (
-                      <Badge variant="outline" className="text-xs whitespace-nowrap">
-                        {getDisplaySetName(inv.investigatorName, inv.investigatorSet)}
-                      </Badge>
-                    )}
+                    <div className="flex items-center gap-2 flex-shrink-0 md:ml-auto">
+                      {inv.playerName && (
+                        <span className="text-muted-foreground whitespace-nowrap">
+                          {inv.playerName}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 flex-shrink-0 md:ml-auto">
-                    {inv.playerName && (
-                      <span className="text-muted-foreground whitespace-nowrap">
-                        {inv.playerName}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>

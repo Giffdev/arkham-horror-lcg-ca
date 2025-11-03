@@ -34,12 +34,23 @@ function App() {
           return inv
         }
         
-        if (!inv.investigatorSet) {
-          const investigatorData = getInvestigatorByName(inv.investigatorName)
-          if (investigatorData) {
-            needsUpdate = true
-            return { ...inv, investigatorSet: investigatorData.set }
-          }
+        const investigatorData = getInvestigatorByName(inv.investigatorName)
+        let hasChanges = false
+        const updates: Partial<typeof inv> = {}
+        
+        if (!inv.investigatorSet && investigatorData) {
+          updates.investigatorSet = investigatorData.set
+          hasChanges = true
+        }
+        
+        if (!inv.archetypes && investigatorData) {
+          updates.archetypes = investigatorData.archetypes
+          hasChanges = true
+        }
+        
+        if (hasChanges) {
+          needsUpdate = true
+          return { ...inv, ...updates }
         }
         
         return inv
@@ -62,9 +73,10 @@ function App() {
     
     return playthroughs.filter((playthrough) => {
       if (selectedArchetypes.length > 0) {
-        const hasMatchingArchetype = playthrough.investigators.some((inv) =>
-          selectedArchetypes.includes(inv.archetype)
-        )
+        const hasMatchingArchetype = playthrough.investigators.some((inv) => {
+          const investigatorArchetypes = inv.archetypes || [inv.archetype]
+          return investigatorArchetypes.some(archetype => selectedArchetypes.includes(archetype))
+        })
         if (!hasMatchingArchetype) return false
       }
 
@@ -210,6 +222,7 @@ function App() {
                     playthrough={playthrough}
                     onEdit={handleEdit}
                     onDelete={setDeleteId}
+                    activeArchetypeFilters={selectedArchetypes}
                   />
                 ))}
               </div>

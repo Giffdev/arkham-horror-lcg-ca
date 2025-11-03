@@ -58,7 +58,10 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
         p.investigators
           .filter(inv => inv.playerName === playerName)
           .filter(inv => inv.archetype !== 'Unknown')
-          .map(inv => inv.archetype)
+          .flatMap(inv => {
+            const investigatorArchetypes = inv.archetypes || [inv.archetype]
+            return investigatorArchetypes.filter(archetype => archetype !== 'Unknown')
+          })
       )
       .reduce((acc, archetype) => {
         acc[archetype] = (acc[archetype] || 0) + 1
@@ -520,8 +523,10 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
                           </Badge>
                         )}
                       </div>
-                      <div className="w-20 flex justify-end">
-                        <ArchetypeBadge archetype={campaign.investigator.archetype} className="w-20 justify-center" />
+                      <div className="flex gap-1 flex-wrap justify-end">
+                        {(campaign.investigator.archetypes || [campaign.investigator.archetype]).map((archetype, idx) => (
+                          <ArchetypeBadge key={idx} archetype={archetype} className="w-20 justify-center" />
+                        ))}
                       </div>
                     </div>
                   </div>

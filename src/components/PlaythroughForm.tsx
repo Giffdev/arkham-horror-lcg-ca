@@ -116,6 +116,10 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
         if (investigatorData) {
           if (investigatorData.archetypes.length === 1) {
             updated.archetype = investigatorData.archetypes[0]
+            updated.archetypes = investigatorData.archetypes
+          } else {
+            updated.archetype = investigatorData.archetypes[0]
+            updated.archetypes = investigatorData.archetypes
           }
           updated.investigatorSet = investigatorData.set
         }

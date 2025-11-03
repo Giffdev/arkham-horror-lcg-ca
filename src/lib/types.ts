@@ -6,6 +6,7 @@ export interface InvestigatorAssignment {
   playerName: string
   investigatorName: string
   archetype: Archetype
+  archetypes?: Archetype[]
   investigatorSet?: string
   isUnknown?: boolean
   isCustom?: boolean
