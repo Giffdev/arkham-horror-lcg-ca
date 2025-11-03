@@ -366,7 +366,7 @@ function InvestigatorFormItem({ index, investigator, availableInvestigators, onU
   const investigatorData = getInvestigatorByName(investigator.investigatorName)
   const needsArchetypeSelection = investigatorData && isDualClassInvestigator(investigator.investigatorName)
   const availableArchetypes = investigatorData?.archetypes || []
-  const isUnknown = investigator.isUnknown || investigator.investigatorName === 'Unknown' || investigator.archetype === 'Unknown'
+  const isUnknown = investigator.isUnknown || investigator.investigatorName === 'Unknown'
 
   return (
     <div className="p-4 border rounded-lg space-y-3 bg-card">
