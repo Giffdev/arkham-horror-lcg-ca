@@ -46,6 +46,21 @@ export function PlaythroughCard({ playthrough, onEdit, onDelete }: PlaythroughCa
                 </Badge>
               )}
             </div>
+            {playthrough.sideStories && playthrough.sideStories.length > 0 && (
+              <div className="mt-2 md:hidden flex items-start gap-2 flex-wrap">
+                <div className="flex items-center gap-1 text-xs font-medium text-muted-foreground uppercase tracking-wide flex-shrink-0">
+                  <Sparkle size={14} weight="duotone" />
+                  <span>Side Stories:</span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {playthrough.sideStories.map((story) => (
+                    <Badge key={story} variant="outline" className="text-xs">
+                      {story}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="hidden md:flex flex-wrap items-center gap-2 text-sm mb-1">
               <Badge variant="secondary" className="text-xs">
                 {playthrough.campaignType}
@@ -60,6 +75,21 @@ export function PlaythroughCard({ playthrough, onEdit, onDelete }: PlaythroughCa
               <Clock size={16} weight="duotone" />
               <span>{formatDate(playthrough.date)}</span>
             </div>
+            {playthrough.sideStories && playthrough.sideStories.length > 0 && (
+              <div className="mt-3 hidden md:flex items-start gap-2 flex-wrap">
+                <div className="flex items-center gap-1 text-xs font-medium text-muted-foreground uppercase tracking-wide flex-shrink-0">
+                  <Sparkle size={14} weight="duotone" />
+                  <span>Side Stories:</span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {playthrough.sideStories.map((story) => (
+                    <Badge key={story} variant="outline" className="text-xs">
+                      {story}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity md:hidden">
             <Button
@@ -82,22 +112,6 @@ export function PlaythroughCard({ playthrough, onEdit, onDelete }: PlaythroughCa
         </div>
 
         <div className="flex-1 min-w-0 flex flex-col gap-3">
-          {playthrough.sideStories && playthrough.sideStories.length > 0 && (
-            <div className="flex items-center gap-2 flex-wrap">
-              <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wide flex-shrink-0">
-                <Sparkle size={14} weight="duotone" />
-                <span>Side Stories:</span>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {playthrough.sideStories.map((story) => (
-                  <Badge key={story} variant="outline" className="text-xs">
-                    {story}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          )}
-
           {playthrough.investigators.length > 0 && (
             <div className="space-y-1.5">
               {playthrough.investigators.map((inv, idx) => (
