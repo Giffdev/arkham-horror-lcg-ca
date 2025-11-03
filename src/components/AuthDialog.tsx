@@ -21,17 +21,17 @@ export function AuthDialog({ open, onOpenChange, onSuccess }: AuthDialogProps) {
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [signInError, setSignInError] = useState<string | null>(null)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-    setSignInError(null)
+    setErrorMessage(null)
 
     try {
       if (mode === 'signup') {
         if (password !== confirmPassword) {
-          toast.error('Passwords do not match')
+          setErrorMessage('Passwords do not match')
           setLoading(false)
           return
         }
@@ -47,7 +47,7 @@ export function AuthDialog({ open, onOpenChange, onSuccess }: AuthDialogProps) {
             resetForm()
           }
         } else {
-          toast.error(result.error || 'Failed to create account')
+          setErrorMessage(result.error || 'Failed to create account')
         }
       } else {
         const result = await signIn(email, password)
@@ -59,23 +59,16 @@ export function AuthDialog({ open, onOpenChange, onSuccess }: AuthDialogProps) {
           resetForm()
         } else {
           if (result.error && (result.error.includes('No account found') || result.error.includes('Please sign up'))) {
-            setSignInError('No account found with this email')
-            toast.error('Account does not exist', {
-              description: 'Please click the "Sign up" button below to create a new account.',
-              duration: 7000,
-            })
+            setErrorMessage('No account found with this email. Please sign up to create a new account.')
           } else if (result.error && result.error.includes('Incorrect password')) {
-            toast.error('Incorrect password', {
-              description: 'Please check your password and try again.',
-              duration: 5000,
-            })
+            setErrorMessage('Incorrect password. Please check your password and try again.')
           } else {
-            toast.error(result.error || 'Failed to sign in. Please try again.')
+            setErrorMessage(result.error || 'Failed to sign in. Please try again.')
           }
         }
       }
     } catch (error) {
-      toast.error('An unexpected error occurred')
+      setErrorMessage('An unexpected error occurred')
       console.error(error)
     } finally {
       setLoading(false)
@@ -88,7 +81,7 @@ export function AuthDialog({ open, onOpenChange, onSuccess }: AuthDialogProps) {
     setConfirmPassword('')
     setShowPassword(false)
     setShowConfirmPassword(false)
-    setSignInError(null)
+    setErrorMessage(null)
   }
 
   const switchMode = () => {
@@ -120,7 +113,7 @@ export function AuthDialog({ open, onOpenChange, onSuccess }: AuthDialogProps) {
               value={email}
               onChange={(e) => {
                 setEmail(e.target.value)
-                setSignInError(null)
+                setErrorMessage(null)
               }}
               required
               autoComplete="email"
@@ -134,7 +127,10 @@ export function AuthDialog({ open, onOpenChange, onSuccess }: AuthDialogProps) {
                 type={showPassword ? 'text' : 'password'}
                 placeholder={mode === 'signup' ? 'At least 8 characters' : '••••••••'}
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value)
+                  setErrorMessage(null)
+                }}
                 required
                 minLength={8}
                 autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
@@ -187,10 +183,10 @@ export function AuthDialog({ open, onOpenChange, onSuccess }: AuthDialogProps) {
             </div>
           )}
           
-          {mode === 'signin' && signInError && (
-            <div className="flex items-center gap-1.5 text-xs text-destructive">
-              <Warning size={14} weight="fill" />
-              <span>{signInError}</span>
+          {errorMessage && (
+            <div className="flex items-start gap-2 p-3 rounded-md bg-destructive/10 border border-destructive/20">
+              <Warning size={16} weight="fill" className="text-destructive mt-0.5 flex-shrink-0" />
+              <span className="text-sm text-destructive">{errorMessage}</span>
             </div>
           )}
 
