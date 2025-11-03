@@ -18,10 +18,13 @@ import { getInvestigatorByName } from '@/lib/investigator-data'
 import { getCurrentSession, clearCurrentSession, User as AuthUser } from '@/lib/auth'
 import { PublicHomepage } from '@/components/PublicHomepage'
 
-function App() {
-  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [playthroughsKey, setPlaythroughsKey] = useState<string>('')
+interface AuthenticatedAppProps {
+  currentUser: AuthUser
+  playthroughsKey: string
+  onSignOut: () => void
+}
+
+function AuthenticatedApp({ currentUser, playthroughsKey, onSignOut }: AuthenticatedAppProps) {
   const [playthroughs, setPlaythroughs] = useKV<Playthrough[]>(playthroughsKey, [])
   const [formOpen, setFormOpen] = useState(false)
   const [editingPlaythrough, setEditingPlaythrough] = useState<Playthrough | null>(null)
@@ -29,39 +32,6 @@ function App() {
   const [selectedArchetypes, setSelectedArchetypes] = useState<Archetype[]>([])
   const [selectedCampaignTypes, setSelectedCampaignTypes] = useState<CampaignType[]>([])
   const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null)
-
-  useEffect(() => {
-    async function loadSession() {
-      try {
-        const session = await getCurrentSession()
-        if (session) {
-          setCurrentUser({ 
-            id: session.userId, 
-            email: session.email,
-            createdAt: Date.now(),
-            authProvider: session.authProvider
-          })
-          const newKey = `${session.userId}_playthroughs`
-          setPlaythroughsKey(newKey)
-          
-          const existingData = await spark.kv.get<Playthrough[]>(newKey)
-          if (!existingData || existingData.length === 0) {
-            const oldData = await spark.kv.get<Playthrough[]>('playthroughs')
-            if (oldData && oldData.length > 0) {
-              await spark.kv.set(newKey, oldData)
-              await spark.kv.delete('playthroughs')
-              toast.success(`Migrated ${oldData.length} playthroughs to your account`)
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Failed to load session:', error)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-    loadSession()
-  }, [])
 
   useEffect(() => {
     if (!playthroughs || playthroughs.length === 0) return
@@ -217,33 +187,6 @@ function App() {
     return Array.from(playerSet).sort((a, b) => a.localeCompare(b))
   }, [playthroughs])
 
-  const handleAuthSuccess = (user: AuthUser) => {
-    setCurrentUser(user)
-    setPlaythroughsKey(`${user.id}_playthroughs`)
-  }
-
-  const handleSignOut = async () => {
-    await clearCurrentSession()
-    setCurrentUser(null)
-    setPlaythroughsKey('')
-    toast.success('Signed out successfully')
-  }
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <BookOpen size={48} className="text-primary mx-auto mb-4" weight="duotone" />
-          <p className="text-muted-foreground">Loading...</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (!currentUser) {
-    return <PublicHomepage onAuthSuccess={handleAuthSuccess} />
-  }
-
   return (
     <div className="min-h-screen bg-background">
       <Toaster position="top-center" />
@@ -270,7 +213,7 @@ function App() {
                   <Button 
                     variant="ghost" 
                     size="sm"
-                    onClick={handleSignOut}
+                    onClick={onSignOut}
                     className="gap-2"
                   >
                     <SignOut size={18} weight="bold" />
@@ -404,6 +347,80 @@ function App() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  )
+}
+
+function App() {
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [playthroughsKey, setPlaythroughsKey] = useState<string>('')
+
+  useEffect(() => {
+    async function loadSession() {
+      try {
+        const session = await getCurrentSession()
+        if (session) {
+          setCurrentUser({ 
+            id: session.userId, 
+            email: session.email,
+            createdAt: Date.now(),
+            authProvider: session.authProvider
+          })
+          const newKey = `${session.userId}_playthroughs`
+          setPlaythroughsKey(newKey)
+          
+          const existingData = await spark.kv.get<Playthrough[]>(newKey)
+          if (!existingData || existingData.length === 0) {
+            const oldData = await spark.kv.get<Playthrough[]>('playthroughs')
+            if (oldData && oldData.length > 0) {
+              await spark.kv.set(newKey, oldData)
+              await spark.kv.delete('playthroughs')
+              toast.success(`Migrated ${oldData.length} playthroughs to your account`)
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load session:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    loadSession()
+  }, [])
+
+  const handleAuthSuccess = (user: AuthUser) => {
+    setCurrentUser(user)
+    setPlaythroughsKey(`${user.id}_playthroughs`)
+  }
+
+  const handleSignOut = async () => {
+    await clearCurrentSession()
+    setCurrentUser(null)
+    setPlaythroughsKey('')
+    toast.success('Signed out successfully')
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <BookOpen size={48} className="text-primary mx-auto mb-4" weight="duotone" />
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!currentUser || !playthroughsKey) {
+    return <PublicHomepage onAuthSuccess={handleAuthSuccess} />
+  }
+
+  return (
+    <AuthenticatedApp
+      currentUser={currentUser}
+      playthroughsKey={playthroughsKey}
+      onSignOut={handleSignOut}
+    />
   )
 }
 
