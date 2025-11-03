@@ -32,7 +32,7 @@ export function PlaythroughCard({ playthrough, onEdit, onDelete }: PlaythroughCa
             <h3 className="text-lg md:text-xl font-semibold mb-1 truncate">
               {displayName || 'Untitled Campaign'}
             </h3>
-            <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+            <div className="flex md:hidden flex-wrap items-center gap-2 text-sm text-muted-foreground">
               <div className="flex items-center gap-1">
                 <Clock size={16} weight="duotone" />
                 <span>{formatDate(playthrough.date)}</span>
@@ -45,6 +45,20 @@ export function PlaythroughCard({ playthrough, onEdit, onDelete }: PlaythroughCa
                   {displaySetName}
                 </Badge>
               )}
+            </div>
+            <div className="hidden md:flex flex-wrap items-center gap-2 text-sm mb-1">
+              <Badge variant="secondary" className="text-xs">
+                {playthrough.campaignType}
+              </Badge>
+              {displaySetName && (
+                <Badge variant="outline" className="text-xs">
+                  {displaySetName}
+                </Badge>
+              )}
+            </div>
+            <div className="hidden md:flex items-center gap-1 text-sm text-muted-foreground">
+              <Clock size={16} weight="duotone" />
+              <span>{formatDate(playthrough.date)}</span>
             </div>
           </div>
           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity md:hidden">
