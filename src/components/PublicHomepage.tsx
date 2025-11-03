@@ -214,7 +214,6 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
                             <span className="text-muted-foreground font-mono text-sm flex-shrink-0">
                               #{index + 1}
                             </span>
-                            {campaign.set && <CampaignIcon campaignSet={campaign.set} />}
                             <span className="font-medium text-foreground truncate">{campaign.name}</span>
                           </div>
                           <span className="text-muted-foreground ml-2 flex-shrink-0">
@@ -294,7 +293,6 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
                               <span className="text-muted-foreground font-mono text-sm flex-shrink-0">
                                 #{index + 1}
                               </span>
-                              {standalone.set && <CampaignIcon campaignSet={standalone.set} />}
                               <span className="font-medium text-foreground truncate">{standalone.name}</span>
                             </div>
                             <span className="text-muted-foreground ml-2 flex-shrink-0">
