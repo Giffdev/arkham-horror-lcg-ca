@@ -177,7 +177,7 @@ export function PlayersOverview({ playthroughs }: PlayersOverviewProps) {
       </div>
 
       <div>
-        <h2 className="text-2xl font-semibold mb-4">Investigators Played</h2>
+        <h2 className="text-2xl font-semibold mb-4 text-foreground">Investigators Played</h2>
         {investigatorsPlayed.length === 0 ? (
           <Card className="p-12 text-center">
             <p className="text-muted-foreground">
@@ -234,7 +234,7 @@ export function PlayersOverview({ playthroughs }: PlayersOverviewProps) {
       </div>
 
       <div>
-        <h2 className="text-2xl font-semibold mb-4">Investigators Never Played</h2>
+        <h2 className="text-2xl font-semibold mb-4 text-foreground">Investigators Never Played</h2>
         {investigatorsNeverPlayed.length === 0 ? (
           <Card className="p-12 text-center">
             <Check size={48} weight="duotone" className="mx-auto mb-4 text-accent" />
