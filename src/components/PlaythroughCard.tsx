@@ -25,16 +25,6 @@ export function PlaythroughCard({ playthrough, onEdit, onDelete, activeArchetype
     ? playthrough.campaignName
     : playthrough.campaignSet
 
-  const getDisplayArchetypes = (archetypes?: Archetype[], primaryArchetype?: Archetype) => {
-    const allArchetypes = archetypes || (primaryArchetype ? [primaryArchetype] : [])
-    
-    if (activeArchetypeFilters.length === 0) {
-      return allArchetypes
-    }
-    
-    return allArchetypes.filter(archetype => activeArchetypeFilters.includes(archetype))
-  }
-
   return (
     <Card className="p-4 md:p-6 hover:border-accent transition-all duration-200 hover:shadow-lg group">
       <div className="flex flex-col md:flex-row gap-4 md:gap-6 md:items-start">
@@ -126,7 +116,10 @@ export function PlaythroughCard({ playthrough, onEdit, onDelete, activeArchetype
           {playthrough.investigators.length > 0 && (
             <div className="space-y-2.5">
               {playthrough.investigators.map((inv, idx) => {
-                const displayArchetypes = getDisplayArchetypes(inv.archetypes, inv.archetype)
+                const allArchetypes = inv.archetypes || (inv.archetype ? [inv.archetype] : [])
+                const displayArchetypes = activeArchetypeFilters.length === 0 
+                  ? allArchetypes
+                  : allArchetypes.filter(archetype => activeArchetypeFilters.includes(archetype))
                 
                 return (
                   <div key={idx} className="flex flex-col md:flex-row md:items-center gap-1.5 md:gap-3 text-sm">
