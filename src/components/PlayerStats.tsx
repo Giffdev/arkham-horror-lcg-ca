@@ -205,7 +205,7 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
           count: playerData.investigatorCounts[inv.name]?.count || 0
         }
       })
-      .sort((a, b) => b.count - a.count)
+      .sort((a, b) => a.name.localeCompare(b.name))
 
     const unplayedList = filteredInvestigators
       .filter(inv => {
