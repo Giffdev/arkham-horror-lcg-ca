@@ -9,7 +9,7 @@ import { Filters } from '@/components/Filters'
 import { PlayerStats } from '@/components/PlayerStats'
 import { PlayersOverview } from '@/components/PlayersOverview'
 import { DataExportImport } from '@/components/DataExportImport'
-import { DataSwapUtility } from '@/components/DataSwapUtility'
+
 import { Plus, BookOpen, User, SignOut, CaretDown } from '@phosphor-icons/react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card } from '@/components/ui/card'
@@ -237,10 +237,6 @@ function AuthenticatedApp({ currentUser, playthroughsKey, onSignOut }: Authentic
       </header>
 
       <main className="container mx-auto px-6 py-8">
-        <div className="mb-6">
-          <DataSwapUtility />
-        </div>
-        
         <Tabs defaultValue="games" className="space-y-6">
           <TabsList className="grid w-full max-w-md mx-auto grid-cols-2">
             <TabsTrigger value="games" className="gap-2">
@@ -400,6 +396,44 @@ function App() {
       }
     }
     loadSession()
+  }, [])
+
+  useEffect(() => {
+    async function fixDataAssociation() {
+      try {
+        const fixApplied = await spark.kv.get<boolean>('data-fix-applied-v2')
+        if (fixApplied) return
+
+        const devinEmail = 'contact@devinsinha.com'
+        const giffEmail = 'giffdev@gmail.com'
+
+        const devinUserData = await spark.kv.get<{ id: string }>(`user:${devinEmail}`)
+        const giffUserData = await spark.kv.get<{ id: string }>(`user:${giffEmail}`)
+
+        if (!devinUserData || !giffUserData) return
+
+        const devinKey = `${devinUserData.id}_playthroughs`
+        const giffKey = `${giffUserData.id}_playthroughs`
+
+        const devinPlaythroughs = await spark.kv.get<Playthrough[]>(devinKey) || []
+        const giffPlaythroughs = await spark.kv.get<Playthrough[]>(giffKey) || []
+
+        const allPlaythroughs = [...devinPlaythroughs, ...giffPlaythroughs]
+        const uniquePlaythroughs = Array.from(
+          new Map(allPlaythroughs.map(p => [p.id, p])).values()
+        )
+
+        await spark.kv.set(giffKey, uniquePlaythroughs)
+        await spark.kv.set(devinKey, [])
+
+        await spark.kv.set('data-fix-applied-v2', true)
+
+        console.log(`Data fix applied: giffdev@gmail.com now has ${uniquePlaythroughs.length} playthroughs, contact@devinsinha.com has 0`)
+      } catch (error) {
+        console.error('Failed to apply data fix:', error)
+      }
+    }
+    fixDataAssociation()
   }, [])
 
   const handleAuthSuccess = async (user: AuthUser) => {
