@@ -116,10 +116,7 @@ export function PlaythroughCard({ playthrough, onEdit, onDelete, activeArchetype
           {playthrough.investigators.length > 0 && (
             <div className="space-y-2.5">
               {playthrough.investigators.map((inv, idx) => {
-                const allArchetypes = inv.archetypes || (inv.archetype ? [inv.archetype] : [])
-                const displayArchetypes = activeArchetypeFilters.length > 0
-                  ? allArchetypes.filter(archetype => activeArchetypeFilters.includes(archetype))
-                  : allArchetypes
+                const chosenArchetype = inv.archetype
                 
                 const defaultUrl = getArkhamDBUrl(inv.investigatorName)
                 
@@ -127,13 +124,10 @@ export function PlaythroughCard({ playthrough, onEdit, onDelete, activeArchetype
                   <div key={idx} className="flex flex-col md:flex-row md:items-center gap-1.5 md:gap-3 text-sm">
                     <div className="flex flex-col md:flex-row md:flex-wrap md:items-center gap-1.5 md:gap-2 min-w-0 md:min-w-[280px]">
                       <div className="flex items-center gap-2">
-                        {displayArchetypes.map((archetype, archetypeIdx) => (
-                          <ArchetypeBadge 
-                            key={archetypeIdx} 
-                            archetype={archetype}
-                            investigatorName={inv.investigatorName}
-                          />
-                        ))}
+                        <ArchetypeBadge 
+                          archetype={chosenArchetype}
+                          investigatorName={inv.investigatorName}
+                        />
                         {defaultUrl && !inv.isUnknown && inv.investigatorName !== 'Unknown' ? (
                           <a 
                             href={defaultUrl}
