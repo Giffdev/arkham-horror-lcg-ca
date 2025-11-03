@@ -77,11 +77,11 @@ export const INVESTIGATORS: Investigator[] = [
   { name: 'Gloria Goldberg', archetypes: ['Mystic'], set: 'The Drowned City' },
   { name: 'George Barnaby', archetypes: ['Survivor'], set: 'The Drowned City' },
   
-  { name: 'Nathaniel Cho', archetypes: ['Guardian'], set: 'Investigator Starter Deck' },
-  { name: 'Harvey Walters', archetypes: ['Seeker'], set: 'Investigator Starter Deck' },
-  { name: 'Winifred Habbamock', archetypes: ['Rogue'], set: 'Investigator Starter Deck' },
-  { name: 'Jacqueline Fine', archetypes: ['Mystic'], set: 'Investigator Starter Deck' },
-  { name: 'Stella Clark', archetypes: ['Survivor'], set: 'Investigator Starter Deck' },
+  { name: 'Nathaniel Cho', archetypes: ['Guardian'], set: 'Nathaniel Cho' },
+  { name: 'Harvey Walters', archetypes: ['Seeker'], set: 'Harvey Walters' },
+  { name: 'Winifred Habbamock', archetypes: ['Rogue'], set: 'Winifred Habbamock' },
+  { name: 'Jacqueline Fine', archetypes: ['Mystic'], set: 'Jacqueline Fine' },
+  { name: 'Stella Clark', archetypes: ['Survivor'], set: 'Stella Clark' },
   { name: 'Subject 5U-21 (Suzi)', archetypes: ['Neutral'], set: 'The Blob That Ate Everything' },
   
   { name: 'Bark Harrigan', archetypes: ['Guardian'], set: 'Barkham Horror' },
