@@ -21,7 +21,6 @@ export const FULL_CAMPAIGNS: Campaign[] = [
   { name: 'Return to The Path to Carcosa', set: 'Return to The Path to Carcosa', type: 'Full Campaign' },
   { name: 'Return to The Forgotten Age', set: 'Return to The Forgotten Age', type: 'Full Campaign' },
   { name: 'Return to The Circle Undone', set: 'Return to The Circle Undone', type: 'Full Campaign' },
-  { name: 'Barkham Horror: The Meddling of Meowlathotep', set: 'Barkham Horror', type: 'Full Campaign' },
 ]
 
 export const STANDALONE_SCENARIOS: Campaign[] = [
@@ -36,6 +35,7 @@ export const STANDALONE_SCENARIOS: Campaign[] = [
   { name: 'Fortune and Folly', set: 'Standalone', type: 'Standalone' },
   { name: 'The Midwinter Gala', set: 'Standalone', type: 'Standalone' },
   { name: 'Film Fatale', set: 'Standalone', type: 'Standalone' },
+  { name: 'Barkham Horror: The Meddling of Meowlathotep', set: 'Barkham Horror', type: 'Standalone' },
 ]
 
 export const ALL_CAMPAIGNS = [...FULL_CAMPAIGNS, ...STANDALONE_SCENARIOS]
