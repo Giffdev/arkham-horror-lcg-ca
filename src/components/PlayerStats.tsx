@@ -3,12 +3,11 @@ import { Playthrough, Archetype } from '@/lib/types'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ArchetypeBadge } from './ArchetypeBadge'
-import { User, UsersThree, Check, X, Funnel, Book, ClockCounterClockwise, ArrowSquareOut } from '@phosphor-icons/react'
+import { User, UsersThree, Check, X, Funnel, Book, ClockCounterClockwise } from '@phosphor-icons/react'
 import { formatDate } from '@/lib/date-utils'
 import { getDisplaySetName, INVESTIGATORS, getArkhamDBUrl } from '@/lib/investigator-data'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { cn } from '@/lib/utils'
 
 interface PlayerStatsProps {
   playerName: string
@@ -461,22 +460,21 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
               {playedInvestigators.map((investigator) => {
                 const arkhamDBUrl = getArkhamDBUrl(investigator.name, investigator.archetypes[0])
                 return (
-                  <Card key={investigator.name} className={cn("p-3 group relative", arkhamDBUrl && "hover:border-accent transition-colors")}>
-                    {arkhamDBUrl && (
-                      <a 
-                        href={arkhamDBUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="absolute inset-0 z-10"
-                        aria-label={`View ${investigator.name} on ArkhamDB`}
-                      />
-                    )}
+                  <Card key={investigator.name} className="p-3 group">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start gap-2">
-                          <h4 className="font-medium text-sm truncate flex-1">{investigator.name}</h4>
-                          {arkhamDBUrl && (
-                            <ArrowSquareOut size={16} className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+                          {arkhamDBUrl ? (
+                            <a 
+                              href={arkhamDBUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="font-medium text-sm truncate flex-1 hover:underline hover:text-accent transition-colors"
+                            >
+                              {investigator.name}
+                            </a>
+                          ) : (
+                            <h4 className="font-medium text-sm truncate flex-1">{investigator.name}</h4>
                           )}
                         </div>
                         <p className="text-xs text-muted-foreground mt-1">{investigator.set}</p>
@@ -486,7 +484,7 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
                           ))}
                         </div>
                       </div>
-                      <Badge variant="secondary" className="shrink-0 relative z-20">
+                      <Badge variant="secondary" className="shrink-0">
                         ×{investigator.count}
                       </Badge>
                     </div>
@@ -512,22 +510,21 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
               {unplayedInvestigators.map((investigator) => {
                 const arkhamDBUrl = getArkhamDBUrl(investigator.name, investigator.archetypes[0])
                 return (
-                  <Card key={investigator.name} className={cn("p-3 group relative", arkhamDBUrl && "hover:border-accent transition-colors")}>
-                    {arkhamDBUrl && (
-                      <a 
-                        href={arkhamDBUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="absolute inset-0 z-10"
-                        aria-label={`View ${investigator.name} on ArkhamDB`}
-                      />
-                    )}
+                  <Card key={investigator.name} className="p-3 group">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start gap-2">
-                          <h4 className="font-medium text-sm truncate flex-1">{investigator.name}</h4>
-                          {arkhamDBUrl && (
-                            <ArrowSquareOut size={16} className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+                          {arkhamDBUrl ? (
+                            <a 
+                              href={arkhamDBUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="font-medium text-sm truncate flex-1 hover:underline hover:text-accent transition-colors"
+                            >
+                              {investigator.name}
+                            </a>
+                          ) : (
+                            <h4 className="font-medium text-sm truncate flex-1">{investigator.name}</h4>
                           )}
                         </div>
                         <p className="text-xs text-muted-foreground mt-1">{investigator.set}</p>
@@ -585,10 +582,9 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
                               href={arkhamDBUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-sm font-medium whitespace-nowrap hover:text-accent transition-colors underline decoration-dotted underline-offset-4 inline-flex items-center gap-1"
+                              className="text-sm font-medium whitespace-nowrap hover:underline hover:text-accent transition-colors"
                             >
                               {investigatorName}
-                              <ArrowSquareOut size={14} className="flex-shrink-0" />
                             </a>
                           ) : (
                             <span className="text-sm font-medium whitespace-nowrap">
