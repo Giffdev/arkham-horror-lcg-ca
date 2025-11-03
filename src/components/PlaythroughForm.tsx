@@ -247,7 +247,26 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-[300px] p-0" align="end">
-                      <Command>
+                      <Command
+                        onKeyDown={(e) => {
+                          if (e.key === 'Tab') {
+                            e.preventDefault()
+                            const selected = (e.target as HTMLElement).closest('[data-selected="true"]')
+                            if (selected) {
+                              const value = selected.getAttribute('data-value')
+                              if (value) {
+                                handleCampaignNameChange(value)
+                                setTimeout(() => {
+                                  const firstInvestigatorInput = document.querySelector('#player-0') as HTMLInputElement
+                                  if (firstInvestigatorInput) {
+                                    firstInvestigatorInput.focus()
+                                  }
+                                }, 100)
+                              }
+                            }
+                          }
+                        }}
+                      >
                         <CommandInput placeholder="Search campaigns..." />
                         <CommandList>
                           <CommandEmpty>No campaign found.</CommandEmpty>
@@ -258,18 +277,6 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
                                   key={campaign}
                                   value={campaign}
                                   onSelect={() => handleCampaignNameChange(campaign)}
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Tab' || e.key === 'Enter') {
-                                      e.preventDefault()
-                                      handleCampaignNameChange(campaign)
-                                      setTimeout(() => {
-                                        const firstInvestigatorInput = document.querySelector('#player-0') as HTMLInputElement
-                                        if (firstInvestigatorInput) {
-                                          firstInvestigatorInput.focus()
-                                        }
-                                      }, 100)
-                                    }
-                                  }}
                                 >
                                   <Check
                                     className={cn(
@@ -303,7 +310,26 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-[300px] p-0" align="end">
-                      <Command>
+                      <Command
+                        onKeyDown={(e) => {
+                          if (e.key === 'Tab') {
+                            e.preventDefault()
+                            const selected = (e.target as HTMLElement).closest('[data-selected="true"]')
+                            if (selected) {
+                              const value = selected.getAttribute('data-value')
+                              if (value) {
+                                handleCampaignNameChange(value)
+                                setTimeout(() => {
+                                  const firstInvestigatorInput = document.querySelector('#player-0') as HTMLInputElement
+                                  if (firstInvestigatorInput) {
+                                    firstInvestigatorInput.focus()
+                                  }
+                                }, 100)
+                              }
+                            }
+                          }
+                        }}
+                      >
                         <CommandInput placeholder="Search scenarios..." />
                         <CommandList>
                           <CommandEmpty>No scenario found.</CommandEmpty>
@@ -314,18 +340,6 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
                                   key={campaign}
                                   value={campaign}
                                   onSelect={() => handleCampaignNameChange(campaign)}
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Tab' || e.key === 'Enter') {
-                                      e.preventDefault()
-                                      handleCampaignNameChange(campaign)
-                                      setTimeout(() => {
-                                        const firstInvestigatorInput = document.querySelector('#player-0') as HTMLInputElement
-                                        if (firstInvestigatorInput) {
-                                          firstInvestigatorInput.focus()
-                                        }
-                                      }, 100)
-                                    }
-                                  }}
                                 >
                                   <Check
                                     className={cn(
@@ -557,7 +571,27 @@ function InvestigatorFormItem({ index, investigator, availableInvestigators, onU
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-[250px] p-0">
-                <Command>
+                <Command
+                  onKeyDown={(e) => {
+                    if (e.key === 'Tab') {
+                      e.preventDefault()
+                      const selected = (e.target as HTMLElement).closest('[data-selected="true"]')
+                      if (selected) {
+                        const value = selected.getAttribute('data-value')
+                        if (value) {
+                          onUpdate(index, 'investigatorName', value)
+                          setInvestigatorSearchOpen(false)
+                          setTimeout(() => {
+                            const nextInput = document.querySelector(`#player-${index + 1}`) as HTMLInputElement
+                            if (nextInput) {
+                              nextInput.focus()
+                            }
+                          }, 100)
+                        }
+                      }
+                    }
+                  }}
+                >
                   <CommandInput placeholder="Search investigators..." />
                   <CommandList>
                     <CommandEmpty>No investigator found.</CommandEmpty>
@@ -570,19 +604,6 @@ function InvestigatorFormItem({ index, investigator, availableInvestigators, onU
                             onSelect={() => {
                               onUpdate(index, 'investigatorName', name)
                               setInvestigatorSearchOpen(false)
-                            }}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Tab' || e.key === 'Enter') {
-                                e.preventDefault()
-                                onUpdate(index, 'investigatorName', name)
-                                setInvestigatorSearchOpen(false)
-                                setTimeout(() => {
-                                  const nextInput = document.querySelector(`#player-${index + 1}`) as HTMLInputElement
-                                  if (nextInput) {
-                                    nextInput.focus()
-                                  }
-                                }, 100)
-                              }
                             }}
                           >
                             <Check
