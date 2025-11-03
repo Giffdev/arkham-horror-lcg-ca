@@ -259,9 +259,14 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
                                   value={campaign}
                                   onSelect={() => handleCampaignNameChange(campaign)}
                                   onKeyDown={(e) => {
-                                    if (e.key === 'Tab') {
-                                      e.preventDefault()
+                                    if (e.key === 'Tab' || e.key === 'Enter') {
                                       handleCampaignNameChange(campaign)
+                                      setTimeout(() => {
+                                        const firstInvestigatorInput = document.querySelector('#player-0') as HTMLInputElement
+                                        if (firstInvestigatorInput) {
+                                          firstInvestigatorInput.focus()
+                                        }
+                                      }, 100)
                                     }
                                   }}
                                 >
@@ -309,9 +314,14 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
                                   value={campaign}
                                   onSelect={() => handleCampaignNameChange(campaign)}
                                   onKeyDown={(e) => {
-                                    if (e.key === 'Tab') {
-                                      e.preventDefault()
+                                    if (e.key === 'Tab' || e.key === 'Enter') {
                                       handleCampaignNameChange(campaign)
+                                      setTimeout(() => {
+                                        const firstInvestigatorInput = document.querySelector('#player-0') as HTMLInputElement
+                                        if (firstInvestigatorInput) {
+                                          firstInvestigatorInput.focus()
+                                        }
+                                      }, 100)
                                     }
                                   }}
                                 >
@@ -560,10 +570,15 @@ function InvestigatorFormItem({ index, investigator, availableInvestigators, onU
                               setInvestigatorSearchOpen(false)
                             }}
                             onKeyDown={(e) => {
-                              if (e.key === 'Tab') {
-                                e.preventDefault()
+                              if (e.key === 'Tab' || e.key === 'Enter') {
                                 onUpdate(index, 'investigatorName', name)
                                 setInvestigatorSearchOpen(false)
+                                setTimeout(() => {
+                                  const nextInput = document.querySelector(`#player-${index + 1}`) as HTMLInputElement
+                                  if (nextInput) {
+                                    nextInput.focus()
+                                  }
+                                }, 100)
                               }
                             }}
                           >
