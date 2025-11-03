@@ -6,7 +6,6 @@ import { AuthDialog } from '@/components/AuthDialog'
 import { User } from '@/lib/auth'
 import { getCommunityStats, CommunityStats } from '@/lib/community-stats'
 import { ArchetypeBadge } from '@/components/ArchetypeBadge'
-import { CampaignIcon } from '@/components/CampaignIcon'
 
 interface PublicHomepageProps {
   onAuthSuccess: (user: User) => void
@@ -131,10 +130,7 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
                               {index + 1}
                             </span>
                             <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="font-medium text-foreground">{campaign.name}</span>
-                                {campaign.set && <CampaignIcon campaignSet={campaign.set} />}
-                              </div>
+                              <span className="font-medium text-foreground">{campaign.name}</span>
                             </div>
                           </div>
                           <span className="text-sm text-muted-foreground ml-2 flex-shrink-0">
@@ -198,10 +194,7 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
                                 {index + 1}
                               </span>
                               <div className="min-w-0 flex-1">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <span className="font-medium text-foreground">{standalone.name}</span>
-                                  {standalone.set && <CampaignIcon campaignSet={standalone.set} />}
-                                </div>
+                                <span className="font-medium text-foreground">{standalone.name}</span>
                               </div>
                             </div>
                             <span className="text-sm text-muted-foreground ml-2 flex-shrink-0">
