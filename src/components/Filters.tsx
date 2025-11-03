@@ -46,7 +46,7 @@ export function Filters({
         <div className="space-y-3">
           <Label className="text-sm font-medium">Archetypes</Label>
           <div className="flex flex-wrap gap-2">
-            {ARCHETYPES.map((archetype) => {
+            {ARCHETYPES.filter(archetype => archetype !== 'Unknown').map((archetype) => {
               const isSelected = selectedArchetypes.includes(archetype)
               return (
                 <Badge

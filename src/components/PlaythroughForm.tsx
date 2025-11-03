@@ -41,7 +41,7 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
       setCampaignType('Full Campaign')
       setCampaignName('')
       setCustomCampaignName('')
-      setInvestigators([{ playerName: '', investigatorName: '', archetype: 'Neutral', isUnknown: false }])
+      setInvestigators([{ playerName: '', investigatorName: '', archetype: 'Unknown', isUnknown: false }])
     }
   }, [editPlaythrough, open])
 
@@ -55,7 +55,7 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
     if (investigators.length < 4) {
       setInvestigators([
         ...investigators,
-        { playerName: '', investigatorName: '', archetype: 'Neutral', isUnknown: false }
+        { playerName: '', investigatorName: '', archetype: 'Unknown', isUnknown: false }
       ])
     }
   }
@@ -72,7 +72,7 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
       
       if (field === 'isUnknown' && value === true) {
         updated.investigatorName = 'Unknown'
-        updated.archetype = 'Neutral'
+        updated.archetype = 'Unknown'
       }
       
       if (field === 'isUnknown' && value === false) {
@@ -110,7 +110,7 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
       investigators: investigators.map(inv => ({
         ...inv,
         investigatorName: inv.isUnknown ? 'Unknown' : inv.investigatorName,
-        archetype: inv.isUnknown ? 'Neutral' : inv.archetype
+        archetype: inv.isUnknown ? 'Unknown' : inv.archetype
       }))
     }
 

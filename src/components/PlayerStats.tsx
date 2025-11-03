@@ -39,6 +39,7 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
       .flatMap(p =>
         p.investigators
           .filter(inv => inv.playerName === playerName)
+          .filter(inv => inv.archetype !== 'Unknown')
           .map(inv => inv.archetype)
       )
       .reduce((acc, archetype) => {
