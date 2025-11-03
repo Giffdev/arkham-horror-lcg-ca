@@ -123,7 +123,12 @@ export function getDisplaySetName(investigatorName: string, setName: string): st
   return setName
 }
 
-export function getArkhamDBUrl(investigatorName: string, archetype?: Archetype): string {
+export function getArkhamDBUrl(investigatorName: string, archetype?: Archetype): string | null {
+  const investigator = getInvestigatorByName(investigatorName)
+  if (investigator?.set === 'Barkham Horror') {
+    return null
+  }
+
   const slugMap: Record<string, string | Record<string, string>> = {
     'Roland Banks': '01001',
     'Daisy Walker': '01002',
@@ -192,16 +197,11 @@ export function getArkhamDBUrl(investigatorName: string, archetype?: Archetype):
     'Winifred Habbamock': '60301',
     'Jacqueline Fine': '60401',
     'Stella Clark': '60501',
-    'Subject 5U-21 (Suzi)': 'tbb',
-    'Bark Harrigan': '88001',
-    'Kate Winthpup': '88002',
-    '"Skids" O\'Drool': '88003',
-    'Jacqueline Canine': '88004',
-    'Duke': '88005'
+    'Subject 5U-21 (Suzi)': 'tbb'
   }
   
   const mapping = slugMap[investigatorName]
-  if (!mapping) return 'https://arkhamdb.com'
+  if (!mapping) return null
   
   if (typeof mapping === 'object' && archetype) {
     const code = mapping[archetype]
@@ -214,5 +214,5 @@ export function getArkhamDBUrl(investigatorName: string, archetype?: Archetype):
     return `https://arkhamdb.com/card/${mapping}`
   }
   
-  return 'https://arkhamdb.com'
+  return null
 }
