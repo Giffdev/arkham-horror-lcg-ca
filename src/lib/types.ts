@@ -7,6 +7,8 @@ export interface InvestigatorAssignment {
   investigatorName: string
   archetype: Archetype
   isUnknown?: boolean
+  isCustom?: boolean
+  customInvestigatorName?: string
 }
 
 export interface Playthrough {

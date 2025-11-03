@@ -40,14 +40,16 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
       setSideStories(editPlaythrough.sideStories || [])
       setInvestigators(editPlaythrough.investigators.map(inv => ({
         ...inv,
-        isUnknown: inv.isUnknown || inv.investigatorName === 'Unknown' || inv.archetype === 'Unknown'
+        isUnknown: inv.isUnknown || inv.investigatorName === 'Unknown' || inv.archetype === 'Unknown',
+        isCustom: inv.isCustom || false,
+        customInvestigatorName: inv.customInvestigatorName || (inv.isCustom ? inv.investigatorName : '')
       })))
     } else {
       setCampaignType('Full Campaign')
       setCampaignName('')
       setCustomCampaignName('')
       setSideStories([])
-      setInvestigators([{ playerName: '', investigatorName: '', archetype: 'Unknown', isUnknown: false }])
+      setInvestigators([{ playerName: '', investigatorName: '', archetype: 'Unknown', isUnknown: false, isCustom: false }])
     }
   }, [editPlaythrough, open])
 
@@ -62,7 +64,7 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
     if (investigators.length < 4) {
       setInvestigators([
         ...investigators,
-        { playerName: '', investigatorName: '', archetype: 'Unknown', isUnknown: false }
+        { playerName: '', investigatorName: '', archetype: 'Unknown', isUnknown: false, isCustom: false }
       ])
     }
   }
@@ -80,9 +82,23 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
       if (field === 'isUnknown' && value === true) {
         updated.investigatorName = 'Unknown'
         updated.archetype = 'Unknown'
+        updated.isCustom = false
+        updated.customInvestigatorName = ''
       }
       
       if (field === 'isUnknown' && value === false) {
+        updated.investigatorName = ''
+      }
+      
+      if (field === 'isCustom' && value === true) {
+        updated.investigatorName = ''
+        updated.customInvestigatorName = ''
+        updated.archetype = 'Unknown'
+        updated.isUnknown = false
+      }
+      
+      if (field === 'isCustom' && value === false) {
+        updated.customInvestigatorName = ''
         updated.investigatorName = ''
       }
       
@@ -92,6 +108,7 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
           updated.archetype = investigatorData.archetypes[0]
         }
         updated.isUnknown = false
+        updated.isCustom = false
       }
       
       return updated
@@ -121,7 +138,7 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
       ...(sideStories.length > 0 && { sideStories }),
       investigators: investigators.map(inv => ({
         ...inv,
-        investigatorName: inv.isUnknown ? 'Unknown' : inv.investigatorName,
+        investigatorName: inv.isUnknown ? 'Unknown' : inv.isCustom ? (inv.customInvestigatorName || 'Custom') : inv.investigatorName,
         archetype: inv.isUnknown ? 'Unknown' : inv.archetype
       }))
     }
@@ -367,6 +384,7 @@ function InvestigatorFormItem({ index, investigator, availableInvestigators, onU
   const needsArchetypeSelection = investigatorData && isDualClassInvestigator(investigator.investigatorName)
   const availableArchetypes = investigatorData?.archetypes || []
   const isUnknown = investigator.isUnknown || investigator.investigatorName === 'Unknown'
+  const isCustom = investigator.isCustom || false
 
   return (
     <div className="p-4 border rounded-lg space-y-3 bg-card">
@@ -399,65 +417,108 @@ function InvestigatorFormItem({ index, investigator, availableInvestigators, onU
 
         <div className="space-y-2">
           <Label htmlFor={`investigator-${index}`}>Investigator</Label>
-          <Popover open={investigatorSearchOpen} onOpenChange={setInvestigatorSearchOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                role="combobox"
-                id={`investigator-${index}`}
-                className="w-full justify-between"
-                disabled={isUnknown}
-              >
-                {isUnknown ? "Unknown" : (investigator.investigatorName || "Select investigator")}
-                <CaretUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-[250px] p-0">
-              <Command>
-                <CommandInput placeholder="Search investigators..." />
-                <CommandList>
-                  <CommandEmpty>No investigator found.</CommandEmpty>
-                  <CommandGroup>
-                    <ScrollArea className="h-72">
-                      {availableInvestigators.map((name) => (
-                        <CommandItem
-                          key={name}
-                          value={name}
-                          onSelect={() => {
-                            onUpdate(index, 'investigatorName', name)
-                            setInvestigatorSearchOpen(false)
-                          }}
-                        >
-                          <Check
-                            className={cn(
-                              "mr-2 h-4 w-4",
-                              investigator.investigatorName === name ? "opacity-100" : "opacity-0"
-                            )}
-                          />
-                          {name}
-                        </CommandItem>
-                      ))}
-                    </ScrollArea>
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
+          {isCustom ? (
+            <Input
+              id={`custom-investigator-${index}`}
+              placeholder="Enter custom investigator name"
+              value={investigator.customInvestigatorName || ''}
+              onChange={(e) => onUpdate(index, 'customInvestigatorName', e.target.value)}
+            />
+          ) : (
+            <Popover open={investigatorSearchOpen} onOpenChange={setInvestigatorSearchOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  id={`investigator-${index}`}
+                  className="w-full justify-between"
+                  disabled={isUnknown}
+                >
+                  {isUnknown ? "Unknown" : (investigator.investigatorName || "Select investigator")}
+                  <CaretUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[250px] p-0">
+                <Command>
+                  <CommandInput placeholder="Search investigators..." />
+                  <CommandList>
+                    <CommandEmpty>No investigator found.</CommandEmpty>
+                    <CommandGroup>
+                      <ScrollArea className="h-72">
+                        {availableInvestigators.map((name) => (
+                          <CommandItem
+                            key={name}
+                            value={name}
+                            onSelect={() => {
+                              onUpdate(index, 'investigatorName', name)
+                              setInvestigatorSearchOpen(false)
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                investigator.investigatorName === name ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            {name}
+                          </CommandItem>
+                        ))}
+                      </ScrollArea>
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          )}
         </div>
       </div>
 
-      <div className="flex items-center space-x-2">
-        <Checkbox
-          id={`unknown-${index}`}
-          checked={isUnknown}
-          onCheckedChange={(checked) => onUpdate(index, 'isUnknown', checked as boolean)}
-        />
-        <Label htmlFor={`unknown-${index}`} className="text-sm font-normal cursor-pointer">
-          Investigator unknown
-        </Label>
+      <div className="flex items-center gap-4">
+        <div className="flex items-center space-x-2">
+          <Checkbox
+            id={`unknown-${index}`}
+            checked={isUnknown}
+            onCheckedChange={(checked) => onUpdate(index, 'isUnknown', checked as boolean)}
+          />
+          <Label htmlFor={`unknown-${index}`} className="text-sm font-normal cursor-pointer">
+            Investigator unknown
+          </Label>
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <Checkbox
+            id={`custom-${index}`}
+            checked={isCustom}
+            onCheckedChange={(checked) => onUpdate(index, 'isCustom', checked as boolean)}
+          />
+          <Label htmlFor={`custom-${index}`} className="text-sm font-normal cursor-pointer">
+            Custom investigator
+          </Label>
+        </div>
       </div>
 
-      {needsArchetypeSelection && !isUnknown && (
+      {isCustom && (
+        <div className="space-y-2">
+          <Label htmlFor={`custom-archetype-${index}`}>Class</Label>
+          <Select 
+            value={investigator.archetype} 
+            onValueChange={(value) => onUpdate(index, 'archetype', value as Archetype)}
+          >
+            <SelectTrigger id={`custom-archetype-${index}`}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {['Guardian', 'Seeker', 'Rogue', 'Mystic', 'Survivor', 'Neutral'].map((archetype) => (
+                <SelectItem key={archetype} value={archetype}>
+                  {archetype}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      {needsArchetypeSelection && !isUnknown && !isCustom && (
         <div className="space-y-2">
           <Label htmlFor={`archetype-${index}`}>Class</Label>
           <Select 
@@ -480,7 +541,7 @@ function InvestigatorFormItem({ index, investigator, availableInvestigators, onU
         </div>
       )}
       
-      {investigatorData && !needsArchetypeSelection && !isUnknown && (
+      {investigatorData && !needsArchetypeSelection && !isUnknown && !isCustom && (
         <div className="text-sm text-muted-foreground">
           Class: <span className="font-medium text-foreground">{investigatorData.archetypes[0]}</span>
         </div>
