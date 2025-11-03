@@ -72,17 +72,17 @@ export const signIn = async (email: string, password: string): Promise<{ success
   
   const user = await spark.kv.get<User>(`user:${normalizedEmail}`)
   if (!user) {
-    return { success: false, error: 'Invalid email or password' }
+    return { success: false, error: 'No account found with this email. Please sign up first.' }
   }
   
   const passwordData = await spark.kv.get<{ hash: string; salt: string }>(`user:${normalizedEmail}:password`)
   if (!passwordData) {
-    return { success: false, error: 'Invalid email or password' }
+    return { success: false, error: 'No account found with this email. Please sign up first.' }
   }
   
   const hashedPassword = await hashPassword(password, passwordData.salt)
   if (hashedPassword !== passwordData.hash) {
-    return { success: false, error: 'Invalid email or password' }
+    return { success: false, error: 'Incorrect password. Please try again.' }
   }
   
   return { success: true, user }
