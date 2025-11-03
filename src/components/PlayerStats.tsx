@@ -142,7 +142,7 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
           <div className="space-y-3">
             {playerData.campaigns.map((campaign, idx) => (
               <Card key={idx} className="p-4">
-                <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <h4 className="font-medium truncate">{campaign.name}</h4>
                     <div className="flex flex-wrap items-center gap-2 mt-2 text-sm text-muted-foreground">
@@ -158,9 +158,6 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
                     </div>
                   </div>
                   <div className="flex items-center gap-3 lg:flex-shrink-0">
-                    <div className="w-24 flex justify-start">
-                      <ArchetypeBadge archetype={campaign.investigator.archetype} className="w-20 justify-center" />
-                    </div>
                     <div className="flex items-center gap-2 min-w-0">
                       <span className="text-sm font-medium whitespace-nowrap">
                         {campaign.investigator.isUnknown || campaign.investigator.investigatorName === 'Unknown' 
@@ -172,6 +169,9 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
                           {getDisplaySetName(campaign.investigator.investigatorName, campaign.investigator.investigatorSet)}
                         </Badge>
                       )}
+                    </div>
+                    <div className="w-20 flex justify-end">
+                      <ArchetypeBadge archetype={campaign.investigator.archetype} className="w-20 justify-center" />
                     </div>
                   </div>
                 </div>
