@@ -15,7 +15,7 @@ import { Card } from '@/components/ui/card'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { Toaster, toast } from 'sonner'
 import { getInvestigatorByName } from '@/lib/investigator-data'
-import { getCurrentSession, clearCurrentSession, handleOAuthCallback, setCurrentSession, User as AuthUser } from '@/lib/auth'
+import { getCurrentSession, clearCurrentSession, User as AuthUser } from '@/lib/auth'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -40,20 +40,6 @@ function App() {
   useEffect(() => {
     async function loadUser() {
       try {
-        if (window.location.hash.includes('access_token')) {
-          const result = await handleOAuthCallback()
-          if (result.success && result.user) {
-            await setCurrentSession(result.user)
-            setCurrentUser({ id: result.user.id, email: result.user.email, createdAt: result.user.createdAt })
-            setUserKVKey(`${result.user.id}_playthroughs`)
-            toast.success('Successfully signed in!')
-          } else {
-            toast.error(result.error || 'Failed to sign in')
-          }
-          setLoading(false)
-          return
-        }
-
         const session = await getCurrentSession()
         if (session) {
           setCurrentUser({ id: session.userId, email: session.email, createdAt: Date.now() })
