@@ -59,12 +59,10 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
     setCampaignName('')
     setCustomCampaignName('')
     setSideStories([])
-    setInvestigators([{ playerName: '', investigatorName: '', archetype: 'Unknown', isUnknown: false, isCustom: false, investigatorSet: undefined }])
   }
 
   const handleCampaignNameChange = (name: string) => {
     setCampaignName(name)
-    setInvestigators([{ playerName: '', investigatorName: '', archetype: 'Unknown', isUnknown: false, isCustom: false, investigatorSet: undefined }])
   }
 
   const handleAddInvestigator = () => {
