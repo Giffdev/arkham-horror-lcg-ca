@@ -1,0 +1,106 @@
+import { Playthrough, Archetype } from './types'
+
+export interface CommunityStats {
+  totalGames: number
+  topCampaigns: { name: string; count: number; set?: string }[]
+  topInvestigators: { name: string; count: number; archetypes: Archetype[] }[]
+  totalInvestigatorsPlayed: number
+  topSideScenarios: { name: string; count: number }[]
+  topStandalones: { name: string; count: number; set?: string }[]
+  lastUpdated: number
+}
+
+const COMMUNITY_STATS_KEY = 'public:community-stats'
+
+export async function updateCommunityStats(userPlaythroughs: Playthrough[]): Promise<void> {
+  try {
+    const currentStats = await spark.kv.get<CommunityStats>(COMMUNITY_STATS_KEY)
+    
+    const campaignCounts = new Map<string, { count: number; set?: string }>()
+    const investigatorCounts = new Map<string, { count: number; archetypes: Archetype[] }>()
+    const sideScenarioCounts = new Map<string, number>()
+    const standaloneCounts = new Map<string, { count: number; set?: string }>()
+    
+    for (const playthrough of userPlaythroughs) {
+      if (playthrough.campaignName && playthrough.campaignName !== 'Unknown') {
+        const existing = campaignCounts.get(playthrough.campaignName) || { count: 0, set: playthrough.campaignSet }
+        campaignCounts.set(playthrough.campaignName, {
+          count: existing.count + 1,
+          set: existing.set || playthrough.campaignSet
+        })
+
+        if (playthrough.campaignType === 'Standalone') {
+          const existingStandalone = standaloneCounts.get(playthrough.campaignName) || { count: 0, set: playthrough.campaignSet }
+          standaloneCounts.set(playthrough.campaignName, {
+            count: existingStandalone.count + 1,
+            set: existingStandalone.set || playthrough.campaignSet
+          })
+        }
+      }
+
+      if (playthrough.sideStories && Array.isArray(playthrough.sideStories)) {
+        for (const sideStory of playthrough.sideStories) {
+          const count = sideScenarioCounts.get(sideStory) || 0
+          sideScenarioCounts.set(sideStory, count + 1)
+        }
+      }
+
+      for (const inv of playthrough.investigators || []) {
+        if (inv.investigatorName && inv.investigatorName !== 'Unknown' && !inv.isCustom) {
+          const existing = investigatorCounts.get(inv.investigatorName) || { 
+            count: 0, 
+            archetypes: inv.archetypes || [inv.archetype] 
+          }
+          investigatorCounts.set(inv.investigatorName, {
+            count: existing.count + 1,
+            archetypes: existing.archetypes
+          })
+        }
+      }
+    }
+
+    const topCampaigns = Array.from(campaignCounts.entries())
+      .map(([name, data]) => ({ name, count: data.count, set: data.set }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5)
+
+    const topInvestigators = Array.from(investigatorCounts.entries())
+      .map(([name, data]) => ({ name, count: data.count, archetypes: data.archetypes }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5)
+
+    const topSideScenarios = Array.from(sideScenarioCounts.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5)
+
+    const topStandalones = Array.from(standaloneCounts.entries())
+      .map(([name, data]) => ({ name, count: data.count, set: data.set }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5)
+
+    const newStats: CommunityStats = {
+      totalGames: userPlaythroughs.length,
+      topCampaigns,
+      topInvestigators,
+      totalInvestigatorsPlayed: investigatorCounts.size,
+      topSideScenarios,
+      topStandalones,
+      lastUpdated: Date.now()
+    }
+
+    await spark.kv.set(COMMUNITY_STATS_KEY, newStats)
+  } catch (error) {
+    console.error('Failed to update community stats:', error)
+  }
+}
+
+export async function getCommunityStats(): Promise<CommunityStats | null> {
+  try {
+    const stats = await spark.kv.get<CommunityStats>(COMMUNITY_STATS_KEY)
+    return stats || null
+  } catch (error) {
+    console.error('Failed to get community stats:', error)
+    return null
+  }
+}
