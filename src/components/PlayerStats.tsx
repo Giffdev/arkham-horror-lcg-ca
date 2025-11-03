@@ -337,22 +337,23 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
         <Card className="p-4">
           <div className="flex items-center gap-3 mb-3">
             <Check size={20} weight="duotone" className="text-primary" />
-            <h3 className="font-semibold">Favorite Classes</h3>
+            <h3 className="font-semibold">Class Ranking</h3>
           </div>
           <div className="space-y-2 mt-3">
-            {Object.entries(playerData.archetypeCounts)
-              .sort(([, a], [, b]) => b - a)
-              .map(([archetype, count]) => (
+            {allArchetypes
+              .map((archetype) => ({
+                archetype,
+                count: playerData.archetypeCounts[archetype] || 0
+              }))
+              .sort((a, b) => b.count - a.count)
+              .map(({ archetype, count }) => (
                 <div key={archetype} className="flex items-center justify-between">
-                  <ArchetypeBadge archetype={archetype as Archetype} />
+                  <ArchetypeBadge archetype={archetype} />
                   <Badge variant="secondary" className="text-xs">
                     ×{count}
                   </Badge>
                 </div>
               ))}
-            {Object.keys(playerData.archetypeCounts).length === 0 && (
-              <p className="text-sm text-muted-foreground">No data yet</p>
-            )}
           </div>
         </Card>
       </div>
