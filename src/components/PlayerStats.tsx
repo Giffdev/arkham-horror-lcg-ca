@@ -441,7 +441,7 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
               {playedInvestigators.map((investigator) => (
                 <Card key={investigator.name} className="p-3 group relative hover:border-accent transition-colors">
                   <a 
-                    href={getArkhamDBUrl(investigator.name)}
+                    href={getArkhamDBUrl(investigator.name, investigator.archetypes[0])}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="absolute inset-0 z-10"
@@ -485,7 +485,7 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
               {unplayedInvestigators.map((investigator) => (
                 <Card key={investigator.name} className="p-3 group relative hover:border-accent transition-colors">
                   <a 
-                    href={getArkhamDBUrl(investigator.name)}
+                    href={getArkhamDBUrl(investigator.name, investigator.archetypes[0])}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="absolute inset-0 z-10"

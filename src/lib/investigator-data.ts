@@ -123,8 +123,8 @@ export function getDisplaySetName(investigatorName: string, setName: string): st
   return setName
 }
 
-export function getArkhamDBUrl(investigatorName: string): string {
-  const slugMap: Record<string, string> = {
+export function getArkhamDBUrl(investigatorName: string, archetype?: Archetype): string {
+  const slugMap: Record<string, string | Record<string, string>> = {
     'Roland Banks': '01001',
     'Daisy Walker': '01002',
     '"Skids" O\'Toole': '01003',
@@ -174,15 +174,18 @@ export function getArkhamDBUrl(investigatorName: string): string {
     'Darrell Simmons': '09005',
     'Charlie Kane': '09006',
     'Wilson Richards': '10001',
-    'Kate Winthrop': '10002',
-    'Alessandra Zorzi': '10004',
+    'Kate Winthrop': '10004',
+    'Alessandra Zorzi': '10009',
     'Kohaku Narukami': '10006',
     'Hank Samson': '10008',
     'Marion Tavares': '11001',
     'Lucius Galloway': '11002',
-    'Agatha Crane': '11004',
+    'Agatha Crane': {
+      'Seeker': '11007',
+      'Mystic': '11008'
+    },
     'Michael McGlen': '11006',
-    'Gloria Goldberg': '11008',
+    'Gloria Goldberg': '11009',
     'George Barnaby': '11010',
     'Nathaniel Cho': '60101',
     'Harvey Walters': '60201',
@@ -197,7 +200,19 @@ export function getArkhamDBUrl(investigatorName: string): string {
     'Duke': '88005'
   }
   
-  const code = slugMap[investigatorName]
-  if (!code) return 'https://arkhamdb.com'
-  return `https://arkhamdb.com/card/${code}`
+  const mapping = slugMap[investigatorName]
+  if (!mapping) return 'https://arkhamdb.com'
+  
+  if (typeof mapping === 'object' && archetype) {
+    const code = mapping[archetype]
+    if (code) return `https://arkhamdb.com/card/${code}`
+    const firstCode = Object.values(mapping)[0]
+    return `https://arkhamdb.com/card/${firstCode}`
+  }
+  
+  if (typeof mapping === 'string') {
+    return `https://arkhamdb.com/card/${mapping}`
+  }
+  
+  return 'https://arkhamdb.com'
 }
