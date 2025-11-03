@@ -239,7 +239,18 @@ function App() {
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => window.location.reload()} className="text-destructive focus:text-destructive">
+                  <DropdownMenuItem 
+                    onClick={async () => {
+                      try {
+                        await spark.kv.delete(`user-${currentUser.id}-playthroughs`)
+                        window.location.href = '/'
+                      } catch (error) {
+                        console.error('Sign out error:', error)
+                        window.location.href = '/'
+                      }
+                    }} 
+                    className="text-destructive focus:text-destructive"
+                  >
                     <SignOut size={16} className="mr-2" />
                     Sign Out
                   </DropdownMenuItem>
