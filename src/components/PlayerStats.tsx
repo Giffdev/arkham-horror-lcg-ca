@@ -259,10 +259,10 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
               .sort(([, a], [, b]) => b.count - a.count)
               .slice(0, 5)
               .map(([name, data]) => (
-                <div key={name} className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-2 min-w-0 flex-1">
-                    <span className="truncate">{name}</span>
-                    <ArchetypeBadge archetype={data.archetype} className="text-xs h-5 shrink-0" />
+                <div key={name} className="flex items-start justify-between text-sm gap-2">
+                  <div className="flex flex-col gap-1 min-w-0 flex-1">
+                    <span className="font-medium">{name}</span>
+                    <ArchetypeBadge archetype={data.archetype} className="text-xs h-5 w-fit" />
                   </div>
                   <Badge variant="secondary" className="ml-2 shrink-0 text-xs">
                     ×{data.count}
