@@ -2,11 +2,10 @@ import { useMemo, useState } from 'react'
 import { Playthrough, Archetype } from '@/lib/types'
 import { Card } from '@/components/ui/card'
 import { INVESTIGATORS, Investigator, getArkhamDBUrl, INVESTIGATOR_SETS } from '@/lib/investigator-data'
-import { Check, ArrowSquareOut } from '@phosphor-icons/react'
+import { Check, ArrowSquareOut, Funnel } from '@phosphor-icons/react'
 import { ArchetypeBadge } from '@/components/ArchetypeBadge'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 
 interface PlayersOverviewProps {
   playthroughs: Playthrough[]
@@ -109,53 +108,70 @@ export function PlayersOverview({ playthroughs }: PlayersOverviewProps) {
 
   return (
     <div className="space-y-6">
-      <Card className="p-6">
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="font-semibold">Filter Investigators</h3>
-            {hasActiveFilters && (
-              <Button variant="ghost" size="sm" onClick={handleClearFilters}>
-                Clear Filters
-              </Button>
-            )}
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <Funnel size={16} className="text-muted-foreground" />
+          <span className="text-sm text-muted-foreground">Filter by:</span>
+        </div>
+
+        <div className="space-y-3">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium">Class</p>
+              {selectedArchetypes.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleClearFilters}
+                  className="h-6 text-xs px-2"
+                >
+                  Clear
+                </Button>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {archetypes.map(archetype => (
+                <Button
+                  key={archetype}
+                  variant={selectedArchetypes.includes(archetype) ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => handleArchetypeToggle(archetype)}
+                >
+                  {archetype}
+                </Button>
+              ))}
+            </div>
           </div>
 
-          <div className="space-y-3">
-            <div>
-              <p className="text-sm font-medium mb-2">Class</p>
-              <div className="flex flex-wrap gap-2">
-                {archetypes.map(archetype => (
-                  <Button
-                    key={archetype}
-                    variant={selectedArchetypes.includes(archetype) ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => handleArchetypeToggle(archetype)}
-                    className="gap-1.5"
-                  >
-                    <ArchetypeBadge archetype={archetype} className="text-xs" />
-                  </Button>
-                ))}
-              </div>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium">Set</p>
+              {selectedSets.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleClearFilters}
+                  className="h-6 text-xs px-2"
+                >
+                  Clear
+                </Button>
+              )}
             </div>
-
-            <div>
-              <p className="text-sm font-medium mb-2">Set</p>
-              <div className="flex flex-wrap gap-2">
-                {INVESTIGATOR_SETS.map(set => (
-                  <Button
-                    key={set}
-                    variant={selectedSets.includes(set) ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => handleSetToggle(set)}
-                  >
-                    <span className="text-xs">{set}</span>
-                  </Button>
-                ))}
-              </div>
+            <div className="flex flex-wrap gap-2">
+              {INVESTIGATOR_SETS.map(set => (
+                <Button
+                  key={set}
+                  variant={selectedSets.includes(set) ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => handleSetToggle(set)}
+                >
+                  {set}
+                </Button>
+              ))}
             </div>
           </div>
         </div>
-      </Card>
+      </div>
 
       <div>
         <h2 className="text-2xl font-semibold mb-4">Investigators Played</h2>

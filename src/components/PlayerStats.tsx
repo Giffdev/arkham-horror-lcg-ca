@@ -374,60 +374,80 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
           </TabsTrigger>
         </TabsList>
 
-        <div className="flex flex-wrap gap-2 items-center">
-          <Funnel size={16} className="text-muted-foreground" />
-          <div className="flex flex-wrap gap-2">
-            <Button
-              size="sm"
-              variant={selectedArchetypes.length === 0 ? 'default' : 'outline'}
-              onClick={() => setSelectedArchetypes([])}
-            >
-              All Classes
-            </Button>
-            {allArchetypes.map(archetype => (
-              <Button
-                key={archetype}
-                size="sm"
-                variant={selectedArchetypes.includes(archetype) ? 'default' : 'outline'}
-                onClick={() => {
-                  setSelectedArchetypes(current =>
-                    current.includes(archetype)
-                      ? current.filter(a => a !== archetype)
-                      : [...current, archetype]
-                  )
-                }}
-              >
-                {archetype}
-              </Button>
-            ))}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Funnel size={16} className="text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">Filter by:</span>
           </div>
-        </div>
 
-        <div className="flex flex-wrap gap-2 items-center">
-          <div className="flex flex-wrap gap-2">
-            <Button
-              size="sm"
-              variant={selectedSets.length === 0 ? 'default' : 'outline'}
-              onClick={() => setSelectedSets([])}
-            >
-              All Sets
-            </Button>
-            {allSets.map(set => (
-              <Button
-                key={set}
-                size="sm"
-                variant={selectedSets.includes(set) ? 'default' : 'outline'}
-                onClick={() => {
-                  setSelectedSets(current =>
-                    current.includes(set)
-                      ? current.filter(s => s !== set)
-                      : [...current, set]
-                  )
-                }}
-              >
-                {set}
-              </Button>
-            ))}
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium">Class</p>
+                {selectedArchetypes.length > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedArchetypes([])}
+                    className="h-6 text-xs px-2"
+                  >
+                    Clear
+                  </Button>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {allArchetypes.map(archetype => (
+                  <Button
+                    key={archetype}
+                    size="sm"
+                    variant={selectedArchetypes.includes(archetype) ? 'default' : 'outline'}
+                    onClick={() => {
+                      setSelectedArchetypes(current =>
+                        current.includes(archetype)
+                          ? current.filter(a => a !== archetype)
+                          : [...current, archetype]
+                      )
+                    }}
+                  >
+                    {archetype}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium">Set</p>
+                {selectedSets.length > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedSets([])}
+                    className="h-6 text-xs px-2"
+                  >
+                    Clear
+                  </Button>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {allSets.map(set => (
+                  <Button
+                    key={set}
+                    size="sm"
+                    variant={selectedSets.includes(set) ? 'default' : 'outline'}
+                    onClick={() => {
+                      setSelectedSets(current =>
+                        current.includes(set)
+                          ? current.filter(s => s !== set)
+                          : [...current, set]
+                      )
+                    }}
+                  >
+                    {set}
+                  </Button>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
 

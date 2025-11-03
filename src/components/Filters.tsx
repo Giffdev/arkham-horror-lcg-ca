@@ -1,9 +1,6 @@
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Label } from '@/components/ui/label'
-import { Archetype, CampaignType, ARCHETYPES, CAMPAIGN_TYPES, ARCHETYPE_COLORS } from '@/lib/types'
-import { X, Funnel } from '@phosphor-icons/react'
-import { cn } from '@/lib/utils'
+import { Archetype, CampaignType, ARCHETYPES, CAMPAIGN_TYPES } from '@/lib/types'
+import { Funnel } from '@phosphor-icons/react'
 
 interface FiltersProps {
   selectedArchetypes: Archetype[]
@@ -23,65 +20,70 @@ export function Filters({
   const hasActiveFilters = selectedArchetypes.length > 0 || selectedCampaignTypes.length > 0
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Funnel size={20} weight="duotone" className="text-muted-foreground" />
-          <h2 className="text-lg font-semibold">Filters</h2>
-        </div>
-        {hasActiveFilters && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onClearFilters}
-            className="gap-2"
-          >
-            <X size={16} />
-            Clear All
-          </Button>
-        )}
+    <div className="space-y-4">
+      <div className="flex items-center gap-2">
+        <Funnel size={16} className="text-muted-foreground" />
+        <span className="text-sm text-muted-foreground">Filter by:</span>
       </div>
 
-      <div className="space-y-6">
-        <div className="space-y-3">
-          <Label className="text-sm font-medium">Archetypes</Label>
+      <div className="space-y-3">
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium">Class</p>
+            {selectedArchetypes.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onClearFilters()}
+                className="h-6 text-xs px-2"
+              >
+                Clear
+              </Button>
+            )}
+          </div>
           <div className="flex flex-wrap gap-2">
             {ARCHETYPES.filter(archetype => archetype !== 'Unknown').map((archetype) => {
               const isSelected = selectedArchetypes.includes(archetype)
               return (
-                <Badge
+                <Button
                   key={archetype}
+                  size="sm"
                   variant={isSelected ? 'default' : 'outline'}
-                  className={cn(
-                    'cursor-pointer transition-all hover:scale-105 px-3 py-1',
-                    isSelected && ARCHETYPE_COLORS[archetype]
-                  )}
                   onClick={() => onArchetypeToggle(archetype)}
                 >
                   {archetype}
-                </Badge>
+                </Button>
               )
             })}
           </div>
         </div>
 
-        <div className="space-y-3">
-          <Label className="text-sm font-medium">Campaign Types</Label>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium">Campaign</p>
+            {selectedCampaignTypes.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onClearFilters()}
+                className="h-6 text-xs px-2"
+              >
+                Clear
+              </Button>
+            )}
+          </div>
           <div className="flex flex-wrap gap-2">
             {CAMPAIGN_TYPES.map((type) => {
               const isSelected = selectedCampaignTypes.includes(type)
               return (
-                <Badge
+                <Button
                   key={type}
+                  size="sm"
                   variant={isSelected ? 'default' : 'outline'}
-                  className={cn(
-                    'cursor-pointer transition-all hover:scale-105 px-3 py-1',
-                    isSelected && 'bg-primary text-primary-foreground'
-                  )}
                   onClick={() => onCampaignTypeToggle(type)}
                 >
                   {type}
-                </Badge>
+                </Button>
               )
             })}
           </div>

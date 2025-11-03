@@ -9,7 +9,6 @@ import { Filters } from '@/components/Filters'
 import { PlayerStats } from '@/components/PlayerStats'
 import { PlayersOverview } from '@/components/PlayersOverview'
 import { Plus, BookOpen, User } from '@phosphor-icons/react'
-import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card } from '@/components/ui/card'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
@@ -196,7 +195,7 @@ function App() {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="games" className="space-y-8">
+          <TabsContent value="games" className="space-y-6">
             <Filters
               selectedArchetypes={selectedArchetypes}
               selectedCampaignTypes={selectedCampaignTypes}
@@ -204,8 +203,6 @@ function App() {
               onCampaignTypeToggle={handleCampaignTypeToggle}
               onClearFilters={handleClearFilters}
             />
-
-            <Separator />
 
             {!playthroughs || playthroughs.length === 0 ? (
               <EmptyState />
