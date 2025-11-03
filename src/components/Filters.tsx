@@ -23,7 +23,7 @@ export function Filters({
   const hasActiveFilters = selectedArchetypes.length > 0 || selectedCampaignTypes.length > 0
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Funnel size={20} weight="duotone" className="text-muted-foreground" />
@@ -42,8 +42,8 @@ export function Filters({
         )}
       </div>
 
-      <div className="space-y-4">
-        <div className="space-y-2">
+      <div className="space-y-6">
+        <div className="space-y-3">
           <Label className="text-sm font-medium">Archetypes</Label>
           <div className="flex flex-wrap gap-2">
             {ARCHETYPES.map((archetype) => {
@@ -53,7 +53,7 @@ export function Filters({
                   key={archetype}
                   variant={isSelected ? 'default' : 'outline'}
                   className={cn(
-                    'cursor-pointer transition-all hover:scale-105',
+                    'cursor-pointer transition-all hover:scale-105 px-3 py-1',
                     isSelected && ARCHETYPE_COLORS[archetype]
                   )}
                   onClick={() => onArchetypeToggle(archetype)}
@@ -65,7 +65,7 @@ export function Filters({
           </div>
         </div>
 
-        <div className="space-y-2">
+        <div className="space-y-3">
           <Label className="text-sm font-medium">Campaign Types</Label>
           <div className="flex flex-wrap gap-2">
             {CAMPAIGN_TYPES.map((type) => {
@@ -75,7 +75,7 @@ export function Filters({
                   key={type}
                   variant={isSelected ? 'default' : 'outline'}
                   className={cn(
-                    'cursor-pointer transition-all hover:scale-105',
+                    'cursor-pointer transition-all hover:scale-105 px-3 py-1',
                     isSelected && 'bg-primary text-primary-foreground'
                   )}
                   onClick={() => onCampaignTypeToggle(type)}
