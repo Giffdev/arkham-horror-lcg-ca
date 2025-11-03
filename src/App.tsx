@@ -154,16 +154,17 @@ function App() {
     <div className="min-h-screen bg-background">
       <Toaster position="top-center" />
       
-      <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="container mx-auto px-6 py-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <BookOpen size={32} weight="duotone" className="text-primary" />
-              <h1 className="text-3xl font-bold">Arkham Horror LCG Tracker</h1>
+      <header className="border-b bg-card/50 backdrop-blur-sm md:sticky md:top-0 z-10">
+        <div className="container mx-auto px-6 py-4 md:py-6">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
+              <BookOpen size={24} className="md:w-8 md:h-8 text-primary flex-shrink-0" weight="duotone" />
+              <h1 className="text-lg md:text-3xl font-bold truncate">Arkham Horror LCG Tracker</h1>
             </div>
-            <Button onClick={handleNewGame} className="gap-2">
-              <Plus size={20} weight="bold" />
-              Log New Game
+            <Button onClick={handleNewGame} className="gap-1.5 md:gap-2 flex-shrink-0 text-xs md:text-sm">
+              <Plus size={18} className="md:w-5 md:h-5" weight="bold" />
+              <span className="hidden sm:inline">Log New Game</span>
+              <span className="sm:hidden">New</span>
             </Button>
           </div>
         </div>

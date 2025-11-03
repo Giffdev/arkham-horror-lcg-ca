@@ -27,7 +27,7 @@ export function PlaythroughCard({ playthrough, onEdit, onDelete }: PlaythroughCa
   return (
     <Card className="p-4 md:p-6 hover:border-accent transition-all duration-200 hover:shadow-lg group">
       <div className="flex flex-col md:flex-row gap-4 md:gap-6 md:items-start">
-        <div className="flex items-start justify-between gap-4 md:min-w-[280px] md:flex-shrink-0">
+        <div className="flex items-start justify-between gap-4 md:min-w-[320px] md:flex-shrink-0">
           <div className="flex-1 min-w-0">
             <h3 className="text-lg md:text-xl font-semibold mb-1 truncate">
               {displayName || 'Untitled Campaign'}
@@ -116,9 +116,9 @@ export function PlaythroughCard({ playthrough, onEdit, onDelete }: PlaythroughCa
             <div className="space-y-1.5">
               {playthrough.investigators.map((inv, idx) => (
                 <div key={idx} className="flex items-center gap-3 text-sm">
-                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <div className="flex items-center gap-2 min-w-0 md:min-w-[280px]">
                     <ArchetypeBadge archetype={inv.archetype} />
-                    <span className="font-medium truncate">
+                    <span className="font-medium">
                       {inv.isUnknown || inv.investigatorName === 'Unknown' ? 'Unknown' : inv.investigatorName}
                     </span>
                     {inv.investigatorSet && !inv.isUnknown && inv.investigatorName !== 'Unknown' && (
