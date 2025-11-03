@@ -287,9 +287,6 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
               <SignIn size={20} weight="bold" />
               Create Account or Sign In
             </Button>
-            <p className="text-sm text-muted-foreground mt-4">
-              All your data is private and securely stored
-            </p>
           </div>
         </div>
       </main>
