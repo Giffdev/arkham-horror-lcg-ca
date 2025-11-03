@@ -2,11 +2,14 @@ export interface User {
   id: string
   email: string
   createdAt: number
+  authProvider?: 'email' | 'google' | 'microsoft'
+  displayName?: string
 }
 
 export interface AuthSession {
   userId: string
   email: string
+  authProvider?: 'email' | 'google' | 'microsoft'
 }
 
 const hashPassword = async (password: string, salt: string): Promise<string> => {
@@ -50,7 +53,8 @@ export const createAccount = async (email: string, password: string): Promise<{ 
   const user: User = {
     id: userId,
     email: normalizedEmail,
-    createdAt: Date.now()
+    createdAt: Date.now(),
+    authProvider: 'email'
   }
   
   await spark.kv.set(`user:${normalizedEmail}`, user)
@@ -92,9 +96,116 @@ export const getCurrentSession = async (): Promise<AuthSession | null> => {
 export const setCurrentSession = async (user: User): Promise<void> => {
   const session: AuthSession = {
     userId: user.id,
-    email: user.email
+    email: user.email,
+    authProvider: user.authProvider
   }
   await spark.kv.set('current-session', session)
+}
+
+export const signInWithGoogle = async (): Promise<{ success: boolean; error?: string; user?: User }> => {
+  try {
+    const clientId = '470761896746-ivt6pu7fjs65i0f4h4iksqiafkgev64g.apps.googleusercontent.com'
+    const redirectUri = window.location.origin
+    const state = generateSalt()
+    
+    await spark.kv.set('oauth-state', { state, provider: 'google', timestamp: Date.now() })
+    
+    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
+      `client_id=${clientId}&` +
+      `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+      `response_type=token&` +
+      `scope=email profile&` +
+      `state=${state}`
+    
+    window.location.href = authUrl
+    return { success: true }
+  } catch (error) {
+    return { success: false, error: 'Failed to initiate Google sign-in' }
+  }
+}
+
+export const signInWithMicrosoft = async (): Promise<{ success: boolean; error?: string; user?: User }> => {
+  try {
+    const clientId = '6d4e9e5c-7b3a-4f2d-8e1c-9a0b3c4d5e6f'
+    const redirectUri = window.location.origin
+    const state = generateSalt()
+    
+    await spark.kv.set('oauth-state', { state, provider: 'microsoft', timestamp: Date.now() })
+    
+    const authUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?` +
+      `client_id=${clientId}&` +
+      `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+      `response_type=token&` +
+      `scope=openid email profile&` +
+      `state=${state}`
+    
+    window.location.href = authUrl
+    return { success: true }
+  } catch (error) {
+    return { success: false, error: 'Failed to initiate Microsoft sign-in' }
+  }
+}
+
+export const handleOAuthCallback = async (): Promise<{ success: boolean; error?: string; user?: User }> => {
+  const hash = window.location.hash.substring(1)
+  const params = new URLSearchParams(hash)
+  
+  const accessToken = params.get('access_token')
+  const state = params.get('state')
+  
+  if (!accessToken || !state) {
+    return { success: false, error: 'Invalid OAuth callback' }
+  }
+  
+  const oauthState = await spark.kv.get<{ state: string; provider: 'google' | 'microsoft'; timestamp: number }>('oauth-state')
+  
+  if (!oauthState || oauthState.state !== state) {
+    return { success: false, error: 'Invalid OAuth state' }
+  }
+  
+  if (Date.now() - oauthState.timestamp > 600000) {
+    return { success: false, error: 'OAuth state expired' }
+  }
+  
+  await spark.kv.delete('oauth-state')
+  
+  try {
+    let userInfo: { email: string; name?: string }
+    
+    if (oauthState.provider === 'google') {
+      const response = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      })
+      userInfo = await response.json()
+    } else {
+      const response = await fetch('https://graph.microsoft.com/v1.0/me', {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      })
+      const data = await response.json()
+      userInfo = { email: data.mail || data.userPrincipalName, name: data.displayName }
+    }
+    
+    const normalizedEmail = userInfo.email.toLowerCase().trim()
+    let user = await spark.kv.get<User>(`user:${normalizedEmail}`)
+    
+    if (!user) {
+      const userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+      user = {
+        id: userId,
+        email: normalizedEmail,
+        createdAt: Date.now(),
+        authProvider: oauthState.provider,
+        displayName: userInfo.name
+      }
+      await spark.kv.set(`user:${normalizedEmail}`, user)
+    }
+    
+    window.history.replaceState({}, document.title, window.location.pathname)
+    
+    return { success: true, user }
+  } catch (error) {
+    return { success: false, error: 'Failed to get user info from OAuth provider' }
+  }
 }
 
 export const clearCurrentSession = async (): Promise<void> => {
