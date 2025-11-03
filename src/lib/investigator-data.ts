@@ -169,7 +169,7 @@ export function getArkhamDBUrl(investigatorName: string, archetype?: Archetype):
     'Silas Marsh': '07005',
     'Daniela Reyes': '08001',
     'Norman Withers': '08003',
-    'Monterey Jack': '08004',
+    'Monterey Jack': '08007',
     'Lily Chen': '08010',
     'Bob Jenkins': '08011',
     'Carson Sinclair': '09001',
