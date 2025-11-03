@@ -1,9 +1,12 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { BookOpen, SignIn, Users, ChartBar, Sparkle } from '@phosphor-icons/react'
+import { BookOpen, SignIn, Users, ChartBar, Sparkle, Trophy, GameController } from '@phosphor-icons/react'
 import { AuthDialog } from '@/components/AuthDialog'
 import { User } from '@/lib/auth'
+import { getCommunityStats, CommunityStats } from '@/lib/community-stats'
+import { ArchetypeBadge } from '@/components/ArchetypeBadge'
+import { CampaignIcon } from '@/components/CampaignIcon'
 
 interface PublicHomepageProps {
   onAuthSuccess: (user: User) => void
@@ -11,6 +14,22 @@ interface PublicHomepageProps {
 
 export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
   const [authDialogOpen, setAuthDialogOpen] = useState(false)
+  const [communityStats, setCommunityStats] = useState<CommunityStats | null>(null)
+  const [isLoadingStats, setIsLoadingStats] = useState(true)
+
+  useEffect(() => {
+    async function loadStats() {
+      try {
+        const stats = await getCommunityStats()
+        setCommunityStats(stats)
+      } catch (error) {
+        console.error('Failed to load community stats:', error)
+      } finally {
+        setIsLoadingStats(false)
+      }
+    }
+    loadStats()
+  }, [])
 
   const handleLogin = () => {
     setAuthDialogOpen(true)
@@ -34,14 +53,13 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
       </header>
 
       <main className="container mx-auto px-6 py-12">
-        <div className="max-w-4xl mx-auto space-y-12">
+        <div className="max-w-5xl mx-auto space-y-12">
           <div className="text-center space-y-4">
             <h2 className="text-4xl md:text-5xl font-bold text-foreground">
               Track Your Arkham Horror Adventures
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Log your campaign playthroughs, track investigators and players, and explore your gaming history.
-              Create an account to get started.
+              Join the community tracking their Arkham Horror LCG campaigns. Log your playthroughs, discover what others are playing, and explore your gaming history.
             </p>
             <div className="pt-4">
               <Button onClick={handleLogin} size="lg" className="gap-2">
@@ -50,6 +68,182 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
               </Button>
             </div>
           </div>
+
+          {!isLoadingStats && communityStats && communityStats.totalGames > 0 && (
+            <div className="space-y-6">
+              <div className="text-center">
+                <h3 className="text-2xl font-bold text-foreground mb-2">Community Stats</h3>
+                <p className="text-muted-foreground">See what the community is playing</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Card>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center gap-2">
+                      <GameController size={20} className="text-primary" weight="duotone" />
+                      <CardTitle className="text-sm text-muted-foreground">Total Games Logged</CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-3xl font-bold text-foreground">{communityStats.totalGames}</div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center gap-2">
+                      <Users size={20} className="text-primary" weight="duotone" />
+                      <CardTitle className="text-sm text-muted-foreground">Investigators Played</CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-3xl font-bold text-foreground">{communityStats.totalInvestigatorsPlayed}</div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center gap-2">
+                      <BookOpen size={20} className="text-primary" weight="duotone" />
+                      <CardTitle className="text-sm text-muted-foreground">Unique Campaigns</CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-3xl font-bold text-foreground">{communityStats.topCampaigns.length}</div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center gap-2">
+                      <Trophy size={20} className="text-primary" weight="duotone" />
+                      <CardTitle>Most Popular Campaigns</CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {communityStats.topCampaigns.slice(0, 5).map((campaign, index) => (
+                        <div key={campaign.name} className="flex items-center justify-between">
+                          <div className="flex items-center gap-3 min-w-0 flex-1">
+                            <span className="text-2xl font-bold text-muted-foreground/40 w-6 text-right flex-shrink-0">
+                              {index + 1}
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-medium text-foreground">{campaign.name}</span>
+                                {campaign.set && <CampaignIcon campaignSet={campaign.set} />}
+                              </div>
+                            </div>
+                          </div>
+                          <span className="text-sm text-muted-foreground ml-2 flex-shrink-0">
+                            {campaign.count} {campaign.count === 1 ? 'play' : 'plays'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center gap-2">
+                      <Users size={20} className="text-primary" weight="duotone" />
+                      <CardTitle>Most Played Investigators</CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {communityStats.topInvestigators.slice(0, 5).map((investigator, index) => (
+                        <div key={investigator.name} className="flex items-center justify-between">
+                          <div className="flex items-center gap-3 min-w-0 flex-1">
+                            <span className="text-2xl font-bold text-muted-foreground/40 w-6 text-right flex-shrink-0">
+                              {index + 1}
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-medium text-foreground">{investigator.name}</span>
+                                <div className="flex gap-1">
+                                  {investigator.archetypes.map((archetype) => (
+                                    <ArchetypeBadge key={archetype} archetype={archetype} />
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          <span className="text-sm text-muted-foreground ml-2 flex-shrink-0">
+                            {investigator.count} {investigator.count === 1 ? 'play' : 'plays'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {communityStats.topStandalones.length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <div className="flex items-center gap-2">
+                        <Sparkle size={20} className="text-primary" weight="duotone" />
+                        <CardTitle>Popular Standalone Scenarios</CardTitle>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {communityStats.topStandalones.slice(0, 5).map((standalone, index) => (
+                          <div key={standalone.name} className="flex items-center justify-between">
+                            <div className="flex items-center gap-3 min-w-0 flex-1">
+                              <span className="text-2xl font-bold text-muted-foreground/40 w-6 text-right flex-shrink-0">
+                                {index + 1}
+                              </span>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="font-medium text-foreground">{standalone.name}</span>
+                                  {standalone.set && <CampaignIcon campaignSet={standalone.set} />}
+                                </div>
+                              </div>
+                            </div>
+                            <span className="text-sm text-muted-foreground ml-2 flex-shrink-0">
+                              {standalone.count} {standalone.count === 1 ? 'play' : 'plays'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {communityStats.topSideScenarios.length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <div className="flex items-center gap-2">
+                        <ChartBar size={20} className="text-primary" weight="duotone" />
+                        <CardTitle>Popular Side Stories</CardTitle>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {communityStats.topSideScenarios.slice(0, 5).map((sideScenario, index) => (
+                          <div key={sideScenario.name} className="flex items-center justify-between">
+                            <div className="flex items-center gap-3 min-w-0 flex-1">
+                              <span className="text-2xl font-bold text-muted-foreground/40 w-6 text-right flex-shrink-0">
+                                {index + 1}
+                              </span>
+                              <span className="font-medium text-foreground truncate">{sideScenario.name}</span>
+                            </div>
+                            <span className="text-sm text-muted-foreground ml-2 flex-shrink-0">
+                              {sideScenario.count} {sideScenario.count === 1 ? 'play' : 'plays'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <Card className="text-center">
@@ -94,53 +288,6 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
               </CardContent>
             </Card>
           </div>
-
-          <Card className="bg-primary/5 border-primary/20">
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <Sparkle size={24} className="text-primary" weight="duotone" />
-                <CardTitle className="text-foreground">Features</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-start gap-3">
-                <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2 flex-shrink-0" />
-                <p className="text-foreground">
-                  <span className="font-medium">Comprehensive Campaign Library</span> - Choose from all official campaigns, standalone scenarios, or log custom fan-made content
-                </p>
-              </div>
-              <div className="flex items-start gap-3">
-                <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2 flex-shrink-0" />
-                <p className="text-foreground">
-                  <span className="font-medium">Complete Investigator Database</span> - Auto-detect investigator classes from the entire card pool with support for dual-class characters
-                </p>
-              </div>
-              <div className="flex items-start gap-3">
-                <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2 flex-shrink-0" />
-                <p className="text-foreground">
-                  <span className="font-medium">Side Story Tracking</span> - Record which standalone scenarios you included during campaign playthroughs
-                </p>
-              </div>
-              <div className="flex items-start gap-3">
-                <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2 flex-shrink-0" />
-                <p className="text-foreground">
-                  <span className="font-medium">Player Statistics</span> - View detailed breakdowns for each player including their favorite classes and campaign history
-                </p>
-              </div>
-              <div className="flex items-start gap-3">
-                <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2 flex-shrink-0" />
-                <p className="text-foreground">
-                  <span className="font-medium">Flexible Filtering</span> - Filter your playthrough history by investigator archetype or campaign type
-                </p>
-              </div>
-              <div className="flex items-start gap-3">
-                <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2 flex-shrink-0" />
-                <p className="text-foreground">
-                  <span className="font-medium">Data Import/Export</span> - Backup your data or share playthroughs with friends via JSON export
-                </p>
-              </div>
-            </CardContent>
-          </Card>
 
           <div className="text-center">
             <Button onClick={handleLogin} size="lg" className="gap-2">
