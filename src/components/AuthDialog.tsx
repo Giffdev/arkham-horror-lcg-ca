@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import { createAccount, signIn, setCurrentSession, User, signInWithGoogle, signInWithMicrosoft } from '@/lib/auth'
 import { toast } from 'sonner'
-import { Eye, EyeSlash } from '@phosphor-icons/react'
+import { Eye, EyeSlash, Warning } from '@phosphor-icons/react'
 import { PasswordResetDialog } from '@/components/PasswordResetDialog'
 
 interface AuthDialogProps {
@@ -24,10 +24,12 @@ export function AuthDialog({ open, onOpenChange, onSuccess }: AuthDialogProps) {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [resetDialogOpen, setResetDialogOpen] = useState(false)
+  const [signInError, setSignInError] = useState<string | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
+    setSignInError(null)
 
     try {
       if (mode === 'signup') {
@@ -60,6 +62,7 @@ export function AuthDialog({ open, onOpenChange, onSuccess }: AuthDialogProps) {
           resetForm()
         } else {
           if (result.error && (result.error.includes('No account found') || result.error.includes('Please sign up'))) {
+            setSignInError('No account found with this email')
             toast.error('Account does not exist', {
               description: 'Please click the "Sign up" button below to create a new account.',
               duration: 7000,
@@ -88,6 +91,7 @@ export function AuthDialog({ open, onOpenChange, onSuccess }: AuthDialogProps) {
     setConfirmPassword('')
     setShowPassword(false)
     setShowConfirmPassword(false)
+    setSignInError(null)
   }
 
   const switchMode = () => {
@@ -157,7 +161,10 @@ export function AuthDialog({ open, onOpenChange, onSuccess }: AuthDialogProps) {
               type="email"
               placeholder="you@example.com"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                setEmail(e.target.value)
+                setSignInError(null)
+              }}
               required
               autoComplete="email"
             />
@@ -224,11 +231,17 @@ export function AuthDialog({ open, onOpenChange, onSuccess }: AuthDialogProps) {
           )}
           
           {mode === 'signin' && (
-            <div className="flex justify-end">
+            <div className="flex items-center justify-between gap-3">
+              {signInError && (
+                <div className="flex items-center gap-1.5 text-xs text-destructive">
+                  <Warning size={14} weight="fill" />
+                  <span>{signInError}</span>
+                </div>
+              )}
               <Button
                 type="button"
                 variant="link"
-                className="text-xs px-0 h-auto text-primary hover:text-primary/80"
+                className="text-xs px-0 h-auto text-primary hover:text-primary/80 ml-auto"
                 onClick={() => {
                   onOpenChange(false)
                   setResetDialogOpen(true)
