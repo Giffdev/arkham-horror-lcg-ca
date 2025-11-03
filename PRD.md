@@ -7,24 +7,38 @@ A campaign playthrough tracker for Arkham Horror: The Card Game that allows play
 2. **Organized** - Present complex gaming data (players, investigators, campaigns) in a clear, scannable format that makes patterns easy to spot
 3. **Accommodating** - Gracefully handle incomplete information, acknowledging that memories fade and not every detail needs to be recorded
 
-**Complexity Level**: Light Application (multiple features with basic state)
-- The app manages playthrough logs with relationships between campaigns, players, and investigators, but doesn't require authentication or advanced data processing beyond basic CRUD operations and filtering.
+**Complexity Level**: Complex Application (advanced functionality, accounts)
+- The app manages user authentication via GitHub, scopes playthrough data to individual users, and provides both public aggregate statistics for logged-out visitors and private detailed tracking for authenticated users. Each user has their own isolated data store with player names and detailed game logs kept private.
 
 ## Essential Features
 
+### User Authentication
+- **Functionality**: Sign in with GitHub to access personalized playthrough tracking
+- **Purpose**: Provide each user with their own private space for tracking games and player names, while showing aggregate public stats to logged-out visitors
+- **Trigger**: User clicks "Sign In" button on public homepage, or visits app while not authenticated
+- **Progression**: Visit app → If not logged in, see public homepage with aggregate stats → Click "Sign In" → GitHub OAuth flow → Return to app with authenticated session → Access personal playthrough tracker
+- **Success criteria**: Users can sign in via GitHub, their data is isolated from other users, player names and detailed data remain private, public homepage shows aggregate stats without exposing player names
+
+### Public Homepage (Logged Out)
+- **Functionality**: Display aggregate statistics across all users without exposing private information like player names
+- **Purpose**: Showcase the app's value and community activity to potential new users without compromising privacy
+- **Trigger**: User visits app without being authenticated
+- **Progression**: Visit app → See total games logged across all users → View top campaigns played (no player names) → View top investigators used (no player names) → Click "Sign In" to start tracking personally
+- **Success criteria**: Shows compelling stats (total games, top campaigns, top investigators), never displays player names, provides clear call-to-action to sign in
+
 ### Log a Playthrough
-- **Functionality**: Create a new campaign playthrough record with campaign selection from a comprehensive list of full campaigns, standalone scenarios, custom fan-made campaigns, or unknown campaigns when details are forgotten, optional side story scenarios for full campaigns, players, and investigator assignments with automatic class detection
+- **Functionality**: Create a new campaign playthrough record with campaign selection from a comprehensive list of full campaigns, standalone scenarios, custom fan-made campaigns, or unknown campaigns when details are forgotten, optional side story scenarios for full campaigns, players, and investigator assignments with automatic class detection (authenticated users only)
 - **Purpose**: Capture gaming memories quickly with accurate campaign and investigator information from the official product catalog, while gracefully accommodating incomplete memories and recording side stories played during campaigns
-- **Trigger**: User clicks "Log New Game" button
+- **Trigger**: Authenticated user clicks "Log New Game" button
 - **Progression**: Click "Log New Game" → Modal/form appears → Select campaign type (Full Campaign/Standalone/Fan-Made/Unknown) → If Full Campaign: Select campaign from dropdown (set is automatically associated) → Optionally expand "Side Stories" section and select standalone scenarios that were played during this campaign → If Standalone: Select standalone scenario from dropdown → If Fan-Made: Enter custom campaign name → If Unknown: No campaign selection needed (automatically logged as "Unknown Campaign") → Add investigators by selecting from searchable dropdown (class is automatically set for single-class investigators, dual-class investigators like Agatha Crane require manual selection) → Can mark individual investigators as unknown via checkbox → Optionally add player names → Save → Returns to log list with new entry visible
-- **Success criteria**: Record persists between sessions, displays in the main list with accurate campaign and set information, side stories display as badges on the playthrough card, investigator classes are automatically assigned except for dual-class characters, fan-made campaigns allow free-text entry, standalone scenarios are separated from full campaigns, unknown campaigns and investigators are gracefully handled
+- **Success criteria**: Record persists in user's private data store, displays in the main list with accurate campaign and set information, side stories display as badges on the playthrough card, investigator classes are automatically assigned except for dual-class characters, fan-made campaigns allow free-text entry, standalone scenarios are separated from full campaigns, unknown campaigns and investigators are gracefully handled, data is isolated per user
 
 ### View Playthrough History
-- **Functionality**: Display all logged playthroughs in a scannable card format showing campaign name, set (for official campaigns), campaign type, side stories (if any), date, players, and investigators
+- **Functionality**: Display all logged playthroughs in a scannable card format showing campaign name, set (for official campaigns), campaign type, side stories (if any), date, players, and investigators (authenticated users only, shows only their own data)
 - **Purpose**: Allow users to reminisce and see their gaming history at a glance with complete campaign context including which side stories were experienced
-- **Trigger**: Default view on app load
-- **Progression**: App loads → Displays list of all playthroughs sorted by date (newest first) → Each entry shows campaign name, set badge (if official), campaign type, side story badges (if any), players, and investigators with archetypes
-- **Success criteria**: All logged games appear with proper campaign metadata, side stories display as small badges, dates are human-readable, set badges display for official campaigns
+- **Trigger**: Default view after authentication
+- **Progression**: App loads for authenticated user → Displays list of their playthroughs sorted by date (newest first) → Each entry shows campaign name, set badge (if official), campaign type, side story badges (if any), players, and investigators with archetypes
+- **Success criteria**: All logged games appear with proper campaign metadata, side stories display as small badges, dates are human-readable, set badges display for official campaigns, only the authenticated user's data is shown
 
 ### Filter by Archetype
 - **Functionality**: Filter playthrough list to show only games where specific archetypes (Guardian, Survivor, Seeker, Rogue, Mystic, Neutral) were played
@@ -48,14 +62,18 @@ A campaign playthrough tracker for Arkham Horror: The Card Game that allows play
 - **Success criteria**: Changes persist, deletion requires confirmation, UI updates immediately
 
 ### View Player Statistics
-- **Functionality**: Browse all players who have been logged in playthroughs and view detailed statistics for each player including campaigns played, investigators used, and favorite classes
-- **Purpose**: Allow players to see their own gaming history and track which campaigns they've experienced and characters they've played
-- **Trigger**: User switches to the "Players" tab
-- **Progression**: Click "Players" tab → View list of all unique players → Select a player → View player statistics dashboard showing: total games played, number of unique investigators used, favorite class (most played archetype), complete list of investigators they've played, chronological campaign history with investigator and archetype details for each game
-- **Success criteria**: All players with logged names appear in the list, statistics accurately reflect playthrough data, campaign history is sorted chronologically (newest first), empty states guide users when no player data exists
+- **Functionality**: Browse all players who have been logged in the authenticated user's playthroughs and view detailed statistics for each player including campaigns played, investigators used, and favorite classes
+- **Purpose**: Allow users to see their own and their gaming group's history, tracking which campaigns they've experienced and characters they've played
+- **Trigger**: Authenticated user switches to the "Players" tab
+- **Progression**: Click "Players" tab → View list of all unique players from user's logged games → Select a player → View player statistics dashboard showing: total games played, number of unique investigators used, favorite class (most played archetype), complete list of investigators they've played, chronological campaign history with investigator and archetype details for each game
+- **Success criteria**: All players with logged names appear in the list (only from current user's games), statistics accurately reflect playthrough data, campaign history is sorted chronologically (newest first), empty states guide users when no player data exists, player names remain private to the authenticated user
 
 ## Edge Case Handling
 
+- **Not logged in**: Show public homepage with aggregate stats and "Sign In" button; hide all personal data and player names
+- **First time user**: After signing in, show empty state with "Log Your First Game" call-to-action
+- **Data isolation**: Each user's playthroughs are stored in a separate KV key (user-{userId}-playthroughs) ensuring complete privacy
+- **Sign out**: User can sign out via dropdown menu from their avatar; app returns to public homepage
 - **Missing player names**: Players without names are excluded from the player statistics view; playthroughs still appear in main log
 - **Fan-made campaigns**: Allow free-text entry for campaign names when Fan-Made type is selected
 - **Unknown campaigns**: Allow logging playthroughs where campaign name isn't remembered by selecting Unknown campaign type

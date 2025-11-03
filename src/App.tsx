@@ -8,21 +8,50 @@ import { EmptyState } from '@/components/EmptyState'
 import { Filters } from '@/components/Filters'
 import { PlayerStats } from '@/components/PlayerStats'
 import { PlayersOverview } from '@/components/PlayersOverview'
-import { Plus, BookOpen, User } from '@phosphor-icons/react'
+import { PublicHomepage } from '@/components/PublicHomepage'
+import { Plus, BookOpen, User, SignOut } from '@phosphor-icons/react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card } from '@/components/ui/card'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { Toaster, toast } from 'sonner'
 import { getInvestigatorByName } from '@/lib/investigator-data'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 function App() {
-  const [playthroughs, setPlaythroughs] = useKV<Playthrough[]>('playthroughs', [])
+  const [currentUser, setCurrentUser] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [userKVKey, setUserKVKey] = useState<string>('')
+  const [playthroughs, setPlaythroughs] = useKV<Playthrough[]>(userKVKey || 'temp', [])
   const [formOpen, setFormOpen] = useState(false)
   const [editingPlaythrough, setEditingPlaythrough] = useState<Playthrough | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [selectedArchetypes, setSelectedArchetypes] = useState<Archetype[]>([])
   const [selectedCampaignTypes, setSelectedCampaignTypes] = useState<CampaignType[]>([])
   const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null)
+
+  useEffect(() => {
+    async function loadUser() {
+      try {
+        const user = await (window as any).spark.user()
+        setCurrentUser(user)
+        setUserKVKey(`user-${user.id}-playthroughs`)
+      } catch (error) {
+        console.log('User not logged in')
+        setCurrentUser(null)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadUser()
+  }, [])
 
   useEffect(() => {
     if (!playthroughs || playthroughs.length === 0) return
@@ -162,6 +191,18 @@ function App() {
     return Array.from(playerSet).sort((a, b) => a.localeCompare(b))
   }, [playthroughs])
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <BookOpen size={48} className="text-primary animate-pulse" weight="duotone" />
+      </div>
+    )
+  }
+
+  if (!currentUser) {
+    return <PublicHomepage />
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <Toaster position="top-center" />
@@ -173,11 +214,38 @@ function App() {
               <BookOpen size={24} className="md:w-8 md:h-8 text-primary flex-shrink-0" weight="duotone" />
               <h1 className="text-lg md:text-3xl font-bold truncate text-foreground">Arkham Horror LCG Tracker</h1>
             </div>
-            <Button onClick={handleNewGame} className="gap-1.5 md:gap-2 flex-shrink-0 text-xs md:text-sm">
-              <Plus size={18} className="md:w-5 md:h-5" weight="bold" />
-              <span className="hidden sm:inline">Log New Game</span>
-              <span className="sm:hidden">New</span>
-            </Button>
+            <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
+              <Button onClick={handleNewGame} className="gap-1.5 md:gap-2 text-xs md:text-sm">
+                <Plus size={18} className="md:w-5 md:h-5" weight="bold" />
+                <span className="hidden sm:inline">Log New Game</span>
+                <span className="sm:hidden">New</span>
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="relative h-9 w-9 md:h-10 md:w-10 rounded-full p-0">
+                    <Avatar className="h-9 w-9 md:h-10 md:w-10">
+                      <AvatarImage src={currentUser.avatarUrl} alt={currentUser.login} />
+                      <AvatarFallback>{currentUser.login?.[0]?.toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm font-medium leading-none">{currentUser.login}</p>
+                      {currentUser.email && (
+                        <p className="text-xs leading-none text-muted-foreground">{currentUser.email}</p>
+                      )}
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => window.location.reload()} className="text-destructive focus:text-destructive">
+                    <SignOut size={16} className="mr-2" />
+                    Sign Out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </div>
       </header>
