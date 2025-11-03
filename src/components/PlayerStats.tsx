@@ -460,24 +460,38 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {playedInvestigators.map((investigator) => {
                 const arkhamDBUrl = getArkhamDBUrl(investigator.name, investigator.archetypes[0])
-                return (
+                return arkhamDBUrl ? (
+                  <a
+                    key={investigator.name}
+                    href={arkhamDBUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block"
+                  >
+                    <Card className="p-3 group hover:border-accent transition-colors cursor-pointer">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-medium text-sm truncate group-hover:text-accent transition-colors">
+                            {investigator.name}
+                          </h4>
+                          <p className="text-xs text-muted-foreground mt-1">{investigator.set}</p>
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {investigator.archetypes.map(archetype => (
+                              <ArchetypeBadge key={archetype} archetype={archetype} className="text-xs h-5" />
+                            ))}
+                          </div>
+                        </div>
+                        <Badge variant="secondary" className="shrink-0">
+                          ×{investigator.count}
+                        </Badge>
+                      </div>
+                    </Card>
+                  </a>
+                ) : (
                   <Card key={investigator.name} className="p-3 group">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-start gap-2">
-                          {arkhamDBUrl ? (
-                            <a 
-                              href={arkhamDBUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="font-medium text-sm truncate flex-1 hover:underline hover:text-accent transition-colors"
-                            >
-                              {investigator.name}
-                            </a>
-                          ) : (
-                            <h4 className="font-medium text-sm truncate flex-1">{investigator.name}</h4>
-                          )}
-                        </div>
+                        <h4 className="font-medium text-sm truncate">{investigator.name}</h4>
                         <p className="text-xs text-muted-foreground mt-1">{investigator.set}</p>
                         <div className="flex flex-wrap gap-1 mt-2">
                           {investigator.archetypes.map(archetype => (
@@ -510,24 +524,35 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {unplayedInvestigators.map((investigator) => {
                 const arkhamDBUrl = getArkhamDBUrl(investigator.name, investigator.archetypes[0])
-                return (
+                return arkhamDBUrl ? (
+                  <a
+                    key={investigator.name}
+                    href={arkhamDBUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block"
+                  >
+                    <Card className="p-3 group hover:border-accent transition-colors cursor-pointer">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-medium text-sm truncate group-hover:text-accent transition-colors">
+                            {investigator.name}
+                          </h4>
+                          <p className="text-xs text-muted-foreground mt-1">{investigator.set}</p>
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {investigator.archetypes.map(archetype => (
+                              <ArchetypeBadge key={archetype} archetype={archetype} className="text-xs h-5" />
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+                  </a>
+                ) : (
                   <Card key={investigator.name} className="p-3 group">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-start gap-2">
-                          {arkhamDBUrl ? (
-                            <a 
-                              href={arkhamDBUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="font-medium text-sm truncate flex-1 hover:underline hover:text-accent transition-colors"
-                            >
-                              {investigator.name}
-                            </a>
-                          ) : (
-                            <h4 className="font-medium text-sm truncate flex-1">{investigator.name}</h4>
-                          )}
-                        </div>
+                        <h4 className="font-medium text-sm truncate">{investigator.name}</h4>
                         <p className="text-xs text-muted-foreground mt-1">{investigator.set}</p>
                         <div className="flex flex-wrap gap-1 mt-2">
                           {investigator.archetypes.map(archetype => (
