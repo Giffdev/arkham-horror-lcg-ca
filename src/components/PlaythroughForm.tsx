@@ -15,7 +15,6 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Check, CaretUpDown } from '@phosphor-icons/react'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 
 interface PlaythroughFormProps {
   open: boolean
@@ -371,18 +370,22 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
             </div>
 
             {campaignType === 'Full Campaign' && campaignName && (
-              <Collapsible open={sideStoriesOpen} onOpenChange={setSideStoriesOpen} className="space-y-3">
+              <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Sparkle size={18} weight="duotone" className="text-accent" />
-                    <Label className="cursor-pointer">Side Stories ({sideStories.length})</Label>
+                    <Label>Side Stories ({sideStories.length})</Label>
                   </div>
-                  <CollapsibleTrigger asChild>
-                    <Button variant="ghost" size="sm" className="gap-2">
-                      {sideStoriesOpen ? 'Hide' : 'Add Side Stories'}
-                      <CaretUpDown size={16} />
-                    </Button>
-                  </CollapsibleTrigger>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="gap-2"
+                    onClick={() => setSideStoriesOpen(!sideStoriesOpen)}
+                    type="button"
+                  >
+                    {sideStoriesOpen ? 'Hide' : 'Show'}
+                    <CaretUpDown size={16} />
+                  </Button>
                 </div>
 
                 {sideStories.length > 0 && (
@@ -402,9 +405,9 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
                   </div>
                 )}
 
-                <CollapsibleContent className="space-y-3">
-                  <div className="p-4 border rounded-lg bg-muted/30">
-                    <p className="text-sm text-muted-foreground mb-3">
+                {sideStoriesOpen && (
+                  <div className="p-4 border rounded-lg bg-muted/30 space-y-3">
+                    <p className="text-sm text-muted-foreground">
                       Select standalone scenarios that were played as side stories during this campaign
                     </p>
                     <ScrollArea className="h-48">
@@ -427,8 +430,8 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
                       </div>
                     </ScrollArea>
                   </div>
-                </CollapsibleContent>
-              </Collapsible>
+                )}
+              </div>
             )}
 
             <div className="space-y-4">
