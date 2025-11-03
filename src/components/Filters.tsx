@@ -34,7 +34,9 @@ export function Filters({
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => onClearFilters()}
+                onClick={() => {
+                  selectedArchetypes.forEach(archetype => onArchetypeToggle(archetype))
+                }}
                 className="h-6 text-xs px-2"
               >
                 Clear
@@ -65,7 +67,9 @@ export function Filters({
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => onClearFilters()}
+                onClick={() => {
+                  selectedCampaignTypes.forEach(type => onCampaignTypeToggle(type))
+                }}
                 className="h-6 text-xs px-2"
               >
                 Clear

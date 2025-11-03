@@ -552,45 +552,65 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
             </Card>
           ) : (
             <div className="space-y-3">
-              {playerData.campaigns.map((campaign, idx) => (
-                <Card key={idx} className="p-4">
-                  <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-medium truncate">{campaign.name}</h4>
-                      <div className="flex flex-wrap items-center gap-2 mt-2 text-sm text-muted-foreground">
-                        <span>{formatDate(campaign.date)}</span>
-                        <Badge variant="secondary" className="text-xs">
-                          {campaign.type}
-                        </Badge>
-                        {campaign.set && (
-                          <Badge variant="outline" className="text-xs">
-                            {campaign.set}
+              {playerData.campaigns.map((campaign, idx) => {
+                const investigatorName = campaign.investigator.isUnknown || campaign.investigator.investigatorName === 'Unknown' 
+                  ? 'Unknown' 
+                  : campaign.investigator.investigatorName
+                const investigatorArchetypes = campaign.investigator.archetypes || [campaign.investigator.archetype]
+                const arkhamDBUrl = investigatorName !== 'Unknown' && !campaign.investigator.isCustom
+                  ? getArkhamDBUrl(investigatorName, investigatorArchetypes[0])
+                  : null
+                
+                return (
+                  <Card key={idx} className="p-4">
+                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-medium truncate">{campaign.name}</h4>
+                        <div className="flex flex-wrap items-center gap-2 mt-2 text-sm text-muted-foreground">
+                          <span>{formatDate(campaign.date)}</span>
+                          <Badge variant="secondary" className="text-xs">
+                            {campaign.type}
                           </Badge>
-                        )}
+                          {campaign.set && (
+                            <Badge variant="outline" className="text-xs">
+                              {campaign.set}
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 lg:flex-shrink-0">
+                        <div className="flex items-center gap-2 min-w-0">
+                          {arkhamDBUrl ? (
+                            <a
+                              href={arkhamDBUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-sm font-medium whitespace-nowrap hover:text-accent transition-colors underline decoration-dotted underline-offset-4 inline-flex items-center gap-1"
+                            >
+                              {investigatorName}
+                              <ArrowSquareOut size={14} className="flex-shrink-0" />
+                            </a>
+                          ) : (
+                            <span className="text-sm font-medium whitespace-nowrap">
+                              {investigatorName}
+                            </span>
+                          )}
+                          {campaign.investigator.investigatorSet && !campaign.investigator.isCustom && (
+                            <Badge variant="outline" className="text-xs whitespace-nowrap">
+                              {getDisplaySetName(campaign.investigator.investigatorName, campaign.investigator.investigatorSet)}
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="flex gap-1 flex-wrap justify-end">
+                          {investigatorArchetypes.map((archetype, idx) => (
+                            <ArchetypeBadge key={idx} archetype={archetype} className="w-20 justify-center" />
+                          ))}
+                        </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3 lg:flex-shrink-0">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="text-sm font-medium whitespace-nowrap">
-                          {campaign.investigator.isUnknown || campaign.investigator.investigatorName === 'Unknown' 
-                            ? 'Unknown' 
-                            : campaign.investigator.investigatorName}
-                        </span>
-                        {campaign.investigator.investigatorSet && !campaign.investigator.isCustom && (
-                          <Badge variant="outline" className="text-xs whitespace-nowrap">
-                            {getDisplaySetName(campaign.investigator.investigatorName, campaign.investigator.investigatorSet)}
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="flex gap-1 flex-wrap justify-end">
-                        {(campaign.investigator.archetypes || [campaign.investigator.archetype]).map((archetype, idx) => (
-                          <ArchetypeBadge key={idx} archetype={archetype} className="w-20 justify-center" />
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </Card>
-              ))}
+                  </Card>
+                )
+              })}
             </div>
           )}
         </TabsContent>

@@ -98,8 +98,11 @@ export function PlayersOverview({ playthroughs }: PlayersOverviewProps) {
     )
   }
 
-  const handleClearFilters = () => {
+  const handleClearArchetypes = () => {
     setSelectedArchetypes([])
+  }
+
+  const handleClearSets = () => {
     setSelectedSets([])
   }
 
@@ -122,7 +125,7 @@ export function PlayersOverview({ playthroughs }: PlayersOverviewProps) {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={handleClearFilters}
+                  onClick={handleClearArchetypes}
                   className="h-6 text-xs px-2"
                 >
                   Clear
@@ -150,7 +153,7 @@ export function PlayersOverview({ playthroughs }: PlayersOverviewProps) {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={handleClearFilters}
+                  onClick={handleClearSets}
                   className="h-6 text-xs px-2"
                 >
                   Clear
