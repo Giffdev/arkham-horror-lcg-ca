@@ -298,7 +298,12 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
         </Card>
       </div>
 
-      <Tabs defaultValue="played" className="space-y-4">
+      <Tabs defaultValue="played" className="space-y-4" onValueChange={(value) => {
+        if (value === 'played' || value === 'unplayed') {
+          setSelectedArchetype('All')
+          setSelectedSet('All')
+        }
+      }}>
         <TabsList className="grid w-full max-w-md grid-cols-3">
           <TabsTrigger value="played" className="gap-2">
             <Check size={16} weight="bold" />
