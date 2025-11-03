@@ -77,10 +77,37 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
 
   const allSets = useMemo(() => {
     const sets = new Set(INVESTIGATORS.map(inv => inv.set))
+    
+    const setOrder = [
+      'Core',
+      'The Dunwich Legacy',
+      'The Path to Carcosa',
+      'The Forgotten Age',
+      'The Circle Undone',
+      'The Dream-Eaters',
+      'The Innsmouth Conspiracy',
+      'Edge of the Earth',
+      'The Scarlet Keys',
+      'The Feast of Hemlock Vale',
+      'The Drowned City',
+      'Nathaniel Cho',
+      'Harvey Walters',
+      'Winifred Habbamock',
+      'Jacqueline Fine',
+      'Stella Clark',
+      'The Blob That Ate Everything',
+      'Barkham Horror'
+    ]
+    
     return Array.from(sets).sort((a, b) => {
-      if (a === 'Barkham Horror') return 1
-      if (b === 'Barkham Horror') return -1
-      return a.localeCompare(b)
+      const indexA = setOrder.indexOf(a)
+      const indexB = setOrder.indexOf(b)
+      
+      if (indexA === -1 && indexB === -1) return a.localeCompare(b)
+      if (indexA === -1) return 1
+      if (indexB === -1) return -1
+      
+      return indexA - indexB
     })
   }, [])
 
