@@ -159,12 +159,12 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
                             </span>
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-2 flex-wrap">
-                                <span className="font-medium text-foreground">{investigator.name}</span>
                                 <div className="flex gap-1">
                                   {investigator.archetypes.map((archetype) => (
                                     <ArchetypeBadge key={archetype} archetype={archetype} />
                                   ))}
                                 </div>
+                                <span className="font-medium text-foreground">{investigator.name}</span>
                               </div>
                             </div>
                           </div>
