@@ -117,6 +117,7 @@ export const setCurrentSession = async (user: User): Promise<void> => {
 export const clearCurrentSession = async (): Promise<void> => {
   const deviceId = getDeviceId()
   await spark.kv.delete(`session:${deviceId}`)
+  localStorage.removeItem('device-id')
 }
 
 export const signInWithGoogle = async (): Promise<{ success: boolean; error?: string; user?: User }> => {
