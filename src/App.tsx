@@ -8,31 +8,34 @@ import { EmptyState } from '@/components/EmptyState'
 import { Filters } from '@/components/Filters'
 import { PlayerStats } from '@/components/PlayerStats'
 import { PlayersOverview } from '@/components/PlayersOverview'
-import { PublicHomepage } from '@/components/PublicHomepage'
-import { Plus, BookOpen, User, SignOut } from '@phosphor-icons/react'
+import { Plus, BookOpen, User } from '@phosphor-icons/react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card } from '@/components/ui/card'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { Toaster, toast } from 'sonner'
 import { getInvestigatorByName } from '@/lib/investigator-data'
-import { getCurrentSession, clearCurrentSession, User as AuthUser } from '@/lib/auth'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 
-function AuthenticatedApp({ currentUser, onSignOut }: { currentUser: AuthUser; onSignOut: () => void }) {
-  const [playthroughs, setPlaythroughs] = useKV<Playthrough[]>(`${currentUser.id}_playthroughs`, [])
+function App() {
+  const [playthroughs, setPlaythroughs] = useKV<Playthrough[]>('playthroughs', [])
   const [formOpen, setFormOpen] = useState(false)
   const [editingPlaythrough, setEditingPlaythrough] = useState<Playthrough | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [selectedArchetypes, setSelectedArchetypes] = useState<Archetype[]>([])
   const [selectedCampaignTypes, setSelectedCampaignTypes] = useState<CampaignType[]>([])
   const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null)
+  const [currentUser, setCurrentUser] = useState<{ login: string; email?: string; avatarUrl: string } | null>(null)
+
+  useEffect(() => {
+    async function loadUser() {
+      try {
+        const user = await spark.user()
+        setCurrentUser(user)
+      } catch (error) {
+        console.error('Failed to load user:', error)
+      }
+    }
+    loadUser()
+  }, [])
 
   useEffect(() => {
     if (!playthroughs || playthroughs.length === 0) return
@@ -189,28 +192,22 @@ function AuthenticatedApp({ currentUser, onSignOut }: { currentUser: AuthUser; o
                 <span className="hidden sm:inline">Log New Game</span>
                 <span className="sm:hidden">New</span>
               </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-9 w-9 md:h-10 md:w-10 rounded-full p-0">
-                    <User size={24} weight="fill" className="text-primary" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>
-                    <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none">{currentUser.email}</p>
+              {currentUser && (
+                <div className="flex items-center gap-2">
+                  {currentUser.avatarUrl && (
+                    <img 
+                      src={currentUser.avatarUrl} 
+                      alt={currentUser.login}
+                      className="w-8 h-8 md:w-10 md:h-10 rounded-full border-2 border-primary/20"
+                    />
+                  )}
+                  {!currentUser.avatarUrl && (
+                    <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                      <User size={20} weight="fill" className="text-primary" />
                     </div>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem 
-                    onClick={onSignOut} 
-                    className="text-destructive focus:text-destructive"
-                  >
-                    <SignOut size={16} className="mr-2" />
-                    Sign Out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -331,59 +328,6 @@ function AuthenticatedApp({ currentUser, onSignOut }: { currentUser: AuthUser; o
       </AlertDialog>
     </div>
   )
-}
-
-function App() {
-  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    async function loadUser() {
-      try {
-        const session = await getCurrentSession()
-        if (session) {
-          const user = await spark.kv.get<AuthUser>(`user:${session.email}`)
-          if (user) {
-            setCurrentUser(user)
-          } else {
-            setCurrentUser({ id: session.userId, email: session.email, createdAt: Date.now() })
-          }
-        } else {
-          setCurrentUser(null)
-        }
-      } catch (error) {
-        console.log('No active session')
-        setCurrentUser(null)
-      } finally {
-        setLoading(false)
-      }
-    }
-    loadUser()
-  }, [])
-
-  const handleAuthSuccess = (user: AuthUser) => {
-    setCurrentUser(user)
-  }
-
-  const handleSignOut = async () => {
-    await clearCurrentSession()
-    setCurrentUser(null)
-    toast.success('Signed out successfully')
-  }
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <BookOpen size={48} className="text-primary animate-pulse" weight="duotone" />
-      </div>
-    )
-  }
-
-  if (!currentUser) {
-    return <PublicHomepage onAuthSuccess={handleAuthSuccess} />
-  }
-
-  return <AuthenticatedApp currentUser={currentUser} onSignOut={handleSignOut} />
 }
 
 export default App
