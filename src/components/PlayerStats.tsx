@@ -3,7 +3,7 @@ import { Playthrough, Archetype } from '@/lib/types'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ArchetypeBadge } from './ArchetypeBadge'
-import { User, Briefcase, UsersThree, Check, X, Funnel } from '@phosphor-icons/react'
+import { User, Briefcase, UsersThree, Check, X, Funnel, Book } from '@phosphor-icons/react'
 import { formatDate } from '@/lib/date-utils'
 import { getDisplaySetName, INVESTIGATORS } from '@/lib/investigator-data'
 import { Button } from '@/components/ui/button'
@@ -65,11 +65,32 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
         return acc
       }, {} as Record<string, number>)
 
+    const campaignCounts = playerGames.reduce((acc, playthrough) => {
+      const campaignKey = playthrough.campaignType === 'Fan-Made'
+        ? playthrough.customCampaignName || playthrough.campaignName
+        : playthrough.campaignType === 'Unknown'
+          ? 'Unknown Campaign'
+          : playthrough.campaignName
+      
+      const campaignSet = playthrough.campaignSet || 'Unknown'
+      
+      if (!acc[campaignKey]) {
+        acc[campaignKey] = {
+          count: 0,
+          type: playthrough.campaignType,
+          set: campaignSet
+        }
+      }
+      acc[campaignKey].count++
+      return acc
+    }, {} as Record<string, { count: number, type: string, set: string }>)
+
     return {
       totalGames: playerGames.length,
       campaigns,
       investigatorCounts,
-      archetypeCounts
+      archetypeCounts,
+      campaignCounts
     }
   }, [playerName, playthroughs])
 
@@ -155,13 +176,48 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="p-4">
           <div className="flex items-center gap-3 mb-3">
             <Briefcase size={20} weight="duotone" className="text-primary" />
             <h3 className="font-semibold">Total Games</h3>
           </div>
           <p className="text-3xl font-bold">{playerData.totalGames}</p>
+        </Card>
+
+        <Card className="p-4">
+          <div className="flex items-center gap-3 mb-3">
+            <Book size={20} weight="duotone" className="text-primary" />
+            <h3 className="font-semibold">Top Campaigns</h3>
+          </div>
+          <div className="space-y-2 mt-3">
+            {Object.entries(playerData.campaignCounts)
+              .sort(([, a], [, b]) => b.count - a.count)
+              .slice(0, 5)
+              .map(([name, data]) => (
+                <div key={name} className="flex items-start justify-between text-sm gap-2">
+                  <div className="flex flex-col gap-1 min-w-0 flex-1">
+                    <span className="truncate font-medium">{name}</span>
+                    <div className="flex items-center gap-1 flex-wrap">
+                      <Badge variant="outline" className="text-xs h-5">
+                        {data.type}
+                      </Badge>
+                      {data.set && data.set !== 'Unknown' && (
+                        <Badge variant="secondary" className="text-xs h-5">
+                          {data.set}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                  <Badge variant="default" className="ml-2 shrink-0 text-xs">
+                    ×{data.count}
+                  </Badge>
+                </div>
+              ))}
+            {Object.keys(playerData.campaignCounts).length === 0 && (
+              <p className="text-sm text-muted-foreground">No data yet</p>
+            )}
+          </div>
         </Card>
 
         <Card className="p-4">
