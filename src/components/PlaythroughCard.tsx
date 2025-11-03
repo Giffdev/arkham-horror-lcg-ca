@@ -93,10 +93,10 @@ export function PlaythroughCard({ playthrough, onEdit, onDelete }: PlaythroughCa
               {playthrough.investigators.map((inv, idx) => (
                 <div key={idx} className="flex items-center gap-3 text-sm">
                   <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <ArchetypeBadge archetype={inv.archetype} />
                     <span className="font-medium truncate">
                       {inv.isUnknown || inv.investigatorName === 'Unknown' ? 'Unknown' : inv.investigatorName}
                     </span>
-                    <ArchetypeBadge archetype={inv.archetype} />
                     {inv.investigatorSet && !inv.isUnknown && inv.investigatorName !== 'Unknown' && (
                       <Badge variant="outline" className="text-xs whitespace-nowrap">
                         {getDisplaySetName(inv.investigatorName, inv.investigatorSet)}
