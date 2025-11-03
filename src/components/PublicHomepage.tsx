@@ -13,6 +13,8 @@ interface PublicStats {
   topCampaigns: { name: string; count: number; set?: string }[]
   topInvestigators: { name: string; count: number; archetypes: Archetype[] }[]
   totalInvestigatorsPlayed: number
+  topSideScenarios: { name: string; count: number }[]
+  topStandalones: { name: string; count: number; set?: string }[]
 }
 
 interface PublicHomepageProps {
@@ -32,6 +34,8 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
         
         const campaignCounts = new Map<string, { count: number; set?: string }>()
         const investigatorCounts = new Map<string, { count: number; archetypes: Archetype[] }>()
+        const sideScenarioCounts = new Map<string, number>()
+        const standaloneCounts = new Map<string, { count: number; set?: string }>()
         let totalGames = 0
 
         for (const key of playthroughKeys) {
@@ -47,6 +51,21 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
                 count: existing.count + 1,
                 set: existing.set || playthrough.campaignSet
               })
+
+              if (playthrough.campaignType === 'Standalone') {
+                const existingStandalone = standaloneCounts.get(playthrough.campaignName) || { count: 0, set: playthrough.campaignSet }
+                standaloneCounts.set(playthrough.campaignName, {
+                  count: existingStandalone.count + 1,
+                  set: existingStandalone.set || playthrough.campaignSet
+                })
+              }
+            }
+
+            if (playthrough.sideStories && Array.isArray(playthrough.sideStories)) {
+              for (const sideStory of playthrough.sideStories) {
+                const count = sideScenarioCounts.get(sideStory) || 0
+                sideScenarioCounts.set(sideStory, count + 1)
+              }
             }
 
             for (const inv of playthrough.investigators || []) {
@@ -74,11 +93,23 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
           .sort((a, b) => b.count - a.count)
           .slice(0, 5)
 
+        const topSideScenarios = Array.from(sideScenarioCounts.entries())
+          .map(([name, count]) => ({ name, count }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 5)
+
+        const topStandalones = Array.from(standaloneCounts.entries())
+          .map(([name, data]) => ({ name, count: data.count, set: data.set }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 5)
+
         setStats({
           totalGames,
           topCampaigns,
           topInvestigators,
-          totalInvestigatorsPlayed: investigatorCounts.size
+          totalInvestigatorsPlayed: investigatorCounts.size,
+          topSideScenarios,
+          topStandalones
         })
       } catch (error) {
         console.error('Error loading public stats:', error)
@@ -153,21 +184,74 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
 
                 <Card>
                   <CardHeader className="pb-3">
-                    <CardTitle className="text-sm text-muted-foreground">Unique Investigators</CardTitle>
+                    <CardTitle className="text-sm text-muted-foreground">Side Scenarios Included</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-3xl font-bold text-foreground">{stats.totalInvestigatorsPlayed}</p>
+                    <p className="text-3xl font-bold text-foreground">{stats.topSideScenarios.length > 0 ? stats.topSideScenarios.length : 0}</p>
                   </CardContent>
                 </Card>
 
                 <Card>
                   <CardHeader className="pb-3">
-                    <CardTitle className="text-sm text-muted-foreground">Top Campaigns</CardTitle>
+                    <CardTitle className="text-sm text-muted-foreground">Stand Alones Played</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-3xl font-bold text-foreground">{stats.topCampaigns.length}</p>
+                    <p className="text-3xl font-bold text-foreground">{stats.topStandalones.length > 0 ? stats.topStandalones.length : 0}</p>
                   </CardContent>
                 </Card>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {stats.topSideScenarios.length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-foreground">Most Included Side Scenarios</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {stats.topSideScenarios.map((scenario, index) => (
+                          <div key={scenario.name} className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                              <span className="text-muted-foreground font-mono text-sm flex-shrink-0">
+                                #{index + 1}
+                              </span>
+                              <span className="font-medium text-foreground truncate">{scenario.name}</span>
+                            </div>
+                            <span className="text-muted-foreground ml-2 flex-shrink-0">
+                              {scenario.count} {scenario.count === 1 ? 'time' : 'times'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {stats.topStandalones.length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-foreground">Most Played Stand Alones</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {stats.topStandalones.map((standalone, index) => (
+                          <div key={standalone.name} className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                              <span className="text-muted-foreground font-mono text-sm flex-shrink-0">
+                                #{index + 1}
+                              </span>
+                              {standalone.set && <CampaignIcon campaignSet={standalone.set} />}
+                              <span className="font-medium text-foreground truncate">{standalone.name}</span>
+                            </div>
+                            <span className="text-muted-foreground ml-2 flex-shrink-0">
+                              {standalone.count} {standalone.count === 1 ? 'play' : 'plays'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
