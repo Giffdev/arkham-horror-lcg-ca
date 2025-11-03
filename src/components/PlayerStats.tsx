@@ -158,8 +158,8 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
                     </div>
                   </div>
                   <div className="flex items-center gap-3 lg:flex-shrink-0">
-                    <div className="w-24 flex justify-center">
-                      <ArchetypeBadge archetype={campaign.investigator.archetype} />
+                    <div className="w-24 flex justify-start">
+                      <ArchetypeBadge archetype={campaign.investigator.archetype} className="w-20 justify-center" />
                     </div>
                     <div className="flex items-center gap-2 min-w-0">
                       <span className="text-sm font-medium whitespace-nowrap">
