@@ -1,16 +1,21 @@
-import { useMemo } from 'react'
-import { Playthrough } from '@/lib/types'
+import { useMemo, useState } from 'react'
+import { Playthrough, Archetype } from '@/lib/types'
 import { Card } from '@/components/ui/card'
-import { INVESTIGATORS, Investigator, getArkhamDBUrl } from '@/lib/investigator-data'
+import { INVESTIGATORS, Investigator, getArkhamDBUrl, INVESTIGATOR_SETS } from '@/lib/investigator-data'
 import { Check, ArrowSquareOut } from '@phosphor-icons/react'
 import { ArchetypeBadge } from '@/components/ArchetypeBadge'
 import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 
 interface PlayersOverviewProps {
   playthroughs: Playthrough[]
 }
 
 export function PlayersOverview({ playthroughs }: PlayersOverviewProps) {
+  const [selectedArchetypes, setSelectedArchetypes] = useState<Archetype[]>([])
+  const [selectedSets, setSelectedSets] = useState<string[]>([])
+
   const { investigatorsPlayed, investigatorsNeverPlayed } = useMemo(() => {
     const investigatorPlayCount = new Map<string, {
       investigator: Investigator
@@ -42,14 +47,116 @@ export function PlayersOverview({ playthroughs }: PlayersOverviewProps) {
       .filter(inv => !playedInvestigatorNames.has(inv.name))
       .sort((a, b) => a.name.localeCompare(b.name))
 
+    const filteredPlayed = playedArray.filter(({ investigator }) => {
+      if (selectedArchetypes.length > 0) {
+        const hasMatchingArchetype = investigator.archetypes.some(archetype => 
+          selectedArchetypes.includes(archetype)
+        )
+        if (!hasMatchingArchetype) return false
+      }
+
+      if (selectedSets.length > 0) {
+        if (!selectedSets.includes(investigator.set)) return false
+      }
+
+      return true
+    })
+
+    const filteredNeverPlayed = neverPlayed.filter(investigator => {
+      if (selectedArchetypes.length > 0) {
+        const hasMatchingArchetype = investigator.archetypes.some(archetype => 
+          selectedArchetypes.includes(archetype)
+        )
+        if (!hasMatchingArchetype) return false
+      }
+
+      if (selectedSets.length > 0) {
+        if (!selectedSets.includes(investigator.set)) return false
+      }
+
+      return true
+    })
+
     return {
-      investigatorsPlayed: playedArray,
-      investigatorsNeverPlayed: neverPlayed
+      investigatorsPlayed: filteredPlayed,
+      investigatorsNeverPlayed: filteredNeverPlayed
     }
-  }, [playthroughs])
+  }, [playthroughs, selectedArchetypes, selectedSets])
+
+  const handleArchetypeToggle = (archetype: Archetype) => {
+    setSelectedArchetypes(current =>
+      current.includes(archetype)
+        ? current.filter(a => a !== archetype)
+        : [...current, archetype]
+    )
+  }
+
+  const handleSetToggle = (set: string) => {
+    setSelectedSets(current =>
+      current.includes(set)
+        ? current.filter(s => s !== set)
+        : [...current, set]
+    )
+  }
+
+  const handleClearFilters = () => {
+    setSelectedArchetypes([])
+    setSelectedSets([])
+  }
+
+  const archetypes: Archetype[] = ['Guardian', 'Seeker', 'Rogue', 'Mystic', 'Survivor', 'Neutral']
+  const hasActiveFilters = selectedArchetypes.length > 0 || selectedSets.length > 0
 
   return (
     <div className="space-y-6">
+      <Card className="p-6">
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold">Filter Investigators</h3>
+            {hasActiveFilters && (
+              <Button variant="ghost" size="sm" onClick={handleClearFilters}>
+                Clear Filters
+              </Button>
+            )}
+          </div>
+
+          <div className="space-y-3">
+            <div>
+              <p className="text-sm font-medium mb-2">Class</p>
+              <div className="flex flex-wrap gap-2">
+                {archetypes.map(archetype => (
+                  <Button
+                    key={archetype}
+                    variant={selectedArchetypes.includes(archetype) ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => handleArchetypeToggle(archetype)}
+                    className="gap-1.5"
+                  >
+                    <ArchetypeBadge archetype={archetype} className="text-xs" />
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <p className="text-sm font-medium mb-2">Set</p>
+              <div className="flex flex-wrap gap-2">
+                {INVESTIGATOR_SETS.map(set => (
+                  <Button
+                    key={set}
+                    variant={selectedSets.includes(set) ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => handleSetToggle(set)}
+                  >
+                    <span className="text-xs">{set}</span>
+                  </Button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </Card>
+
       <div>
         <h2 className="text-2xl font-semibold mb-4">Investigators Played</h2>
         {investigatorsPlayed.length === 0 ? (

@@ -91,6 +91,27 @@ export const INVESTIGATORS: Investigator[] = [
   { name: 'Duke', archetypes: ['Survivor'], set: 'Barkham Horror' },
 ]
 
+export const INVESTIGATOR_SETS: string[] = [
+  'Core',
+  'The Dunwich Legacy',
+  'The Path to Carcosa',
+  'The Forgotten Age',
+  'The Circle Undone',
+  'The Dream-Eaters',
+  'The Innsmouth Conspiracy',
+  'Edge of the Earth',
+  'The Scarlet Keys',
+  'The Feast of Hemlock Vale',
+  'The Drowned City',
+  'Nathaniel Cho',
+  'Harvey Walters',
+  'Winifred Habbamock',
+  'Jacqueline Fine',
+  'Stella Clark',
+  'The Blob That Ate Everything',
+  'Barkham Horror'
+]
+
 export function getInvestigatorsByArchetype(archetype: Archetype): Investigator[] {
   return INVESTIGATORS.filter(inv => inv.archetypes.includes(archetype))
 }
