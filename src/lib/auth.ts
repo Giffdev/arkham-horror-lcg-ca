@@ -105,3 +105,188 @@ export const setCurrentSession = async (user: User): Promise<void> => {
 export const clearCurrentSession = async (): Promise<void> => {
   await spark.kv.delete('current-session')
 }
+
+export const signInWithGoogle = async (): Promise<{ success: boolean; error?: string; user?: User }> => {
+  try {
+    const GOOGLE_CLIENT_ID = '1006855276346-64iq3llg30a08mq9olvu7vbakp9jdl7l.apps.googleusercontent.com'
+    const REDIRECT_URI = window.location.origin
+    
+    const oauth2Endpoint = 'https://accounts.google.com/o/oauth2/v2/auth'
+    const params = new URLSearchParams({
+      client_id: GOOGLE_CLIENT_ID,
+      redirect_uri: REDIRECT_URI,
+      response_type: 'token',
+      scope: 'https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile',
+      include_granted_scopes: 'true',
+      state: 'google_auth'
+    })
+
+    return new Promise((resolve) => {
+      const width = 500
+      const height = 600
+      const left = window.screen.width / 2 - width / 2
+      const top = window.screen.height / 2 - height / 2
+      
+      const popup = window.open(
+        `${oauth2Endpoint}?${params.toString()}`,
+        'Google Sign In',
+        `width=${width},height=${height},left=${left},top=${top}`
+      )
+
+      const checkPopup = setInterval(async () => {
+        try {
+          if (!popup || popup.closed) {
+            clearInterval(checkPopup)
+            resolve({ success: false, error: 'Sign in was cancelled' })
+            return
+          }
+
+          const popupUrl = popup.location.href
+          
+          if (popupUrl.includes('access_token')) {
+            clearInterval(checkPopup)
+            popup.close()
+
+            const hash = new URL(popupUrl).hash.substring(1)
+            const params = new URLSearchParams(hash)
+            const accessToken = params.get('access_token')
+
+            if (!accessToken) {
+              resolve({ success: false, error: 'Failed to get access token' })
+              return
+            }
+
+            const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+              headers: { Authorization: `Bearer ${accessToken}` }
+            })
+
+            if (!userInfoResponse.ok) {
+              resolve({ success: false, error: 'Failed to get user information' })
+              return
+            }
+
+            const userInfo = await userInfoResponse.json()
+            const normalizedEmail = userInfo.email.toLowerCase().trim()
+
+            let user = await spark.kv.get<User>(`user:${normalizedEmail}`)
+            
+            if (!user) {
+              const userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+              user = {
+                id: userId,
+                email: normalizedEmail,
+                createdAt: Date.now(),
+                authProvider: 'google',
+                displayName: userInfo.name
+              }
+              await spark.kv.set(`user:${normalizedEmail}`, user)
+            }
+
+            resolve({ success: true, user })
+          }
+        } catch (e) {
+          // Ignore cross-origin errors while popup is on Google's domain
+        }
+      }, 500)
+    })
+  } catch (error) {
+    console.error('Google sign in error:', error)
+    return { success: false, error: 'An unexpected error occurred' }
+  }
+}
+
+export const signInWithMicrosoft = async (): Promise<{ success: boolean; error?: string; user?: User }> => {
+  try {
+    const MICROSOFT_CLIENT_ID = 'e3417e01-c277-486c-881e-12eb3b4b12fb'
+    const REDIRECT_URI = window.location.origin
+    
+    const oauth2Endpoint = 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize'
+    const params = new URLSearchParams({
+      client_id: MICROSOFT_CLIENT_ID,
+      redirect_uri: REDIRECT_URI,
+      response_type: 'token',
+      scope: 'openid email profile',
+      state: 'microsoft_auth',
+      response_mode: 'fragment'
+    })
+
+    return new Promise((resolve) => {
+      const width = 500
+      const height = 600
+      const left = window.screen.width / 2 - width / 2
+      const top = window.screen.height / 2 - height / 2
+      
+      const popup = window.open(
+        `${oauth2Endpoint}?${params.toString()}`,
+        'Microsoft Sign In',
+        `width=${width},height=${height},left=${left},top=${top}`
+      )
+
+      const checkPopup = setInterval(async () => {
+        try {
+          if (!popup || popup.closed) {
+            clearInterval(checkPopup)
+            resolve({ success: false, error: 'Sign in was cancelled' })
+            return
+          }
+
+          const popupUrl = popup.location.href
+          
+          if (popupUrl.includes('access_token')) {
+            clearInterval(checkPopup)
+            popup.close()
+
+            const hash = new URL(popupUrl).hash.substring(1)
+            const params = new URLSearchParams(hash)
+            const accessToken = params.get('access_token')
+
+            if (!accessToken) {
+              resolve({ success: false, error: 'Failed to get access token' })
+              return
+            }
+
+            const userInfoResponse = await fetch('https://graph.microsoft.com/v1.0/me', {
+              headers: { Authorization: `Bearer ${accessToken}` }
+            })
+
+            if (!userInfoResponse.ok) {
+              resolve({ success: false, error: 'Failed to get user information' })
+              return
+            }
+
+            const userInfo = await userInfoResponse.json()
+            const normalizedEmail = userInfo.mail || userInfo.userPrincipalName
+            
+            if (!normalizedEmail) {
+              resolve({ success: false, error: 'Could not retrieve email from Microsoft account' })
+              return
+            }
+
+            const normalizedEmailLower = normalizedEmail.toLowerCase().trim()
+
+            let user = await spark.kv.get<User>(`user:${normalizedEmailLower}`)
+            
+            if (!user) {
+              const userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+              user = {
+                id: userId,
+                email: normalizedEmailLower,
+                createdAt: Date.now(),
+                authProvider: 'microsoft',
+                displayName: userInfo.displayName
+              }
+              await spark.kv.set(`user:${normalizedEmailLower}`, user)
+            }
+
+            resolve({ success: true, user })
+          }
+        } catch (e) {
+          // Ignore cross-origin errors while popup is on Microsoft's domain
+        }
+      }, 500)
+    })
+  } catch (error) {
+    console.error('Microsoft sign in error:', error)
+    return { success: false, error: 'An unexpected error occurred' }
+  }
+}
