@@ -8,23 +8,23 @@ A campaign playthrough tracker for Arkham Horror: The Card Game that allows play
 3. **Accommodating** - Gracefully handle incomplete information, acknowledging that memories fade and not every detail needs to be recorded
 
 **Complexity Level**: Complex Application (advanced functionality, accounts)
-- The app manages user authentication via GitHub, scopes playthrough data to individual users, and provides both public aggregate statistics for logged-out visitors and private detailed tracking for authenticated users. Each user has their own isolated data store with player names and detailed game logs kept private.
+- The app manages user authentication via custom email/password accounts, scopes playthrough data to individual users, and provides both public aggregate statistics for logged-out visitors and private detailed tracking for authenticated users. Each user has their own isolated data store with player names and detailed game logs kept private.
 
 ## Essential Features
 
 ### User Authentication
-- **Functionality**: Sign in with GitHub to access personalized playthrough tracking
+- **Functionality**: Create an account or sign in with email and password to access personalized playthrough tracking
 - **Purpose**: Provide each user with their own private space for tracking games and player names, while showing aggregate public stats to logged-out visitors
 - **Trigger**: User clicks "Sign In" button on public homepage, or visits app while not authenticated
-- **Progression**: Visit app → If not logged in, see public homepage with aggregate stats → Click "Sign In" → GitHub OAuth flow → Return to app with authenticated session → Access personal playthrough tracker
-- **Success criteria**: Users can sign in via GitHub, their data is isolated from other users, player names and detailed data remain private, public homepage shows aggregate stats without exposing player names
+- **Progression**: Visit app → If not logged in, see public homepage with aggregate stats → Click "Sign In" → Choose to sign in or create account → Enter email and password → Access personal playthrough tracker
+- **Success criteria**: Users can create accounts and sign in securely, their data is isolated from other users, player names and detailed data remain private, public homepage shows aggregate stats without exposing player names, passwords are hashed and stored securely
 
 ### Public Homepage (Logged Out)
 - **Functionality**: Display aggregate statistics across all users without exposing private information like player names
 - **Purpose**: Showcase the app's value and community activity to potential new users without compromising privacy
 - **Trigger**: User visits app without being authenticated
-- **Progression**: Visit app → See total games logged across all users → View top campaigns played (no player names) → View top investigators used (no player names) → Click "Sign In" to start tracking personally
-- **Success criteria**: Shows compelling stats (total games, top campaigns, top investigators), never displays player names, provides clear call-to-action to sign in
+- **Progression**: Visit app → See total games logged across all users → View top campaigns played (no player names) → View top investigators used (no player names) → Click "Sign In" to create account or sign in
+- **Success criteria**: Shows compelling stats (total games, top campaigns, top investigators), never displays player names, provides clear call-to-action to sign in or create account
 
 ### Log a Playthrough
 - **Functionality**: Create a new campaign playthrough record with campaign selection from a comprehensive list of full campaigns, standalone scenarios, custom fan-made campaigns, or unknown campaigns when details are forgotten, optional side story scenarios for full campaigns, players, and investigator assignments with automatic class detection (authenticated users only)

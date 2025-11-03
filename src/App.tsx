@@ -15,7 +15,7 @@ import { Card } from '@/components/ui/card'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { Toaster, toast } from 'sonner'
 import { getInvestigatorByName } from '@/lib/investigator-data'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { getCurrentSession, clearCurrentSession, User as AuthUser } from '@/lib/auth'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,7 +26,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 
 function App() {
-  const [currentUser, setCurrentUser] = useState<any>(null)
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null)
   const [loading, setLoading] = useState(true)
   const [userKVKey, setUserKVKey] = useState<string>('')
   const [playthroughs, setPlaythroughs] = useKV<Playthrough[]>(userKVKey || 'temp', [])
@@ -40,15 +40,15 @@ function App() {
   useEffect(() => {
     async function loadUser() {
       try {
-        const user = await spark.user()
-        if (user && user.id) {
-          setCurrentUser(user)
-          setUserKVKey(`user-${user.id}-playthroughs`)
+        const session = await getCurrentSession()
+        if (session) {
+          setCurrentUser({ id: session.userId, email: session.email, createdAt: Date.now() })
+          setUserKVKey(`${session.userId}_playthroughs`)
         } else {
           setCurrentUser(null)
         }
       } catch (error) {
-        console.log('User not logged in')
+        console.log('No active session')
         setCurrentUser(null)
       } finally {
         setLoading(false)
@@ -195,6 +195,18 @@ function App() {
     return Array.from(playerSet).sort((a, b) => a.localeCompare(b))
   }, [playthroughs])
 
+  const handleAuthSuccess = (user: AuthUser) => {
+    setCurrentUser(user)
+    setUserKVKey(`${user.id}_playthroughs`)
+  }
+
+  const handleSignOut = async () => {
+    await clearCurrentSession()
+    setCurrentUser(null)
+    setUserKVKey('')
+    toast.success('Signed out successfully')
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -204,7 +216,7 @@ function App() {
   }
 
   if (!currentUser) {
-    return <PublicHomepage />
+    return <PublicHomepage onAuthSuccess={handleAuthSuccess} />
   }
 
   return (
@@ -227,28 +239,18 @@ function App() {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-9 w-9 md:h-10 md:w-10 rounded-full p-0">
-                    <Avatar className="h-9 w-9 md:h-10 md:w-10">
-                      <AvatarImage src={currentUser.avatarUrl} alt={currentUser.login} />
-                      <AvatarFallback>{currentUser.login?.[0]?.toUpperCase()}</AvatarFallback>
-                    </Avatar>
+                    <User size={24} weight="fill" className="text-primary" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuLabel>
                     <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none">{currentUser.login}</p>
-                      {currentUser.email && (
-                        <p className="text-xs leading-none text-muted-foreground">{currentUser.email}</p>
-                      )}
+                      <p className="text-sm font-medium leading-none">{currentUser.email}</p>
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem 
-                    onClick={() => {
-                      setCurrentUser(null)
-                      setUserKVKey('')
-                      toast.success('Signed out successfully')
-                    }} 
+                    onClick={handleSignOut} 
                     className="text-destructive focus:text-destructive"
                   >
                     <SignOut size={16} className="mr-2" />

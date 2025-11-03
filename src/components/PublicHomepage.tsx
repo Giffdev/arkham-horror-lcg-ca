@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { BookOpen, TrendUp, Users } from '@phosphor-icons/react'
+import { BookOpen, TrendUp, SignIn } from '@phosphor-icons/react'
 import { CampaignIcon } from '@/components/CampaignIcon'
 import { ArchetypeBadge } from '@/components/ArchetypeBadge'
 import { Archetype } from '@/lib/types'
+import { AuthDialog } from '@/components/AuthDialog'
+import { User } from '@/lib/auth'
 
 interface PublicStats {
   totalGames: number
@@ -13,22 +15,27 @@ interface PublicStats {
   totalInvestigatorsPlayed: number
 }
 
-export function PublicHomepage() {
+interface PublicHomepageProps {
+  onAuthSuccess: (user: User) => void
+}
+
+export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
   const [stats, setStats] = useState<PublicStats | null>(null)
   const [loading, setLoading] = useState(true)
+  const [authDialogOpen, setAuthDialogOpen] = useState(false)
 
   useEffect(() => {
     async function loadPublicStats() {
       try {
-        const allKeys = await (window as any).spark.kv.keys()
-        const playthroughKeys = allKeys.filter((key: string) => key.startsWith('user-') && key.endsWith('-playthroughs'))
+        const allKeys = await spark.kv.keys()
+        const playthroughKeys = allKeys.filter((key: string) => key.startsWith('user_') && key.endsWith('_playthroughs'))
         
         const campaignCounts = new Map<string, { count: number; set?: string }>()
         const investigatorCounts = new Map<string, { count: number; archetypes: Archetype[] }>()
         let totalGames = 0
 
         for (const key of playthroughKeys) {
-          const playthroughs = await (window as any).spark.kv.get(key) as any[]
+          const playthroughs = await spark.kv.get(key) as any[]
           if (!playthroughs) continue
 
           totalGames += playthroughs.length
@@ -83,17 +90,8 @@ export function PublicHomepage() {
     loadPublicStats()
   }, [])
 
-  const handleLogin = async () => {
-    try {
-      const user = await spark.user()
-      if (user && user.id) {
-        window.location.reload()
-      } else {
-        console.error('No user returned from authentication')
-      }
-    } catch (error) {
-      console.error('Login failed:', error)
-    }
+  const handleLogin = () => {
+    setAuthDialogOpen(true)
   }
 
   if (loading) {
@@ -117,7 +115,7 @@ export function PublicHomepage() {
               <h1 className="text-lg md:text-3xl font-bold text-foreground">Arkham Horror LCG Tracker</h1>
             </div>
             <Button onClick={handleLogin} className="gap-2">
-              <Users size={18} weight="bold" />
+              <SignIn size={18} weight="bold" />
               Sign In
             </Button>
           </div>
@@ -132,7 +130,7 @@ export function PublicHomepage() {
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
               Log your campaign playthroughs, track investigators and players, and explore your gaming history.
-              Sign in with GitHub to get started.
+              Create an account to get started.
             </p>
           </div>
 
@@ -228,7 +226,7 @@ export function PublicHomepage() {
 
               <div className="text-center pt-6">
                 <Button onClick={handleLogin} size="lg" className="gap-2">
-                  <Users size={20} weight="bold" />
+                  <SignIn size={20} weight="bold" />
                   Sign In to Start Tracking
                 </Button>
               </div>
@@ -241,13 +239,19 @@ export function PublicHomepage() {
                 Be the first to log your Arkham Horror adventures!
               </p>
               <Button onClick={handleLogin} size="lg" className="gap-2">
-                <Users size={20} weight="bold" />
+                <SignIn size={20} weight="bold" />
                 Sign In to Get Started
               </Button>
             </div>
           )}
         </div>
       </main>
+
+      <AuthDialog 
+        open={authDialogOpen} 
+        onOpenChange={setAuthDialogOpen} 
+        onSuccess={onAuthSuccess}
+      />
     </div>
   )
 }
