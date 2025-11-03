@@ -1,8 +1,8 @@
 import { useMemo } from 'react'
 import { Playthrough } from '@/lib/types'
 import { Card } from '@/components/ui/card'
-import { INVESTIGATORS, Investigator } from '@/lib/investigator-data'
-import { Check } from '@phosphor-icons/react'
+import { INVESTIGATORS, Investigator, getArkhamDBUrl } from '@/lib/investigator-data'
+import { Check, ArrowSquareOut } from '@phosphor-icons/react'
 import { ArchetypeBadge } from '@/components/ArchetypeBadge'
 
 interface PlayersOverviewProps {
@@ -64,10 +64,20 @@ export function PlayersOverview({ playthroughs }: PlayersOverviewProps) {
             </p>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {investigatorsPlayed.map(({ investigator, timesPlayed }) => (
-                <Card key={investigator.name} className="p-4">
+                <Card key={investigator.name} className="p-4 group relative hover:border-accent transition-colors">
+                  <a 
+                    href={getArkhamDBUrl(investigator.name)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="absolute inset-0 z-10"
+                    aria-label={`View ${investigator.name} on ArkhamDB`}
+                  />
                   <div className="flex items-start gap-3">
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold truncate">{investigator.name}</h3>
+                      <div className="flex items-start gap-2">
+                        <h3 className="font-semibold truncate flex-1">{investigator.name}</h3>
+                        <ArrowSquareOut size={16} className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+                      </div>
                       <div className="flex items-center gap-2 mt-1.5">
                         <div className="flex flex-wrap gap-1">
                           {investigator.archetypes.map(archetype => (
@@ -77,7 +87,7 @@ export function PlayersOverview({ playthroughs }: PlayersOverviewProps) {
                       </div>
                       <p className="text-xs text-muted-foreground mt-1">{investigator.set}</p>
                     </div>
-                    <div className="flex-shrink-0 text-right">
+                    <div className="flex-shrink-0 text-right relative z-20">
                       <div className="text-2xl font-bold text-primary">{timesPlayed}</div>
                       <div className="text-xs text-muted-foreground">{timesPlayed === 1 ? 'time' : 'times'}</div>
                     </div>
@@ -106,9 +116,19 @@ export function PlayersOverview({ playthroughs }: PlayersOverviewProps) {
             </p>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
               {investigatorsNeverPlayed.map(investigator => (
-                <Card key={investigator.name} className="p-3">
+                <Card key={investigator.name} className="p-3 group relative hover:border-accent transition-colors">
+                  <a 
+                    href={getArkhamDBUrl(investigator.name)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="absolute inset-0 z-10"
+                    aria-label={`View ${investigator.name} on ArkhamDB`}
+                  />
                   <div className="flex-1 min-w-0">
-                    <h4 className="font-medium text-sm truncate">{investigator.name}</h4>
+                    <div className="flex items-start gap-2">
+                      <h4 className="font-medium text-sm truncate flex-1">{investigator.name}</h4>
+                      <ArrowSquareOut size={14} className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+                    </div>
                     <div className="flex flex-wrap gap-1 mt-1.5">
                       {investigator.archetypes.map(archetype => (
                         <ArchetypeBadge key={archetype} archetype={archetype} className="text-xs px-1.5 py-0" />
