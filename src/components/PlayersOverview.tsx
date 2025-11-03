@@ -120,7 +120,7 @@ export function PlayersOverview({ playthroughs }: PlayersOverviewProps) {
         <div className="space-y-3">
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-medium">Class</p>
+              <p className="text-sm font-medium text-foreground">Class</p>
               {selectedArchetypes.length > 0 && (
                 <Button
                   variant="ghost"
@@ -148,7 +148,7 @@ export function PlayersOverview({ playthroughs }: PlayersOverviewProps) {
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-medium">Set</p>
+              <p className="text-sm font-medium text-foreground">Set</p>
               {selectedSets.length > 0 && (
                 <Button
                   variant="ghost"
