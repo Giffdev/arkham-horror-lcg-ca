@@ -29,7 +29,7 @@ export function Filters({
       <div className="space-y-3">
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <p className="text-sm font-medium">Class</p>
+            <p className="text-sm font-medium text-foreground">Class</p>
             {selectedArchetypes.length > 0 && (
               <Button
                 variant="ghost"
@@ -62,7 +62,7 @@ export function Filters({
 
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <p className="text-sm font-medium">Campaign</p>
+            <p className="text-sm font-medium text-foreground">Campaign</p>
             {selectedCampaignTypes.length > 0 && (
               <Button
                 variant="ghost"

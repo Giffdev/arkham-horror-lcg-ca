@@ -171,7 +171,7 @@ function App() {
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
               <BookOpen size={24} className="md:w-8 md:h-8 text-primary flex-shrink-0" weight="duotone" />
-              <h1 className="text-lg md:text-3xl font-bold truncate">Arkham Horror LCG Tracker</h1>
+              <h1 className="text-lg md:text-3xl font-bold truncate text-foreground">Arkham Horror LCG Tracker</h1>
             </div>
             <Button onClick={handleNewGame} className="gap-1.5 md:gap-2 flex-shrink-0 text-xs md:text-sm">
               <Plus size={18} className="md:w-5 md:h-5" weight="bold" />
