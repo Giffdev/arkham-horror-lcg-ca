@@ -23,10 +23,10 @@ export const ARCHETYPES: Archetype[] = ['Guardian', 'Survivor', 'Seeker', 'Rogue
 export const CAMPAIGN_TYPES: CampaignType[] = ['Full Campaign', 'Standalone', 'Fan-Made']
 
 export const ARCHETYPE_COLORS: Record<Archetype, string> = {
-  'Guardian': 'bg-blue-500/10 text-blue-700 border-blue-500/30',
-  'Seeker': 'bg-orange-500/10 text-orange-700 border-orange-500/30',
-  'Rogue': 'bg-green-500/10 text-green-700 border-green-500/30',
-  'Mystic': 'bg-purple-500/10 text-purple-700 border-purple-500/30',
-  'Survivor': 'bg-red-500/10 text-red-700 border-red-500/30',
-  'Neutral': 'bg-gray-500/10 text-gray-700 border-gray-500/30',
+  'Guardian': 'bg-guardian-bg text-guardian-text border-guardian-border',
+  'Seeker': 'bg-seeker-bg text-seeker-text border-seeker-border',
+  'Rogue': 'bg-rogue-bg text-rogue-text border-rogue-border',
+  'Mystic': 'bg-mystic-bg text-mystic-text border-mystic-border',
+  'Survivor': 'bg-survivor-bg text-survivor-text border-survivor-border',
+  'Neutral': 'bg-neutral-bg text-neutral-text border-neutral-border',
 }

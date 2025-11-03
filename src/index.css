@@ -38,6 +38,30 @@
   --ring: oklch(0.70 0.15 75);
 
   --radius: 0.5rem;
+
+  --guardian-bg: oklch(0.90 0.05 250);
+  --guardian-text: oklch(0.40 0.15 250);
+  --guardian-border: oklch(0.65 0.10 250);
+
+  --seeker-bg: oklch(0.90 0.05 45);
+  --seeker-text: oklch(0.45 0.15 45);
+  --seeker-border: oklch(0.65 0.12 45);
+
+  --rogue-bg: oklch(0.90 0.05 150);
+  --rogue-text: oklch(0.40 0.15 150);
+  --rogue-border: oklch(0.60 0.12 150);
+
+  --mystic-bg: oklch(0.90 0.05 300);
+  --mystic-text: oklch(0.45 0.15 300);
+  --mystic-border: oklch(0.65 0.12 300);
+
+  --survivor-bg: oklch(0.90 0.05 25);
+  --survivor-text: oklch(0.50 0.15 25);
+  --survivor-border: oklch(0.65 0.12 25);
+
+  --neutral-bg: oklch(0.90 0.005 250);
+  --neutral-text: oklch(0.45 0.01 250);
+  --neutral-border: oklch(0.70 0.01 250);
 }
 
 @theme {
@@ -60,6 +84,30 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+
+  --color-guardian-bg: var(--guardian-bg);
+  --color-guardian-text: var(--guardian-text);
+  --color-guardian-border: var(--guardian-border);
+
+  --color-seeker-bg: var(--seeker-bg);
+  --color-seeker-text: var(--seeker-text);
+  --color-seeker-border: var(--seeker-border);
+
+  --color-rogue-bg: var(--rogue-bg);
+  --color-rogue-text: var(--rogue-text);
+  --color-rogue-border: var(--rogue-border);
+
+  --color-mystic-bg: var(--mystic-bg);
+  --color-mystic-text: var(--mystic-text);
+  --color-mystic-border: var(--mystic-border);
+
+  --color-survivor-bg: var(--survivor-bg);
+  --color-survivor-text: var(--survivor-text);
+  --color-survivor-border: var(--survivor-border);
+
+  --color-neutral-bg: var(--neutral-bg);
+  --color-neutral-text: var(--neutral-text);
+  --color-neutral-border: var(--neutral-border);
 
   --radius-sm: calc(var(--radius) * 0.5);
   --radius-md: var(--radius);
