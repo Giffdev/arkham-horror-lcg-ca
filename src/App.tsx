@@ -9,10 +9,11 @@ import { Filters } from '@/components/Filters'
 import { PlayerStats } from '@/components/PlayerStats'
 import { PlayersOverview } from '@/components/PlayersOverview'
 import { DataExportImport } from '@/components/DataExportImport'
-import { Plus, BookOpen, User, SignOut } from '@phosphor-icons/react'
+import { Plus, BookOpen, User, SignOut, CaretDown } from '@phosphor-icons/react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card } from '@/components/ui/card'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Toaster, toast } from 'sonner'
 import { getInvestigatorByName } from '@/lib/investigator-data'
 import { getCurrentSession, clearCurrentSession, User as AuthUser } from '@/lib/auth'
@@ -205,21 +206,29 @@ function AuthenticatedApp({ currentUser, playthroughsKey, onSignOut }: Authentic
                 <span className="sm:hidden">New</span>
               </Button>
               {currentUser && (
-                <div className="flex items-center gap-2">
-                  <div className="hidden md:flex items-center gap-2 px-3 py-2 rounded-lg bg-card border">
-                    <User size={16} weight="fill" className="text-primary" />
-                    <span className="text-sm text-muted-foreground">{currentUser.email}</span>
-                  </div>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={onSignOut}
-                    className="gap-2"
-                  >
-                    <SignOut size={18} weight="bold" />
-                    <span className="hidden sm:inline">Sign Out</span>
-                  </Button>
-                </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button 
+                      variant="outline" 
+                      className="gap-2 px-3 py-2"
+                    >
+                      <User size={16} weight="fill" className="text-primary" />
+                      <span className="text-sm hidden sm:inline">{currentUser.email}</span>
+                      <span className="text-sm sm:hidden">Profile</span>
+                      <CaretDown size={14} weight="bold" className="opacity-50" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuItem 
+                      onClick={onSignOut}
+                      variant="destructive"
+                      className="gap-2 cursor-pointer"
+                    >
+                      <SignOut size={16} weight="bold" />
+                      Sign Out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               )}
             </div>
           </div>
