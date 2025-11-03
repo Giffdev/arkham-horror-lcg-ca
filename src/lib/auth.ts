@@ -59,6 +59,7 @@ export const createAccount = async (email: string, password: string): Promise<{ 
   
   await spark.kv.set(`user:${normalizedEmail}`, user)
   await spark.kv.set(`user:${normalizedEmail}:password`, { hash: hashedPassword, salt })
+  await spark.kv.set(`email-to-userid:${normalizedEmail}`, userId)
   
   return { success: true, userId }
 }
@@ -180,6 +181,7 @@ export const signInWithGoogle = async (): Promise<{ success: boolean; error?: st
                 displayName: userInfo.name
               }
               await spark.kv.set(`user:${normalizedEmail}`, user)
+              await spark.kv.set(`email-to-userid:${normalizedEmail}`, userId)
             }
 
             resolve({ success: true, user })
@@ -276,6 +278,7 @@ export const signInWithMicrosoft = async (): Promise<{ success: boolean; error?:
                 displayName: userInfo.displayName
               }
               await spark.kv.set(`user:${normalizedEmailLower}`, user)
+              await spark.kv.set(`email-to-userid:${normalizedEmailLower}`, userId)
             }
 
             resolve({ success: true, user })

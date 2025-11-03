@@ -33,6 +33,45 @@ function AuthenticatedApp({ currentUser, playthroughsKey, onSignOut }: Authentic
   const [selectedArchetypes, setSelectedArchetypes] = useState<Archetype[]>([])
   const [selectedCampaignTypes, setSelectedCampaignTypes] = useState<CampaignType[]>([])
   const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null)
+  const [isSearchingForData, setIsSearchingForData] = useState(false)
+
+  useEffect(() => {
+    async function searchForOrphanedData() {
+      if (playthroughs && playthroughs.length > 0) {
+        return
+      }
+      
+      if (isSearchingForData) {
+        return
+      }
+      
+      setIsSearchingForData(true)
+      
+      try {
+        const allKeys = await spark.kv.keys()
+        const playthroughKeys = allKeys.filter(key => 
+          key.endsWith('_playthroughs') && key !== playthroughsKey
+        )
+        
+        for (const key of playthroughKeys) {
+          const data = await spark.kv.get<Playthrough[]>(key)
+          if (data && data.length > 0) {
+            await spark.kv.set(playthroughsKey, data)
+            await spark.kv.delete(key)
+            toast.success(`Found and recovered ${data.length} playthroughs!`)
+            setPlaythroughs(data)
+            break
+          }
+        }
+      } catch (error) {
+        console.error('Error searching for orphaned data:', error)
+      } finally {
+        setIsSearchingForData(false)
+      }
+    }
+    
+    searchForOrphanedData()
+  }, [playthroughs, playthroughsKey, setPlaythroughs, isSearchingForData])
 
   useEffect(() => {
     if (!playthroughs || playthroughs.length === 0) return
@@ -397,9 +436,20 @@ function App() {
     loadSession()
   }, [])
 
-  const handleAuthSuccess = (user: AuthUser) => {
+  const handleAuthSuccess = async (user: AuthUser) => {
     setCurrentUser(user)
-    setPlaythroughsKey(`${user.id}_playthroughs`)
+    const newKey = `${user.id}_playthroughs`
+    setPlaythroughsKey(newKey)
+    
+    const existingData = await spark.kv.get<Playthrough[]>(newKey)
+    if (!existingData || existingData.length === 0) {
+      const oldData = await spark.kv.get<Playthrough[]>('playthroughs')
+      if (oldData && oldData.length > 0) {
+        await spark.kv.set(newKey, oldData)
+        await spark.kv.delete('playthroughs')
+        toast.success(`Migrated ${oldData.length} playthroughs to your account`)
+      }
+    }
   }
 
   const handleSignOut = async () => {
