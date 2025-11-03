@@ -193,7 +193,7 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
         )
         
         const displayArchetypes = selectedArchetypes.length > 0
-          ? playedArchetypes.filter(archetype => selectedArchetypes.includes(archetype))
+          ? inv.archetypes.filter(archetype => selectedArchetypes.includes(archetype))
           : playedArchetypes
         
         return {
