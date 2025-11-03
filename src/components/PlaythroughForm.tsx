@@ -471,6 +471,14 @@ function InvestigatorFormItem({ index, investigator, availableInvestigators, onU
   const isUnknown = investigator.isUnknown || investigator.investigatorName === 'Unknown'
   const isCustom = investigator.isCustom || false
 
+  const handleInvestigatorTriggerKeyDown = (e: React.KeyboardEvent) => {
+    if (isUnknown) return
+    
+    if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      setInvestigatorSearchOpen(true)
+    }
+  }
+
   return (
     <div className="p-4 border rounded-lg space-y-3 bg-card">
       <div className="flex items-center justify-between">
@@ -518,6 +526,7 @@ function InvestigatorFormItem({ index, investigator, availableInvestigators, onU
                   id={`investigator-${index}`}
                   className="w-full justify-between"
                   disabled={isUnknown}
+                  onKeyDown={handleInvestigatorTriggerKeyDown}
                 >
                   {isUnknown ? "Unknown" : (investigator.investigatorName || "Select investigator")}
                   <CaretUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
