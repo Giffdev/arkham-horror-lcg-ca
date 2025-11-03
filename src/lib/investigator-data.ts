@@ -77,12 +77,12 @@ export const INVESTIGATORS: Investigator[] = [
   { name: 'Gloria Goldberg', archetypes: ['Mystic'], set: 'The Drowned City' },
   { name: 'George Barnaby', archetypes: ['Survivor'], set: 'The Drowned City' },
   
-  { name: 'Nathaniel Cho', archetypes: ['Guardian'], set: 'Stand-alone' },
-  { name: 'Harvey Walters', archetypes: ['Seeker'], set: 'Stand-alone' },
-  { name: 'Winifred Habbamock', archetypes: ['Rogue'], set: 'Stand-alone' },
-  { name: 'Jacqueline Fine', archetypes: ['Mystic'], set: 'Stand-alone' },
-  { name: 'Stella Clark', archetypes: ['Survivor'], set: 'Stand-alone' },
-  { name: 'Subject 5U-21 (Suzi)', archetypes: ['Neutral'], set: 'Stand-alone' },
+  { name: 'Nathaniel Cho', archetypes: ['Guardian'], set: 'Nathaniel Cho' },
+  { name: 'Harvey Walters', archetypes: ['Seeker'], set: 'Harvey Walters' },
+  { name: 'Winifred Habbamock', archetypes: ['Rogue'], set: 'Winifred Habbamock' },
+  { name: 'Jacqueline Fine', archetypes: ['Mystic'], set: 'Jacqueline Fine' },
+  { name: 'Stella Clark', archetypes: ['Survivor'], set: 'Stella Clark' },
+  { name: 'Subject 5U-21 (Suzi)', archetypes: ['Neutral'], set: 'Subject 5U-21 (Suzi)' },
   
   { name: 'Bark Harrigan', archetypes: ['Guardian'], set: 'Barkham Horror' },
   { name: 'Kate Winthpup', archetypes: ['Seeker'], set: 'Barkham Horror' },
