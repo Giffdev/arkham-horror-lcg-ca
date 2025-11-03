@@ -150,21 +150,36 @@ export const handleOAuthCallback = async (): Promise<{ success: boolean; error?:
   const hash = window.location.hash.substring(1)
   const params = new URLSearchParams(hash)
   
+  const error = params.get('error')
+  const errorDescription = params.get('error_description')
+  
+  if (error) {
+    console.error('OAuth error:', error, errorDescription)
+    window.history.replaceState({}, document.title, window.location.pathname)
+    return { 
+      success: false, 
+      error: errorDescription || `OAuth error: ${error}` 
+    }
+  }
+  
   const accessToken = params.get('access_token')
   const state = params.get('state')
   
   if (!accessToken || !state) {
-    return { success: false, error: 'Invalid OAuth callback' }
+    window.history.replaceState({}, document.title, window.location.pathname)
+    return { success: false, error: 'Invalid OAuth callback - missing token or state' }
   }
   
   const oauthState = await spark.kv.get<{ state: string; provider: 'google' | 'microsoft'; timestamp: number }>('oauth-state')
   
   if (!oauthState || oauthState.state !== state) {
-    return { success: false, error: 'Invalid OAuth state' }
+    window.history.replaceState({}, document.title, window.location.pathname)
+    return { success: false, error: 'Invalid OAuth state - security check failed' }
   }
   
   if (Date.now() - oauthState.timestamp > 600000) {
-    return { success: false, error: 'OAuth state expired' }
+    window.history.replaceState({}, document.title, window.location.pathname)
+    return { success: false, error: 'OAuth state expired - please try again' }
   }
   
   await spark.kv.delete('oauth-state')
@@ -176,13 +191,31 @@ export const handleOAuthCallback = async (): Promise<{ success: boolean; error?:
       const response = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
         headers: { Authorization: `Bearer ${accessToken}` }
       })
+      
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('Google API error:', errorText)
+        throw new Error(`Failed to fetch user info: ${response.status}`)
+      }
+      
       userInfo = await response.json()
     } else {
       const response = await fetch('https://graph.microsoft.com/v1.0/me', {
         headers: { Authorization: `Bearer ${accessToken}` }
       })
+      
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('Microsoft Graph API error:', errorText)
+        throw new Error(`Failed to fetch user info: ${response.status}`)
+      }
+      
       const data = await response.json()
       userInfo = { email: data.mail || data.userPrincipalName, name: data.displayName }
+    }
+    
+    if (!userInfo.email) {
+      throw new Error('No email returned from OAuth provider')
     }
     
     const normalizedEmail = userInfo.email.toLowerCase().trim()
@@ -204,7 +237,12 @@ export const handleOAuthCallback = async (): Promise<{ success: boolean; error?:
     
     return { success: true, user }
   } catch (error) {
-    return { success: false, error: 'Failed to get user info from OAuth provider' }
+    console.error('OAuth callback error:', error)
+    window.history.replaceState({}, document.title, window.location.pathname)
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Failed to get user info from OAuth provider' 
+    }
   }
 }
 
