@@ -74,22 +74,22 @@ A campaign playthrough tracker for Arkham Horror: The Card Game that allows play
 
 ## Design Direction
 
-The design should feel like opening a well-maintained gaming journal - warm, personal, and slightly atmospheric with nods to Arkham Horror's 1920s investigative noir aesthetic, while maintaining modern usability. The interface should be rich enough to feel thematic but minimal enough to keep the focus on the data and memories.
+The design should evoke the spooky, atmospheric Lovecraftian horror of Arkham Horror - dark, mysterious, and moody with deep purples and shadowy backgrounds reminiscent of the ArkhamCards app. The interface should feel like investigating cosmic mysteries by candlelight, maintaining modern usability while creating an immersive, eerie atmosphere.
 
 ## Color Selection
 
-Custom palette inspired by Arkham Horror's atmospheric noir aesthetic with vintage paper tones and archetype-specific accent colors.
+Dark atmospheric palette inspired by the ArkhamCards app and Lovecraftian cosmic horror with deep purples, shadowy backgrounds, and mysterious tones.
 
-- **Primary Color**: Deep midnight blue (oklch(0.25 0.08 250)) - Evokes mystery and the cosmic horror themes of Arkham Horror
-- **Secondary Colors**: Warm sepia/cream (oklch(0.92 0.02 75)) for cards and backgrounds, suggesting aged paper and vintage documents; muted slate (oklch(0.45 0.02 250)) for supporting UI elements
-- **Accent Color**: Amber/gold (oklch(0.70 0.15 75)) for CTAs and important interactions, reminiscent of vintage lamplight and discovery
+- **Primary Color**: Deep purple (oklch(0.45 0.12 280)) - Evokes the cosmic horror and mysterious supernatural forces of Arkham Horror
+- **Secondary Colors**: Dark slate (oklch(0.28 0.04 280)) for supporting elements, creating depth and shadow; darker purple (oklch(0.25 0.02 280)) for muted backgrounds
+- **Accent Color**: Vibrant purple (oklch(0.50 0.14 280)) for CTAs and important interactions, creating focal points in the darkness
 - **Foreground/Background Pairings**:
-  - Background (Warm cream #F5F1E8 / oklch(0.95 0.015 75)): Dark charcoal text (oklch(0.25 0.01 250)) - Ratio 11.2:1 ✓
-  - Card (Light sepia #FDFBF7 / oklch(0.98 0.01 75)): Dark charcoal text (oklch(0.25 0.01 250)) - Ratio 13.1:1 ✓
-  - Primary (Midnight blue oklch(0.25 0.08 250)): Cream white (oklch(0.98 0.01 75)) - Ratio 10.8:1 ✓
-  - Secondary (Muted slate oklch(0.45 0.02 250)): White (oklch(1 0 0)) - Ratio 4.9:1 ✓
-  - Accent (Amber oklch(0.70 0.15 75)): Dark charcoal (oklch(0.25 0.01 250)) - Ratio 5.2:1 ✓
-  - Muted (Light grey oklch(0.88 0.005 250)): Medium grey text (oklch(0.50 0.01 250)) - Ratio 4.6:1 ✓
+  - Background (Deep dark purple oklch(0.15 0.025 280)): Light grey text (oklch(0.88 0.01 280)) - Ratio 10.5:1 ✓
+  - Card (Dark purple oklch(0.20 0.03 280)): Light grey text (oklch(0.88 0.01 280)) - Ratio 9.8:1 ✓
+  - Primary (Purple oklch(0.45 0.12 280)): Very light text (oklch(0.95 0.01 280)) - Ratio 6.2:1 ✓
+  - Secondary (Dark slate oklch(0.28 0.04 280)): Light grey (oklch(0.88 0.01 280)) - Ratio 8.5:1 ✓
+  - Accent (Vibrant purple oklch(0.50 0.14 280)): Very light text (oklch(0.95 0.01 280)) - Ratio 5.8:1 ✓
+  - Muted (Dark muted oklch(0.25 0.02 280)): Medium grey text (oklch(0.58 0.01 280)) - Ratio 4.7:1 ✓
 
 ## Font Selection
 
@@ -138,10 +138,10 @@ Animations should feel like turning pages in a journal or placing cards on a tab
   - Date display helper component for human-readable dates
 
 - **States**:
-  - Buttons: Default has subtle shadow, hover increases brightness and shadow, active slightly scales down
-  - Cards: Default has light border, hover shows amber accent border and lifts with deeper shadow, selected/active state for editing
-  - Filters: Ghost style when inactive, filled style when active
-  - Form inputs: Light background, focused state with amber ring, error state with red tint
+  - Buttons: Default has subtle shadow, hover increases brightness and glow, active slightly scales down
+  - Cards: Default has subtle border, hover shows accent purple border and subtle glow, selected/active state for editing
+  - Filters: Ghost style when inactive, filled style with purple glow when active
+  - Form inputs: Dark background, focused state with purple ring, error state with red tint
 
 - **Icon Selection**: 
   - Plus icon for "Log New Game"
