@@ -202,7 +202,7 @@ function App() {
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-3">
                 {filteredPlaythroughs.map((playthrough) => (
                   <PlaythroughCard
                     key={playthrough.id}
