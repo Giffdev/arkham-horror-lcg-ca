@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge'
 import { ArchetypeBadge } from './ArchetypeBadge'
 import { User, Briefcase, UsersThree } from '@phosphor-icons/react'
 import { formatDate } from '@/lib/date-utils'
+import { getDisplaySetName } from '@/lib/investigator-data'
 
 interface PlayerStatsProps {
   playerName: string
@@ -165,7 +166,7 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
                     </span>
                     {campaign.investigator.investigatorSet && !campaign.investigator.isCustom && (
                       <Badge variant="outline" className="text-xs">
-                        {campaign.investigator.investigatorSet}
+                        {getDisplaySetName(campaign.investigator.investigatorName, campaign.investigator.investigatorSet)}
                       </Badge>
                     )}
                   </div>

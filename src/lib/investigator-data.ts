@@ -107,3 +107,18 @@ export function isDualClassInvestigator(name: string): boolean {
   const investigator = getInvestigatorByName(name)
   return investigator ? investigator.archetypes.length > 1 : false
 }
+
+const STARTER_DECK_INVESTIGATORS = [
+  'Nathaniel Cho',
+  'Harvey Walters',
+  'Winifred Habbamock',
+  'Jacqueline Fine',
+  'Stella Clark'
+]
+
+export function getDisplaySetName(investigatorName: string, setName: string): string {
+  if (STARTER_DECK_INVESTIGATORS.includes(setName)) {
+    return 'Investigator Starter Deck'
+  }
+  return setName
+}

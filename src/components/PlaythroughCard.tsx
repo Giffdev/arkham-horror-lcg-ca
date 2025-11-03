@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { PencilSimple, Trash, Clock, UsersThree, Sparkle } from '@phosphor-icons/react'
 import { formatDate } from '@/lib/date-utils'
+import { getDisplaySetName } from '@/lib/investigator-data'
 
 interface PlaythroughCardProps {
   playthrough: Playthrough
@@ -94,7 +95,7 @@ export function PlaythroughCard({ playthrough, onEdit, onDelete }: PlaythroughCa
                     </span>
                     {inv.investigatorSet && !inv.isUnknown && inv.investigatorName !== 'Unknown' && (
                       <Badge variant="outline" className="text-xs">
-                        {inv.investigatorSet}
+                        {getDisplaySetName(inv.investigatorName, inv.investigatorSet)}
                       </Badge>
                     )}
                     {inv.playerName && (
