@@ -9,6 +9,7 @@ import { getDisplaySetName, INVESTIGATORS } from '@/lib/investigator-data'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
+import { CampaignIcon } from './CampaignIcon'
 
 interface PlayerStatsProps {
   playerName: string
@@ -204,7 +205,8 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
                         {data.type}
                       </Badge>
                       {data.set && data.set !== 'Unknown' && (
-                        <Badge variant="secondary" className="text-xs h-5">
+                        <Badge variant="secondary" className="text-xs h-5 flex items-center gap-1">
+                          <CampaignIcon campaignSet={data.set} size={12} weight="fill" />
                           {data.set}
                         </Badge>
                       )}
@@ -410,7 +412,8 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
                           {campaign.type}
                         </Badge>
                         {campaign.set && (
-                          <Badge variant="outline" className="text-xs">
+                          <Badge variant="outline" className="text-xs flex items-center gap-1.5">
+                            <CampaignIcon campaignSet={campaign.set} size={12} weight="fill" />
                             {campaign.set}
                           </Badge>
                         )}

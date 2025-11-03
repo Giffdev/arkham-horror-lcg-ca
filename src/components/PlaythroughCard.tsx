@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { PencilSimple, Trash, Clock, UsersThree, Sparkle } from '@phosphor-icons/react'
 import { formatDate } from '@/lib/date-utils'
 import { getDisplaySetName } from '@/lib/investigator-data'
+import { CampaignIcon } from './CampaignIcon'
 
 interface PlaythroughCardProps {
   playthrough: Playthrough
@@ -41,7 +42,8 @@ export function PlaythroughCard({ playthrough, onEdit, onDelete }: PlaythroughCa
                 {playthrough.campaignType}
               </Badge>
               {displaySetName && (
-                <Badge variant="outline" className="text-xs">
+                <Badge variant="outline" className="text-xs flex items-center gap-1.5">
+                  <CampaignIcon campaignSet={displaySetName} size={14} weight="fill" />
                   {displaySetName}
                 </Badge>
               )}

@@ -93,11 +93,11 @@ Custom palette inspired by Arkham Horror's atmospheric noir aesthetic with vinta
 
 ## Font Selection
 
-Typography should balance readability with period atmosphere - a clean sans-serif for UI clarity paired with a condensed display font that echoes Arkham Horror LCG's title treatment.
+Typography should balance readability with a clean, modern aesthetic using a single, highly legible sans-serif font family.
 
 - **Typographic Hierarchy**:
-  - H1 (Page Title): Teko Semi-Bold / 32px / 0.02em letter-spacing / uppercase (Condensed sans-serif matching Arkham Horror LCG's card title style)
-  - H2 (Section Headers): Crimson Text Semi-Bold / 24px / normal letter-spacing
+  - H1 (Page Title): Inter Semi-Bold / 32px / normal letter-spacing
+  - H2 (Section Headers): Inter Semi-Bold / 24px / normal letter-spacing
   - H3 (Card Titles): Inter Semi-Bold / 18px / -0.01em letter-spacing
   - Body (Content): Inter Regular / 15px / 1.6 line-height
   - Labels: Inter Medium / 13px / 0.01em letter-spacing / uppercase
@@ -156,6 +156,7 @@ Animations should feel like turning pages in a journal or placing cards on a tab
   - Sparkle for side stories section (adds thematic flavor)
   - CaretUpDown for collapsible trigger
   - Briefcase for total games metric
+  - Campaign-specific icons next to set names (Star for Core, Buildings for Dunwich, Moon for Carcosa, Mountains for Forgotten Age, Church for Circle Undone, Eye for Dream-Eaters, Waves for Innsmouth, Snowflake for Edge of the Earth, Key for Scarlet Keys, Grains for Hemlock Vale, Compass for Drowned City, Cat for Barkham, Skull for Standalone, Ghost for unknown)
 
 - **Spacing**: 
   - Page padding: p-6 (24px)
