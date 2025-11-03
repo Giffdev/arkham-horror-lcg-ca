@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Playthrough, InvestigatorAssignment, CAMPAIGN_TYPES, Archetype, CampaignType } from '@/lib/types'
 import { getFullCampaignNames, getStandaloneCampaignNames, getCampaignSet } from '@/lib/campaign-data'
 import { getAllInvestigatorNames, getInvestigatorByName, isDualClassInvestigator } from '@/lib/investigator-data'
@@ -32,12 +33,15 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
       setCampaignType(editPlaythrough.campaignType)
       setCampaignName(editPlaythrough.campaignName)
       setCustomCampaignName(editPlaythrough.customCampaignName || '')
-      setInvestigators(editPlaythrough.investigators)
+      setInvestigators(editPlaythrough.investigators.map(inv => ({
+        ...inv,
+        isUnknown: inv.isUnknown || inv.investigatorName === 'Unknown'
+      })))
     } else {
       setCampaignType('Full Campaign')
       setCampaignName('')
       setCustomCampaignName('')
-      setInvestigators([{ playerName: '', investigatorName: '', archetype: 'Guardian' }])
+      setInvestigators([{ playerName: '', investigatorName: '', archetype: 'Neutral', isUnknown: false }])
     }
   }, [editPlaythrough, open])
 
@@ -51,7 +55,7 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
     if (investigators.length < 4) {
       setInvestigators([
         ...investigators,
-        { playerName: '', investigatorName: '', archetype: 'Guardian' }
+        { playerName: '', investigatorName: '', archetype: 'Neutral', isUnknown: false }
       ])
     }
   }
@@ -60,17 +64,27 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
     setInvestigators(investigators.filter((_, i) => i !== index))
   }
 
-  const handleUpdateInvestigator = (index: number, field: keyof InvestigatorAssignment, value: string) => {
+  const handleUpdateInvestigator = (index: number, field: keyof InvestigatorAssignment, value: string | boolean) => {
     setInvestigators(investigators.map((inv, i) => {
       if (i !== index) return inv
       
       const updated = { ...inv, [field]: value }
       
-      if (field === 'investigatorName') {
+      if (field === 'isUnknown' && value === true) {
+        updated.investigatorName = 'Unknown'
+        updated.archetype = 'Neutral'
+      }
+      
+      if (field === 'isUnknown' && value === false) {
+        updated.investigatorName = ''
+      }
+      
+      if (field === 'investigatorName' && typeof value === 'string') {
         const investigatorData = getInvestigatorByName(value)
         if (investigatorData && investigatorData.archetypes.length === 1) {
           updated.archetype = investigatorData.archetypes[0]
         }
+        updated.isUnknown = false
       }
       
       return updated
@@ -82,9 +96,7 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
     
     if (!finalCampaignName.trim()) return
 
-    const validInvestigators = investigators.filter(inv => inv.investigatorName.trim() !== '')
-    
-    if (validInvestigators.length === 0 || validInvestigators.length > 4) return
+    if (investigators.length === 0 || investigators.length > 4) return
 
     const campaignSet = (campaignType === 'Full Campaign' || campaignType === 'Standalone') ? getCampaignSet(finalCampaignName) : undefined
 
@@ -95,7 +107,11 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
       campaignName: finalCampaignName,
       ...(campaignSet && { campaignSet }),
       ...(campaignType === 'Fan-Made' && { customCampaignName }),
-      investigators: validInvestigators
+      investigators: investigators.map(inv => ({
+        ...inv,
+        investigatorName: inv.isUnknown ? 'Unknown' : inv.investigatorName,
+        archetype: inv.isUnknown ? 'Neutral' : inv.archetype
+      }))
     }
 
     onSave(playthroughData as Playthrough)
@@ -109,8 +125,7 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
     ? customCampaignName.trim() !== ''
     : campaignName.trim() !== '') && 
     investigators.length >= 1 && 
-    investigators.length <= 4 &&
-    investigators.every(inv => inv.investigatorName.trim() !== '')
+    investigators.length <= 4
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -252,7 +267,7 @@ interface InvestigatorFormItemProps {
   index: number
   investigator: InvestigatorAssignment
   availableInvestigators: string[]
-  onUpdate: (index: number, field: keyof InvestigatorAssignment, value: string) => void
+  onUpdate: (index: number, field: keyof InvestigatorAssignment, value: string | boolean) => void
   onRemove: (index: number) => void
   canRemove: boolean
 }
@@ -264,6 +279,7 @@ function InvestigatorFormItem({ index, investigator, availableInvestigators, onU
   const investigatorData = getInvestigatorByName(investigator.investigatorName)
   const needsArchetypeSelection = investigatorData && isDualClassInvestigator(investigator.investigatorName)
   const availableArchetypes = investigatorData?.archetypes || []
+  const isUnknown = investigator.isUnknown || investigator.investigatorName === 'Unknown'
 
   return (
     <div className="p-4 border rounded-lg space-y-3 bg-card">
@@ -285,7 +301,7 @@ function InvestigatorFormItem({ index, investigator, availableInvestigators, onU
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div className="space-y-2">
-          <Label htmlFor={`player-${index}`}>Player Name</Label>
+          <Label htmlFor={`player-${index}`}>Player Name (Optional)</Label>
           <Input
             id={`player-${index}`}
             placeholder="Player name"
@@ -303,8 +319,9 @@ function InvestigatorFormItem({ index, investigator, availableInvestigators, onU
                 role="combobox"
                 id={`investigator-${index}`}
                 className="w-full justify-between"
+                disabled={isUnknown}
               >
-                {investigator.investigatorName || "Select investigator"}
+                {isUnknown ? "Unknown" : (investigator.investigatorName || "Select investigator")}
                 <CaretUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
               </Button>
             </PopoverTrigger>
@@ -342,7 +359,18 @@ function InvestigatorFormItem({ index, investigator, availableInvestigators, onU
         </div>
       </div>
 
-      {needsArchetypeSelection && (
+      <div className="flex items-center space-x-2">
+        <Checkbox
+          id={`unknown-${index}`}
+          checked={isUnknown}
+          onCheckedChange={(checked) => onUpdate(index, 'isUnknown', checked as boolean)}
+        />
+        <Label htmlFor={`unknown-${index}`} className="text-sm font-normal cursor-pointer">
+          Investigator unknown
+        </Label>
+      </div>
+
+      {needsArchetypeSelection && !isUnknown && (
         <div className="space-y-2">
           <Label htmlFor={`archetype-${index}`}>Class</Label>
           <Select 
@@ -365,7 +393,7 @@ function InvestigatorFormItem({ index, investigator, availableInvestigators, onU
         </div>
       )}
       
-      {investigatorData && !needsArchetypeSelection && (
+      {investigatorData && !needsArchetypeSelection && !isUnknown && (
         <div className="text-sm text-muted-foreground">
           Class: <span className="font-medium text-foreground">{investigatorData.archetypes[0]}</span>
         </div>

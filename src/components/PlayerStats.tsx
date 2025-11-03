@@ -30,7 +30,7 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
         playerGames.flatMap(p =>
           p.investigators
             .filter(inv => inv.playerName === playerName)
-            .map(inv => inv.investigatorName)
+            .map(inv => inv.isUnknown || inv.investigatorName === 'Unknown' ? 'Unknown' : inv.investigatorName)
         )
       )
     )
@@ -154,7 +154,9 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
                   <div className="flex items-center gap-2">
                     <ArchetypeBadge archetype={campaign.investigator.archetype} />
                     <span className="text-sm font-medium">
-                      {campaign.investigator.investigatorName}
+                      {campaign.investigator.isUnknown || campaign.investigator.investigatorName === 'Unknown' 
+                        ? 'Unknown' 
+                        : campaign.investigator.investigatorName}
                     </span>
                   </div>
                 </div>

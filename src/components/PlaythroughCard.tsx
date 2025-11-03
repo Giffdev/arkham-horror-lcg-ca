@@ -71,7 +71,9 @@ export function PlaythroughCard({ playthrough, onEdit, onDelete }: PlaythroughCa
                 <div key={idx} className="flex items-center gap-3 text-sm">
                   <ArchetypeBadge archetype={inv.archetype} />
                   <div className="flex-1 min-w-0">
-                    <span className="font-medium">{inv.investigatorName}</span>
+                    <span className="font-medium">
+                      {inv.isUnknown || inv.investigatorName === 'Unknown' ? 'Unknown' : inv.investigatorName}
+                    </span>
                     {inv.playerName && (
                       <span className="text-muted-foreground ml-2">
                         ({inv.playerName})
