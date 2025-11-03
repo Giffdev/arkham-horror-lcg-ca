@@ -30,7 +30,7 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
     async function loadPublicStats() {
       try {
         const allKeys = await spark.kv.keys()
-        const playthroughKeys = allKeys.filter((key: string) => key.startsWith('user_') && key.endsWith('_playthroughs'))
+        const playthroughKeys = allKeys.filter((key: string) => key.endsWith('_playthroughs') && !key.startsWith('user:'))
         
         const campaignCounts = new Map<string, { count: number; set?: string }>()
         const investigatorCounts = new Map<string, { count: number; archetypes: Archetype[] }>()
