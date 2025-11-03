@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { BookOpen, SignIn, Users, ChartBar, Sparkle, Trophy, GameController } from '@phosphor-icons/react'
 import { AuthDialog } from '@/components/AuthDialog'
+import { PasswordResetDialog } from '@/components/PasswordResetDialog'
 import { User } from '@/lib/auth'
 import { getCommunityStats, CommunityStats } from '@/lib/community-stats'
 import { ArchetypeBadge } from '@/components/ArchetypeBadge'
@@ -13,6 +14,9 @@ interface PublicHomepageProps {
 
 export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
   const [authDialogOpen, setAuthDialogOpen] = useState(false)
+  const [resetDialogOpen, setResetDialogOpen] = useState(false)
+  const [resetEmail, setResetEmail] = useState<string>('')
+  const [resetToken, setResetToken] = useState<string>('')
   const [communityStats, setCommunityStats] = useState<CommunityStats | null>(null)
   const [isLoadingStats, setIsLoadingStats] = useState(true)
 
@@ -28,6 +32,20 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
       }
     }
     loadStats()
+  }, [])
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const token = params.get('reset_token')
+    const email = params.get('email')
+    
+    if (token && email) {
+      setResetToken(token)
+      setResetEmail(email)
+      setResetDialogOpen(true)
+      
+      window.history.replaceState({}, '', window.location.pathname)
+    }
   }, [])
 
   const handleLogin = () => {
@@ -298,6 +316,17 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
         open={authDialogOpen} 
         onOpenChange={setAuthDialogOpen} 
         onSuccess={onAuthSuccess}
+      />
+
+      <PasswordResetDialog
+        open={resetDialogOpen}
+        onOpenChange={setResetDialogOpen}
+        prefilledEmail={resetEmail}
+        prefilledToken={resetToken}
+        onBackToSignIn={() => {
+          setResetDialogOpen(false)
+          setAuthDialogOpen(true)
+        }}
       />
     </div>
   )

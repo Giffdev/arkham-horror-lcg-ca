@@ -320,7 +320,32 @@ const generateResetToken = (): string => {
   return Array.from(array).map(b => b.toString(16).padStart(2, '0')).join('')
 }
 
-export const requestPasswordReset = async (email: string): Promise<{ success: boolean; error?: string; token?: string }> => {
+const sendPasswordResetEmail = async (email: string, token: string): Promise<void> => {
+  const resetLink = `${window.location.origin}?reset_token=${token}&email=${encodeURIComponent(email)}`
+  
+  const emailSubject = 'Reset Your Arkham Horror LCG Tracker Password'
+  const emailBody = `
+Hello,
+
+You requested to reset your password for Arkham Horror LCG Tracker.
+
+Click the link below to reset your password:
+${resetLink}
+
+This link will expire in 15 minutes and can only be used once.
+
+If you didn't request this password reset, you can safely ignore this email.
+
+Best regards,
+Arkham Horror LCG Tracker Team
+  `.trim()
+
+  const mailtoLink = `mailto:${email}?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`
+  
+  window.open(mailtoLink, '_blank')
+}
+
+export const requestPasswordReset = async (email: string): Promise<{ success: boolean; error?: string }> => {
   const normalizedEmail = email.toLowerCase().trim()
   
   if (!normalizedEmail) {
@@ -350,7 +375,9 @@ export const requestPasswordReset = async (email: string): Promise<{ success: bo
   
   await spark.kv.set(`password-reset:${normalizedEmail}`, resetData)
   
-  return { success: true, token }
+  await sendPasswordResetEmail(normalizedEmail, token)
+  
+  return { success: true }
 }
 
 export const validateResetToken = async (email: string, token: string): Promise<{ valid: boolean; error?: string }> => {

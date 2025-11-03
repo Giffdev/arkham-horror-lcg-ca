@@ -1,20 +1,22 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { requestPasswordReset, resetPassword } from '@/lib/auth'
 import { toast } from 'sonner'
-import { Eye, EyeSlash, ArrowLeft } from '@phosphor-icons/react'
+import { Eye, EyeSlash, ArrowLeft, EnvelopeSimple, CheckCircle } from '@phosphor-icons/react'
 
 interface PasswordResetDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onBackToSignIn: () => void
+  prefilledEmail?: string
+  prefilledToken?: string
 }
 
-export function PasswordResetDialog({ open, onOpenChange, onBackToSignIn }: PasswordResetDialogProps) {
-  const [step, setStep] = useState<'request' | 'reset'>('request')
+export function PasswordResetDialog({ open, onOpenChange, onBackToSignIn, prefilledEmail, prefilledToken }: PasswordResetDialogProps) {
+  const [step, setStep] = useState<'request' | 'emailSent' | 'reset'>('request')
   const [email, setEmail] = useState('')
   const [token, setToken] = useState('')
   const [newPassword, setNewPassword] = useState('')
@@ -22,6 +24,14 @@ export function PasswordResetDialog({ open, onOpenChange, onBackToSignIn }: Pass
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+
+  useEffect(() => {
+    if (prefilledEmail && prefilledToken) {
+      setEmail(prefilledEmail)
+      setToken(prefilledToken)
+      setStep('reset')
+    }
+  }, [prefilledEmail, prefilledToken])
 
   const resetForm = () => {
     setEmail('')
@@ -40,19 +50,11 @@ export function PasswordResetDialog({ open, onOpenChange, onBackToSignIn }: Pass
     try {
       const result = await requestPasswordReset(email)
       if (result.success) {
-        if (result.token) {
-          setToken(result.token)
-          setStep('reset')
-          toast.success('Password reset link generated', {
-            description: 'You can now reset your password below.',
-            duration: 5000,
-          })
-        } else {
-          toast.success('If an account exists with this email, a reset link has been generated', {
-            description: 'Please check the information below to continue.',
-            duration: 5000,
-          })
-        }
+        setStep('emailSent')
+        toast.success('Password reset email opened', {
+          description: 'Check your email client for the reset link.',
+          duration: 6000,
+        })
       } else {
         toast.error(result.error || 'Failed to request password reset')
       }
@@ -105,16 +107,18 @@ export function PasswordResetDialog({ open, onOpenChange, onBackToSignIn }: Pass
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
-            {step === 'request' ? 'Reset Password' : 'Set New Password'}
+            {step === 'request' && 'Reset Password'}
+            {step === 'emailSent' && 'Check Your Email'}
+            {step === 'reset' && 'Set New Password'}
           </DialogTitle>
           <DialogDescription>
-            {step === 'request'
-              ? 'Enter your email address to reset your password'
-              : 'Enter your new password below'}
+            {step === 'request' && 'Enter your email address to receive a password reset link'}
+            {step === 'emailSent' && 'A reset link has been sent to your email'}
+            {step === 'reset' && 'Enter your new password below'}
           </DialogDescription>
         </DialogHeader>
 
-        {step === 'request' ? (
+        {step === 'request' && (
           <form onSubmit={handleRequestReset} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="reset-email">Email</Label>
@@ -129,8 +133,13 @@ export function PasswordResetDialog({ open, onOpenChange, onBackToSignIn }: Pass
               />
             </div>
             <div className="flex flex-col gap-3 pt-2">
-              <Button type="submit" disabled={loading} className="w-full">
-                {loading ? 'Please wait...' : 'Request Reset'}
+              <Button type="submit" disabled={loading} className="w-full gap-2">
+                {loading ? 'Please wait...' : (
+                  <>
+                    <EnvelopeSimple size={18} weight="duotone" />
+                    Send Reset Link
+                  </>
+                )}
               </Button>
               <Button
                 type="button"
@@ -147,30 +156,61 @@ export function PasswordResetDialog({ open, onOpenChange, onBackToSignIn }: Pass
               </Button>
             </div>
           </form>
-        ) : (
-          <form onSubmit={handleResetPassword} className="space-y-4">
-            <div className="rounded-lg bg-muted p-4 space-y-2">
-              <p className="text-sm text-muted-foreground">
-                For security, copy this reset token and save it somewhere safe:
-              </p>
-              <code className="block text-xs bg-background p-2 rounded border break-all">
-                {token}
-              </code>
-              <p className="text-xs text-muted-foreground">
-                This token expires in 15 minutes and can only be used once.
-              </p>
+        )}
+
+        {step === 'emailSent' && (
+          <div className="space-y-4">
+            <div className="rounded-lg bg-primary/10 border border-primary/20 p-6 text-center space-y-3">
+              <CheckCircle size={48} weight="duotone" className="text-primary mx-auto" />
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Reset link sent to:</p>
+                <p className="text-sm text-muted-foreground break-all">{email}</p>
+              </div>
+            </div>
+            
+            <div className="space-y-2 text-sm text-muted-foreground">
+              <p>Your email client should have opened with a reset link.</p>
+              <p>Click the link in the email to continue resetting your password.</p>
+              <p className="text-xs">The link will expire in 15 minutes.</p>
             </div>
 
+            <div className="flex flex-col gap-3 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setStep('request')}
+                className="w-full gap-2"
+              >
+                <ArrowLeft size={16} />
+                Try Different Email
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => {
+                  handleClose()
+                  onBackToSignIn()
+                }}
+                className="w-full gap-2"
+              >
+                Back to Sign In
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {step === 'reset' && (
+          <form onSubmit={handleResetPassword} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="reset-token">Reset Token</Label>
+              <Label htmlFor="reset-email-confirm">Email</Label>
               <Input
-                id="reset-token"
-                type="text"
-                placeholder="Paste your reset token here"
-                value={token}
-                onChange={(e) => setToken(e.target.value)}
+                id="reset-email-confirm"
+                type="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
-                autoComplete="off"
+                autoComplete="email"
               />
             </div>
 
@@ -241,12 +281,15 @@ export function PasswordResetDialog({ open, onOpenChange, onBackToSignIn }: Pass
               <Button
                 type="button"
                 variant="ghost"
-                onClick={() => setStep('request')}
+                onClick={() => {
+                  handleClose()
+                  onBackToSignIn()
+                }}
                 disabled={loading}
                 className="w-full gap-2"
               >
                 <ArrowLeft size={16} />
-                Back
+                Back to Sign In
               </Button>
             </div>
           </form>
