@@ -155,8 +155,8 @@ export function getArkhamDBUrl(investigatorName: string, archetype?: Archetype):
     'Joe Diamond': '05002',
     'Preston Fairmont': '05003',
     'Diana Stanley': '05004',
-    'Marie Lambeau': '05005',
-    'Rita Young': '05006',
+    'Marie Lambeau': '05006',
+    'Rita Young': '05005',
     'Tommy Muldoon': '06001',
     'Mandy Thompson': '06002',
     'Tony Morgan': '06003',
@@ -168,7 +168,7 @@ export function getArkhamDBUrl(investigatorName: string, archetype?: Archetype):
     'Dexter Drake': '07004',
     'Silas Marsh': '07005',
     'Daniela Reyes': '08001',
-    'Norman Withers': '08003',
+    'Norman Withers': '08004',
     'Monterey Jack': '08007',
     'Lily Chen': '08010',
     'Bob Jenkins': '08016',
@@ -184,7 +184,7 @@ export function getArkhamDBUrl(investigatorName: string, archetype?: Archetype):
     'Kohaku Narukami': '10012',
     'Hank Samson': '08007',
     'Marion Tavares': '11001',
-    'Lucius Galloway': '11002',
+    'Lucius Galloway': '11004',
     'Agatha Crane': {
       'Seeker': '11007',
       'Mystic': '11008'
@@ -197,7 +197,7 @@ export function getArkhamDBUrl(investigatorName: string, archetype?: Archetype):
     'Winifred Habbamock': '60301',
     'Jacqueline Fine': '60401',
     'Stella Clark': '60501',
-    'Subject 5U-21 (Suzi)': 'tbb'
+    'Subject 5U-21 (Suzi)': '89001'
   }
   
   const mapping = slugMap[investigatorName]
