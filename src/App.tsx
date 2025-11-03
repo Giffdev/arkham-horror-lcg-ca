@@ -22,7 +22,7 @@ function App() {
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [selectedArchetypes, setSelectedArchetypes] = useState<Archetype[]>([])
   const [selectedCampaignTypes, setSelectedCampaignTypes] = useState<CampaignType[]>([])
-  const [selectedPlayers, setSelectedPlayers] = useState<string[]>([])
+  const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null)
 
   useEffect(() => {
     if (!playthroughs || playthroughs.length === 0) return
@@ -233,17 +233,13 @@ function App() {
                       {allPlayers.map((player) => (
                         <Button
                           key={player}
-                          variant={selectedPlayers.includes(player) ? 'default' : 'ghost'}
+                          variant={selectedPlayer === player ? 'default' : 'ghost'}
                           className="w-full justify-start gap-2"
                           onClick={() => {
-                            setSelectedPlayers((current) =>
-                              current.includes(player)
-                                ? current.filter((p) => p !== player)
-                                : [...current, player]
-                            )
+                            setSelectedPlayer(selectedPlayer === player ? null : player)
                           }}
                         >
-                          <User size={16} weight={selectedPlayers.includes(player) ? 'fill' : 'regular'} />
+                          <User size={16} weight={selectedPlayer === player ? 'fill' : 'regular'} />
                           {player}
                         </Button>
                       ))}
@@ -252,17 +248,13 @@ function App() {
                 </div>
 
                 <div className="lg:col-span-3">
-                  {selectedPlayers.length > 0 ? (
-                    <div className="space-y-6">
-                      {selectedPlayers.map((player) => (
-                        <PlayerStats key={player} playerName={player} playthroughs={playthroughs} />
-                      ))}
-                    </div>
+                  {selectedPlayer ? (
+                    <PlayerStats playerName={selectedPlayer} playthroughs={playthroughs} />
                   ) : (
                     <Card className="p-12 text-center">
                       <User size={48} weight="duotone" className="mx-auto mb-4 text-muted-foreground" />
                       <p className="text-muted-foreground">
-                        Select one or more players to view their statistics and campaign history
+                        Select a player to view their statistics and campaign history
                       </p>
                     </Card>
                   )}
