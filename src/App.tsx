@@ -8,33 +8,47 @@ import { EmptyState } from '@/components/EmptyState'
 import { Filters } from '@/components/Filters'
 import { PlayerStats } from '@/components/PlayerStats'
 import { PlayersOverview } from '@/components/PlayersOverview'
-import { Plus, BookOpen, User } from '@phosphor-icons/react'
+import { Plus, BookOpen, User, SignOut } from '@phosphor-icons/react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card } from '@/components/ui/card'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { Toaster, toast } from 'sonner'
 import { getInvestigatorByName } from '@/lib/investigator-data'
+import { getCurrentSession, clearCurrentSession, User as AuthUser } from '@/lib/auth'
+import { PublicHomepage } from '@/components/PublicHomepage'
 
 function App() {
-  const [playthroughs, setPlaythroughs] = useKV<Playthrough[]>('playthroughs', [])
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [playthroughsKey, setPlaythroughsKey] = useState<string>('')
+  const [playthroughs, setPlaythroughs] = useKV<Playthrough[]>(playthroughsKey, [])
   const [formOpen, setFormOpen] = useState(false)
   const [editingPlaythrough, setEditingPlaythrough] = useState<Playthrough | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [selectedArchetypes, setSelectedArchetypes] = useState<Archetype[]>([])
   const [selectedCampaignTypes, setSelectedCampaignTypes] = useState<CampaignType[]>([])
   const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null)
-  const [currentUser, setCurrentUser] = useState<{ login: string; email?: string; avatarUrl: string } | null>(null)
 
   useEffect(() => {
-    async function loadUser() {
+    async function loadSession() {
       try {
-        const user = await spark.user()
-        setCurrentUser(user)
+        const session = await getCurrentSession()
+        if (session) {
+          setCurrentUser({ 
+            id: session.userId, 
+            email: session.email,
+            createdAt: Date.now(),
+            authProvider: session.authProvider
+          })
+          setPlaythroughsKey(`${session.userId}_playthroughs`)
+        }
       } catch (error) {
-        console.error('Failed to load user:', error)
+        console.error('Failed to load session:', error)
+      } finally {
+        setIsLoading(false)
       }
     }
-    loadUser()
+    loadSession()
   }, [])
 
   useEffect(() => {
@@ -175,6 +189,33 @@ function App() {
     return Array.from(playerSet).sort((a, b) => a.localeCompare(b))
   }, [playthroughs])
 
+  const handleAuthSuccess = (user: AuthUser) => {
+    setCurrentUser(user)
+    setPlaythroughsKey(`${user.id}_playthroughs`)
+  }
+
+  const handleSignOut = async () => {
+    await clearCurrentSession()
+    setCurrentUser(null)
+    setPlaythroughsKey('')
+    toast.success('Signed out successfully')
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <BookOpen size={48} className="text-primary mx-auto mb-4" weight="duotone" />
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!currentUser) {
+    return <PublicHomepage onAuthSuccess={handleAuthSuccess} />
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <Toaster position="top-center" />
@@ -194,18 +235,19 @@ function App() {
               </Button>
               {currentUser && (
                 <div className="flex items-center gap-2">
-                  {currentUser.avatarUrl && (
-                    <img 
-                      src={currentUser.avatarUrl} 
-                      alt={currentUser.login}
-                      className="w-8 h-8 md:w-10 md:h-10 rounded-full border-2 border-primary/20"
-                    />
-                  )}
-                  {!currentUser.avatarUrl && (
-                    <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-primary/20 flex items-center justify-center">
-                      <User size={20} weight="fill" className="text-primary" />
-                    </div>
-                  )}
+                  <div className="hidden md:flex items-center gap-2 px-3 py-2 rounded-lg bg-card border">
+                    <User size={16} weight="fill" className="text-primary" />
+                    <span className="text-sm text-muted-foreground">{currentUser.email}</span>
+                  </div>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={handleSignOut}
+                    className="gap-2"
+                  >
+                    <SignOut size={18} weight="bold" />
+                    <span className="hidden sm:inline">Sign Out</span>
+                  </Button>
                 </div>
               )}
             </div>
