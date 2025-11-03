@@ -35,6 +35,11 @@ function AuthenticatedApp({ currentUser, playthroughsKey, onSignOut }: Authentic
   const [selectedArchetypes, setSelectedArchetypes] = useState<Archetype[]>([])
   const [selectedCampaignTypes, setSelectedCampaignTypes] = useState<CampaignType[]>([])
   const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null)
+  const [isLoadingPlaythroughs, setIsLoadingPlaythroughs] = useState(true)
+
+  useEffect(() => {
+    setIsLoadingPlaythroughs(false)
+  }, [playthroughs])
 
   useEffect(() => {
     if (!playthroughs || playthroughs.length === 0) return
@@ -269,7 +274,12 @@ function AuthenticatedApp({ currentUser, playthroughsKey, onSignOut }: Authentic
               />
             </div>
 
-            {!playthroughs || playthroughs.length === 0 ? (
+            {isLoadingPlaythroughs ? (
+              <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+                <BookOpen size={48} className="text-primary mb-4 animate-pulse" weight="duotone" />
+                <p className="text-muted-foreground">Loading playthroughs...</p>
+              </div>
+            ) : !playthroughs || playthroughs.length === 0 ? (
               <EmptyState />
             ) : filteredPlaythroughs.length === 0 ? (
               <div className="text-center py-16">
@@ -293,7 +303,12 @@ function AuthenticatedApp({ currentUser, playthroughsKey, onSignOut }: Authentic
           </TabsContent>
 
           <TabsContent value="players" className="space-y-6">
-            {!playthroughs || playthroughs.length === 0 ? (
+            {isLoadingPlaythroughs ? (
+              <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+                <BookOpen size={48} className="text-primary mb-4 animate-pulse" weight="duotone" />
+                <p className="text-muted-foreground">Loading playthroughs...</p>
+              </div>
+            ) : !playthroughs || playthroughs.length === 0 ? (
               <EmptyState />
             ) : allPlayers.length === 0 ? (
               <Card className="p-12 text-center">
