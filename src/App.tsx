@@ -38,11 +38,8 @@ function AuthenticatedApp({ currentUser, playthroughsKey, onSignOut }: Authentic
   const [isLoadingPlaythroughs, setIsLoadingPlaythroughs] = useState(true)
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoadingPlaythroughs(false)
-    }, 100)
-    return () => clearTimeout(timer)
-  }, [])
+    setIsLoadingPlaythroughs(false)
+  }, [playthroughs])
 
   useEffect(() => {
     if (!playthroughs || playthroughs.length === 0) return
