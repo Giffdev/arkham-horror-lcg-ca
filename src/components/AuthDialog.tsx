@@ -6,7 +6,6 @@ import { Label } from '@/components/ui/label'
 import { createAccount, signIn, setCurrentSession, User } from '@/lib/auth'
 import { toast } from 'sonner'
 import { Eye, EyeSlash, Warning } from '@phosphor-icons/react'
-import { PasswordResetDialog } from '@/components/PasswordResetDialog'
 
 interface AuthDialogProps {
   open: boolean
@@ -22,7 +21,6 @@ export function AuthDialog({ open, onOpenChange, onSuccess }: AuthDialogProps) {
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [resetDialogOpen, setResetDialogOpen] = useState(false)
   const [signInError, setSignInError] = useState<string | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -189,25 +187,10 @@ export function AuthDialog({ open, onOpenChange, onSuccess }: AuthDialogProps) {
             </div>
           )}
           
-          {mode === 'signin' && (
-            <div className="flex items-center justify-between gap-3">
-              {signInError && (
-                <div className="flex items-center gap-1.5 text-xs text-destructive">
-                  <Warning size={14} weight="fill" />
-                  <span>{signInError}</span>
-                </div>
-              )}
-              <Button
-                type="button"
-                variant="link"
-                className="text-xs px-0 h-auto text-primary hover:text-primary/80 ml-auto"
-                onClick={() => {
-                  onOpenChange(false)
-                  setResetDialogOpen(true)
-                }}
-              >
-                Forgot password?
-              </Button>
+          {mode === 'signin' && signInError && (
+            <div className="flex items-center gap-1.5 text-xs text-destructive">
+              <Warning size={14} weight="fill" />
+              <span>{signInError}</span>
             </div>
           )}
 
@@ -220,17 +203,7 @@ export function AuthDialog({ open, onOpenChange, onSuccess }: AuthDialogProps) {
             </Button>
           </div>
         </form>
-
       </DialogContent>
-
-      <PasswordResetDialog
-        open={resetDialogOpen}
-        onOpenChange={setResetDialogOpen}
-        onBackToSignIn={() => {
-          setResetDialogOpen(false)
-          onOpenChange(true)
-        }}
-      />
     </Dialog>
   )
 }
