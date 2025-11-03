@@ -156,13 +156,18 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <ArchetypeBadge archetype={campaign.investigator.archetype} />
                     <span className="text-sm font-medium">
                       {campaign.investigator.isUnknown || campaign.investigator.investigatorName === 'Unknown' 
                         ? 'Unknown' 
                         : campaign.investigator.investigatorName}
                     </span>
+                    {campaign.investigator.investigatorSet && (
+                      <Badge variant="outline" className="text-xs">
+                        {campaign.investigator.investigatorSet}
+                      </Badge>
+                    )}
                   </div>
                 </div>
               </Card>

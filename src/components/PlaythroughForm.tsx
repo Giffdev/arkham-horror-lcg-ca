@@ -42,14 +42,15 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
         ...inv,
         isUnknown: inv.isUnknown || inv.investigatorName === 'Unknown' || inv.archetype === 'Unknown',
         isCustom: inv.isCustom || false,
-        customInvestigatorName: inv.customInvestigatorName || (inv.isCustom ? inv.investigatorName : '')
+        customInvestigatorName: inv.customInvestigatorName || (inv.isCustom ? inv.investigatorName : ''),
+        investigatorSet: inv.investigatorSet
       })))
     } else {
       setCampaignType('Full Campaign')
       setCampaignName('')
       setCustomCampaignName('')
       setSideStories([])
-      setInvestigators([{ playerName: '', investigatorName: '', archetype: 'Unknown', isUnknown: false, isCustom: false }])
+      setInvestigators([{ playerName: '', investigatorName: '', archetype: 'Unknown', isUnknown: false, isCustom: false, investigatorSet: undefined }])
     }
   }, [editPlaythrough, open])
 
@@ -84,10 +85,12 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
         updated.archetype = 'Unknown'
         updated.isCustom = false
         updated.customInvestigatorName = ''
+        updated.investigatorSet = undefined
       }
       
       if (field === 'isUnknown' && value === false) {
         updated.investigatorName = ''
+        updated.investigatorSet = undefined
       }
       
       if (field === 'isCustom' && value === true) {
@@ -95,17 +98,22 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
         updated.customInvestigatorName = ''
         updated.archetype = 'Unknown'
         updated.isUnknown = false
+        updated.investigatorSet = undefined
       }
       
       if (field === 'isCustom' && value === false) {
         updated.customInvestigatorName = ''
         updated.investigatorName = ''
+        updated.investigatorSet = undefined
       }
       
       if (field === 'investigatorName' && typeof value === 'string') {
         const investigatorData = getInvestigatorByName(value)
-        if (investigatorData && investigatorData.archetypes.length === 1) {
-          updated.archetype = investigatorData.archetypes[0]
+        if (investigatorData) {
+          if (investigatorData.archetypes.length === 1) {
+            updated.archetype = investigatorData.archetypes[0]
+          }
+          updated.investigatorSet = investigatorData.set
         }
         updated.isUnknown = false
         updated.isCustom = false
