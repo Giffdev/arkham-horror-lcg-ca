@@ -145,7 +145,16 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
   }, [])
 
   const { playedInvestigators, unplayedInvestigators } = useMemo(() => {
-    const played = new Set(Object.keys(playerData.investigatorCounts).filter(name => name !== 'Unknown'))
+    const playedInvestigatorArchetypes = playthroughs
+      .flatMap(p =>
+        p.investigators
+          .filter(inv => inv.playerName === playerName)
+          .filter(inv => !inv.isUnknown && inv.investigatorName !== 'Unknown')
+          .map(inv => ({
+            name: inv.investigatorName,
+            archetype: inv.archetype
+          }))
+      )
     
     let filteredInvestigators = INVESTIGATORS
 
@@ -160,7 +169,22 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
     }
 
     const playedList = filteredInvestigators
-      .filter(inv => played.has(inv.name))
+      .filter(inv => {
+        if (inv.archetypes.length === 1) {
+          return playedInvestigatorArchetypes.some(played => played.name === inv.name)
+        } else {
+          if (selectedArchetypes.length > 0) {
+            return selectedArchetypes.some(selectedArchetype =>
+              inv.archetypes.includes(selectedArchetype) &&
+              playedInvestigatorArchetypes.some(played => 
+                played.name === inv.name && played.archetype === selectedArchetype
+              )
+            )
+          } else {
+            return playedInvestigatorArchetypes.some(played => played.name === inv.name)
+          }
+        }
+      })
       .map(inv => ({
         ...inv,
         count: playerData.investigatorCounts[inv.name]?.count || 0
@@ -168,11 +192,26 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
       .sort((a, b) => b.count - a.count)
 
     const unplayedList = filteredInvestigators
-      .filter(inv => !played.has(inv.name))
+      .filter(inv => {
+        if (inv.archetypes.length === 1) {
+          return !playedInvestigatorArchetypes.some(played => played.name === inv.name)
+        } else {
+          if (selectedArchetypes.length > 0) {
+            return !selectedArchetypes.some(selectedArchetype =>
+              inv.archetypes.includes(selectedArchetype) &&
+              playedInvestigatorArchetypes.some(played => 
+                played.name === inv.name && played.archetype === selectedArchetype
+              )
+            )
+          } else {
+            return !playedInvestigatorArchetypes.some(played => played.name === inv.name)
+          }
+        }
+      })
       .sort((a, b) => a.name.localeCompare(b.name))
 
     return { playedInvestigators: playedList, unplayedInvestigators: unplayedList }
-  }, [playerData.investigatorCounts, selectedArchetypes, selectedSets])
+  }, [playerData.investigatorCounts, selectedArchetypes, selectedSets, playthroughs, playerName])
 
   return (
     <div className="space-y-6">
