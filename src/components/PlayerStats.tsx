@@ -40,12 +40,18 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
       .flatMap(p =>
         p.investigators
           .filter(inv => inv.playerName === playerName)
-          .map(inv => inv.isUnknown || inv.investigatorName === 'Unknown' ? 'Unknown' : inv.investigatorName)
+          .map(inv => ({
+            name: inv.isUnknown || inv.investigatorName === 'Unknown' ? 'Unknown' : inv.investigatorName,
+            archetype: inv.archetype
+          }))
       )
-      .reduce((acc, name) => {
-        acc[name] = (acc[name] || 0) + 1
+      .reduce((acc, { name, archetype }) => {
+        if (!acc[name]) {
+          acc[name] = { count: 0, archetype }
+        }
+        acc[name].count++
         return acc
-      }, {} as Record<string, number>)
+      }, {} as Record<string, { count: number, archetype: Archetype }>)
 
     const archetypeCounts = playerGames
       .flatMap(p =>
@@ -68,8 +74,6 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
   }, [playerName, playthroughs])
 
   const allArchetypes: Archetype[] = ['Guardian', 'Seeker', 'Rogue', 'Mystic', 'Survivor', 'Neutral']
-  const sortedArchetypes = Object.entries(playerData.archetypeCounts)
-    .sort(([, a], [, b]) => b - a)
 
   const allSets = useMemo(() => {
     const sets = new Set(INVESTIGATORS.map(inv => inv.set))
@@ -95,7 +99,7 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
       .filter(inv => played.has(inv.name))
       .map(inv => ({
         ...inv,
-        count: playerData.investigatorCounts[inv.name] || 0
+        count: playerData.investigatorCounts[inv.name]?.count || 0
       }))
       .sort((a, b) => b.count - a.count)
 
@@ -132,40 +136,52 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
         <Card className="p-4">
           <div className="flex items-center gap-3 mb-3">
             <UsersThree size={20} weight="duotone" className="text-primary" />
-            <h3 className="font-semibold">Investigators Used</h3>
+            <h3 className="font-semibold">Top Investigators</h3>
           </div>
-          <p className="text-3xl font-bold">{Object.keys(playerData.investigatorCounts).filter(n => n !== 'Unknown').length}</p>
+          <div className="space-y-2 mt-3">
+            {Object.entries(playerData.investigatorCounts)
+              .filter(([name]) => name !== 'Unknown')
+              .sort(([, a], [, b]) => b.count - a.count)
+              .slice(0, 5)
+              .map(([name, data]) => (
+                <div key={name} className="flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <span className="truncate">{name}</span>
+                    <ArchetypeBadge archetype={data.archetype} className="text-xs h-5 shrink-0" />
+                  </div>
+                  <Badge variant="secondary" className="ml-2 shrink-0 text-xs">
+                    ×{data.count}
+                  </Badge>
+                </div>
+              ))}
+            {Object.keys(playerData.investigatorCounts).filter(n => n !== 'Unknown').length === 0 && (
+              <p className="text-sm text-muted-foreground">No data yet</p>
+            )}
+          </div>
         </Card>
 
         <Card className="p-4">
           <div className="flex items-center gap-3 mb-3">
             <Check size={20} weight="duotone" className="text-primary" />
-            <h3 className="font-semibold">Completion Rate</h3>
+            <h3 className="font-semibold">Favorite Classes</h3>
           </div>
-          <p className="text-3xl font-bold">
-            {Math.round((playedInvestigators.length / INVESTIGATORS.length) * 100)}%
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">
-            {playedInvestigators.length} of {INVESTIGATORS.length} investigators
-          </p>
+          <div className="space-y-2 mt-3">
+            {Object.entries(playerData.archetypeCounts)
+              .sort(([, a], [, b]) => b - a)
+              .map(([archetype, count]) => (
+                <div key={archetype} className="flex items-center justify-between">
+                  <ArchetypeBadge archetype={archetype as Archetype} />
+                  <Badge variant="secondary" className="text-xs">
+                    ×{count}
+                  </Badge>
+                </div>
+              ))}
+            {Object.keys(playerData.archetypeCounts).length === 0 && (
+              <p className="text-sm text-muted-foreground">No data yet</p>
+            )}
+          </div>
         </Card>
       </div>
-
-      <Card className="p-4">
-        <h3 className="font-semibold mb-4">Class Distribution</h3>
-        <div className="flex flex-wrap gap-3">
-          {sortedArchetypes.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No class data available</p>
-          ) : (
-            sortedArchetypes.map(([archetype, count]) => (
-              <div key={archetype} className="flex items-center gap-2">
-                <ArchetypeBadge archetype={archetype as Archetype} />
-                <span className="text-sm font-medium">× {count}</span>
-              </div>
-            ))
-          )}
-        </div>
-      </Card>
 
       <Tabs defaultValue="played" className="space-y-4">
         <TabsList className="grid w-full max-w-md grid-cols-3">
