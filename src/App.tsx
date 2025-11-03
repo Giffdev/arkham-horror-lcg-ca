@@ -9,6 +9,7 @@ import { Filters } from '@/components/Filters'
 import { PlayerStats } from '@/components/PlayerStats'
 import { PlayersOverview } from '@/components/PlayersOverview'
 import { DataExportImport } from '@/components/DataExportImport'
+import { DataSwapUtility } from '@/components/DataSwapUtility'
 import { Plus, BookOpen, User, SignOut, CaretDown } from '@phosphor-icons/react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card } from '@/components/ui/card'
@@ -236,6 +237,10 @@ function AuthenticatedApp({ currentUser, playthroughsKey, onSignOut }: Authentic
       </header>
 
       <main className="container mx-auto px-6 py-8">
+        <div className="mb-6">
+          <DataSwapUtility />
+        </div>
+        
         <Tabs defaultValue="games" className="space-y-6">
           <TabsList className="grid w-full max-w-md mx-auto grid-cols-2">
             <TabsTrigger value="games" className="gap-2">
