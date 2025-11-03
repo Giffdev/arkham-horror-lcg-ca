@@ -231,8 +231,8 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
                 <div className="space-y-2">
                   <Label htmlFor="campaign-name">Campaign</Label>
                   <Select value={campaignName} onValueChange={handleCampaignNameChange}>
-                    <SelectTrigger id="campaign-name">
-                      <SelectValue placeholder="Select a campaign" />
+                    <SelectTrigger id="campaign-name" className="truncate">
+                      <SelectValue placeholder="Select a campaign" className="truncate" />
                     </SelectTrigger>
                     <SelectContent align="end" side="bottom" className="max-w-[min(400px,90vw)]">
                       <ScrollArea className="h-72">
@@ -249,8 +249,8 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
                 <div className="space-y-2">
                   <Label htmlFor="campaign-name">Scenario</Label>
                   <Select value={campaignName} onValueChange={handleCampaignNameChange}>
-                    <SelectTrigger id="campaign-name">
-                      <SelectValue placeholder="Select a scenario" />
+                    <SelectTrigger id="campaign-name" className="truncate">
+                      <SelectValue placeholder="Select a scenario" className="truncate" />
                     </SelectTrigger>
                     <SelectContent align="end" side="bottom" className="max-w-[min(400px,90vw)]">
                       <ScrollArea className="h-72">
