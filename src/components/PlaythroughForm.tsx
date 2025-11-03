@@ -35,7 +35,7 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
       setCustomCampaignName(editPlaythrough.customCampaignName || '')
       setInvestigators(editPlaythrough.investigators.map(inv => ({
         ...inv,
-        isUnknown: inv.isUnknown || inv.investigatorName === 'Unknown'
+        isUnknown: inv.isUnknown || inv.investigatorName === 'Unknown' || inv.archetype === 'Unknown'
       })))
     } else {
       setCampaignType('Full Campaign')
@@ -279,7 +279,7 @@ function InvestigatorFormItem({ index, investigator, availableInvestigators, onU
   const investigatorData = getInvestigatorByName(investigator.investigatorName)
   const needsArchetypeSelection = investigatorData && isDualClassInvestigator(investigator.investigatorName)
   const availableArchetypes = investigatorData?.archetypes || []
-  const isUnknown = investigator.isUnknown || investigator.investigatorName === 'Unknown'
+  const isUnknown = investigator.isUnknown || investigator.investigatorName === 'Unknown' || investigator.archetype === 'Unknown'
 
   return (
     <div className="p-4 border rounded-lg space-y-3 bg-card">
