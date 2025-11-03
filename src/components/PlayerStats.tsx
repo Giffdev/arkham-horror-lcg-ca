@@ -18,7 +18,11 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
     )
 
     const campaigns = playerGames.map(p => ({
-      name: p.campaignType === 'Fan-Made' ? p.customCampaignName || p.campaignName : p.campaignName,
+      name: p.campaignType === 'Fan-Made' 
+        ? p.customCampaignName || p.campaignName 
+        : p.campaignType === 'Unknown'
+          ? 'Unknown Campaign'
+          : p.campaignName,
       type: p.campaignType,
       set: p.campaignSet,
       date: p.date,

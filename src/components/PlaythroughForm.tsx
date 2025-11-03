@@ -31,7 +31,7 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
   useEffect(() => {
     if (editPlaythrough) {
       setCampaignType(editPlaythrough.campaignType)
-      setCampaignName(editPlaythrough.campaignName)
+      setCampaignName(editPlaythrough.campaignName === 'Unknown Campaign' ? '' : editPlaythrough.campaignName)
       setCustomCampaignName(editPlaythrough.customCampaignName || '')
       setInvestigators(editPlaythrough.investigators.map(inv => ({
         ...inv,
@@ -92,7 +92,11 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
   }
 
   const handleSubmit = () => {
-    const finalCampaignName = campaignType === 'Fan-Made' ? customCampaignName : campaignName
+    const finalCampaignName = campaignType === 'Fan-Made' 
+      ? customCampaignName 
+      : campaignType === 'Unknown'
+        ? 'Unknown Campaign'
+        : campaignName
     
     if (!finalCampaignName.trim()) return
 
@@ -123,7 +127,9 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
   const availableInvestigators = getAllInvestigatorNames()
   const isFormValid = (campaignType === 'Fan-Made' 
     ? customCampaignName.trim() !== ''
-    : campaignName.trim() !== '') && 
+    : campaignType === 'Unknown'
+      ? true
+      : campaignName.trim() !== '') && 
     investigators.length >= 1 && 
     investigators.length <= 4
 
@@ -191,7 +197,7 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
                     </SelectContent>
                   </Select>
                 </div>
-              ) : (
+              ) : campaignType === 'Fan-Made' ? (
                 <div className="space-y-2">
                   <Label htmlFor="custom-campaign-name">Campaign Name</Label>
                   <Input
@@ -201,7 +207,7 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
                     onChange={(e) => setCustomCampaignName(e.target.value)}
                   />
                 </div>
-              )}
+              ) : null}
             </div>
 
             <div className="space-y-4">

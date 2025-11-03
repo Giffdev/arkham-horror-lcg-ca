@@ -15,7 +15,9 @@ interface PlaythroughCardProps {
 export function PlaythroughCard({ playthrough, onEdit, onDelete }: PlaythroughCardProps) {
   const displayName = playthrough.campaignType === 'Fan-Made' 
     ? playthrough.customCampaignName || playthrough.campaignName
-    : playthrough.campaignName
+    : playthrough.campaignType === 'Unknown'
+      ? 'Unknown Campaign'
+      : playthrough.campaignName
 
   return (
     <Card className="p-6 hover:border-accent transition-all duration-200 hover:shadow-lg group">
