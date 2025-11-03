@@ -282,15 +282,15 @@ function AuthenticatedApp({ currentUser, playthroughsKey, onSignOut }: Authentic
                 <BookOpen size={48} className="text-primary mb-4 animate-pulse" weight="duotone" />
                 <p className="text-muted-foreground">Loading playthroughs...</p>
               </div>
-            ) : !playthroughs || playthroughs.length === 0 ? (
+            ) : playthroughs && playthroughs.length === 0 ? (
               <EmptyState />
-            ) : filteredPlaythroughs.length === 0 ? (
+            ) : filteredPlaythroughs.length === 0 && playthroughs && playthroughs.length > 0 ? (
               <div className="text-center py-16">
                 <p className="text-muted-foreground">
                   No playthroughs match your selected filters.
                 </p>
               </div>
-            ) : (
+            ) : playthroughs && playthroughs.length > 0 ? (
               <div className="space-y-3">
                 {filteredPlaythroughs.map((playthrough) => (
                   <PlaythroughCard
@@ -302,7 +302,7 @@ function AuthenticatedApp({ currentUser, playthroughsKey, onSignOut }: Authentic
                   />
                 ))}
               </div>
-            )}
+            ) : null}
           </TabsContent>
 
           <TabsContent value="players" className="space-y-6">
@@ -311,15 +311,15 @@ function AuthenticatedApp({ currentUser, playthroughsKey, onSignOut }: Authentic
                 <BookOpen size={48} className="text-primary mb-4 animate-pulse" weight="duotone" />
                 <p className="text-muted-foreground">Loading playthroughs...</p>
               </div>
-            ) : !playthroughs || playthroughs.length === 0 ? (
+            ) : playthroughs && playthroughs.length === 0 ? (
               <EmptyState />
-            ) : allPlayers.length === 0 ? (
+            ) : playthroughs && playthroughs.length > 0 && allPlayers.length === 0 ? (
               <Card className="p-12 text-center">
                 <p className="text-muted-foreground">
                   No players found. Add player names when logging games to see player statistics.
                 </p>
               </Card>
-            ) : (
+            ) : playthroughs && playthroughs.length > 0 ? (
               <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                 <div className="lg:col-span-1">
                   <Card className="p-4">
@@ -350,7 +350,7 @@ function AuthenticatedApp({ currentUser, playthroughsKey, onSignOut }: Authentic
                   )}
                 </div>
               </div>
-            )}
+            ) : null}
           </TabsContent>
         </Tabs>
       </main>
