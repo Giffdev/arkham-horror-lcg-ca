@@ -234,7 +234,7 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
                     <SelectTrigger id="campaign-name">
                       <SelectValue placeholder="Select a campaign" />
                     </SelectTrigger>
-                    <SelectContent className="max-w-[400px]">
+                    <SelectContent align="end" side="bottom" className="max-w-[min(400px,90vw)]">
                       <ScrollArea className="h-72">
                         {availableFullCampaigns.map((campaign) => (
                           <SelectItem key={campaign} value={campaign}>
@@ -252,7 +252,7 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
                     <SelectTrigger id="campaign-name">
                       <SelectValue placeholder="Select a scenario" />
                     </SelectTrigger>
-                    <SelectContent className="max-w-[400px]">
+                    <SelectContent align="end" side="bottom" className="max-w-[min(400px,90vw)]">
                       <ScrollArea className="h-72">
                         {availableStandaloneCampaigns.map((campaign) => (
                           <SelectItem key={campaign} value={campaign}>
