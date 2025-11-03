@@ -3,7 +3,7 @@ import { Playthrough, Archetype } from '@/lib/types'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ArchetypeBadge } from './ArchetypeBadge'
-import { User, Briefcase, UsersThree, Check, X, Funnel, Book } from '@phosphor-icons/react'
+import { User, UsersThree, Check, X, Funnel, Book, ClockCounterClockwise } from '@phosphor-icons/react'
 import { formatDate } from '@/lib/date-utils'
 import { getDisplaySetName, INVESTIGATORS } from '@/lib/investigator-data'
 import { Button } from '@/components/ui/button'
@@ -85,12 +85,24 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
       return acc
     }, {} as Record<string, { count: number, type: string, set: string }>)
 
+    const coPlayerCounts = playerGames
+      .flatMap(p =>
+        p.investigators
+          .filter(inv => inv.playerName !== playerName && inv.playerName.trim() !== '')
+          .map(inv => inv.playerName)
+      )
+      .reduce((acc, name) => {
+        acc[name] = (acc[name] || 0) + 1
+        return acc
+      }, {} as Record<string, number>)
+
     return {
       totalGames: playerGames.length,
       campaigns,
       investigatorCounts,
       archetypeCounts,
-      campaignCounts
+      campaignCounts,
+      coPlayerCounts
     }
   }, [playerName, playthroughs])
 
@@ -179,14 +191,6 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="p-4">
           <div className="flex items-center gap-3 mb-3">
-            <Briefcase size={20} weight="duotone" className="text-primary" />
-            <h3 className="font-semibold">Total Games</h3>
-          </div>
-          <p className="text-3xl font-bold">{playerData.totalGames}</p>
-        </Card>
-
-        <Card className="p-4">
-          <div className="flex items-center gap-3 mb-3">
             <Book size={20} weight="duotone" className="text-primary" />
             <h3 className="font-semibold">Top Campaigns</h3>
           </div>
@@ -224,6 +228,29 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
         <Card className="p-4">
           <div className="flex items-center gap-3 mb-3">
             <UsersThree size={20} weight="duotone" className="text-primary" />
+            <h3 className="font-semibold">Top Players</h3>
+          </div>
+          <div className="space-y-2 mt-3">
+            {Object.entries(playerData.coPlayerCounts)
+              .sort(([, a], [, b]) => b - a)
+              .slice(0, 5)
+              .map(([name, count]) => (
+                <div key={name} className="flex items-center justify-between text-sm">
+                  <span className="truncate flex-1">{name}</span>
+                  <Badge variant="secondary" className="ml-2 shrink-0 text-xs">
+                    ×{count}
+                  </Badge>
+                </div>
+              ))}
+            {Object.keys(playerData.coPlayerCounts).length === 0 && (
+              <p className="text-sm text-muted-foreground">No data yet</p>
+            )}
+          </div>
+        </Card>
+
+        <Card className="p-4">
+          <div className="flex items-center gap-3 mb-3">
+            <User size={20} weight="duotone" className="text-primary" />
             <h3 className="font-semibold">Top Investigators</h3>
           </div>
           <div className="space-y-2 mt-3">
@@ -282,7 +309,7 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
             Unplayed
           </TabsTrigger>
           <TabsTrigger value="history" className="gap-2">
-            <Briefcase size={16} weight="duotone" />
+            <ClockCounterClockwise size={16} weight="duotone" />
             History
           </TabsTrigger>
         </TabsList>
