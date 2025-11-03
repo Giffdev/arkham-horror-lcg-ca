@@ -19,6 +19,7 @@ import { Toaster, toast } from 'sonner'
 import { getInvestigatorByName } from '@/lib/investigator-data'
 import { getCurrentSession, clearCurrentSession, User as AuthUser } from '@/lib/auth'
 import { PublicHomepage } from '@/components/PublicHomepage'
+import { rebuildCommunityStats } from '@/lib/community-stats'
 
 interface AuthenticatedAppProps {
   currentUser: AuthUser
@@ -117,6 +118,7 @@ function AuthenticatedApp({ currentUser, playthroughsKey, onSignOut }: Authentic
       }
     })
     setEditingPlaythrough(null)
+    rebuildCommunityStats()
   }
 
   const handleDeletePlaythrough = () => {
@@ -124,6 +126,7 @@ function AuthenticatedApp({ currentUser, playthroughsKey, onSignOut }: Authentic
       setPlaythroughs((current) => (current || []).filter((p) => p.id !== deleteId))
       toast.success('Playthrough deleted')
       setDeleteId(null)
+      rebuildCommunityStats()
     }
   }
 
@@ -172,6 +175,7 @@ function AuthenticatedApp({ currentUser, playthroughsKey, onSignOut }: Authentic
       
       return [...existing, ...newPlaythroughs]
     })
+    rebuildCommunityStats()
   }
 
   const allPlayers = useMemo(() => {
