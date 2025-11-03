@@ -192,6 +192,7 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
           </div>
           <div className="space-y-2 mt-3">
             {Object.entries(playerData.campaignCounts)
+              .filter(([name]) => name !== 'Unknown Campaign')
               .sort(([, a], [, b]) => b.count - a.count)
               .slice(0, 5)
               .map(([name, data]) => (
@@ -214,7 +215,7 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
                   </Badge>
                 </div>
               ))}
-            {Object.keys(playerData.campaignCounts).length === 0 && (
+            {Object.entries(playerData.campaignCounts).filter(([name]) => name !== 'Unknown Campaign').length === 0 && (
               <p className="text-sm text-muted-foreground">No data yet</p>
             )}
           </div>
