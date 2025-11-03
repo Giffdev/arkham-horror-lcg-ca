@@ -190,7 +190,7 @@ export function AuthDialog({ open, onOpenChange, onSuccess }: AuthDialogProps) {
             <Button type="submit" disabled={loading} className="w-full">
               {loading ? 'Please wait...' : mode === 'signin' ? 'Sign In' : 'Create Account'}
             </Button>
-            <Button type="button" variant="ghost" onClick={switchMode} disabled={loading} className="text-foreground hover:text-foreground">
+            <Button type="button" variant="secondary" onClick={switchMode} disabled={loading}>
               {mode === 'signin' ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
             </Button>
           </div>
