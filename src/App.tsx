@@ -41,7 +41,18 @@ function App() {
             createdAt: Date.now(),
             authProvider: session.authProvider
           })
-          setPlaythroughsKey(`${session.userId}_playthroughs`)
+          const newKey = `${session.userId}_playthroughs`
+          setPlaythroughsKey(newKey)
+          
+          const existingData = await spark.kv.get<Playthrough[]>(newKey)
+          if (!existingData || existingData.length === 0) {
+            const oldData = await spark.kv.get<Playthrough[]>('playthroughs')
+            if (oldData && oldData.length > 0) {
+              await spark.kv.set(newKey, oldData)
+              await spark.kv.delete('playthroughs')
+              toast.success(`Migrated ${oldData.length} playthroughs to your account`)
+            }
+          }
         }
       } catch (error) {
         console.error('Failed to load session:', error)
