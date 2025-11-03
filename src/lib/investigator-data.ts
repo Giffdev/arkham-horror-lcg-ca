@@ -203,9 +203,13 @@ export function getArkhamDBUrl(investigatorName: string, archetype?: Archetype):
   const mapping = slugMap[investigatorName]
   if (!mapping) return null
   
-  if (typeof mapping === 'object' && archetype) {
-    const code = mapping[archetype]
-    if (code) return `https://arkhamdb.com/card/${code}`
+  if (typeof mapping === 'object') {
+    if (archetype && mapping[archetype]) {
+      return `https://arkhamdb.com/card/${mapping[archetype]}`
+    }
+    if (investigatorName === 'Agatha Crane') {
+      return `https://arkhamdb.com/card/${mapping['Seeker']}`
+    }
     const firstCode = Object.values(mapping)[0]
     return `https://arkhamdb.com/card/${firstCode}`
   }

@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { PencilSimple, Trash, Clock, UsersThree, Sparkle } from '@phosphor-icons/react'
 import { formatDate } from '@/lib/date-utils'
-import { getDisplaySetName } from '@/lib/investigator-data'
+import { getDisplaySetName, getArkhamDBUrl } from '@/lib/investigator-data'
 
 interface PlaythroughCardProps {
   playthrough: Playthrough
@@ -121,16 +121,33 @@ export function PlaythroughCard({ playthrough, onEdit, onDelete, activeArchetype
                   ? allArchetypes.filter(archetype => activeArchetypeFilters.includes(archetype))
                   : allArchetypes
                 
+                const defaultUrl = getArkhamDBUrl(inv.investigatorName)
+                
                 return (
                   <div key={idx} className="flex flex-col md:flex-row md:items-center gap-1.5 md:gap-3 text-sm">
                     <div className="flex flex-col md:flex-row md:flex-wrap md:items-center gap-1.5 md:gap-2 min-w-0 md:min-w-[280px]">
                       <div className="flex items-center gap-2">
                         {displayArchetypes.map((archetype, archetypeIdx) => (
-                          <ArchetypeBadge key={archetypeIdx} archetype={archetype} />
+                          <ArchetypeBadge 
+                            key={archetypeIdx} 
+                            archetype={archetype}
+                            investigatorName={inv.investigatorName}
+                          />
                         ))}
-                        <span className="font-medium">
-                          {inv.isUnknown || inv.investigatorName === 'Unknown' ? 'Unknown' : inv.investigatorName}
-                        </span>
+                        {defaultUrl && !inv.isUnknown && inv.investigatorName !== 'Unknown' ? (
+                          <a 
+                            href={defaultUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-medium hover:underline hover:text-accent transition-colors"
+                          >
+                            {inv.investigatorName}
+                          </a>
+                        ) : (
+                          <span className="font-medium">
+                            {inv.isUnknown || inv.investigatorName === 'Unknown' ? 'Unknown' : inv.investigatorName}
+                          </span>
+                        )}
                       </div>
                       {inv.investigatorSet && !inv.isUnknown && inv.investigatorName !== 'Unknown' && (
                         <Badge variant="outline" className="text-xs whitespace-nowrap">
