@@ -31,6 +31,7 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
   const [sideStories, setSideStories] = useState<string[]>([])
   const [sideStoriesOpen, setSideStoriesOpen] = useState(false)
   const [investigators, setInvestigators] = useState<InvestigatorAssignment[]>([])
+  const [campaignSearchOpen, setCampaignSearchOpen] = useState(false)
 
   useEffect(() => {
     if (editPlaythrough) {
@@ -63,6 +64,7 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
 
   const handleCampaignNameChange = (name: string) => {
     setCampaignName(name)
+    setCampaignSearchOpen(false)
   }
 
   const handleAddInvestigator = () => {
@@ -232,38 +234,90 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
               {campaignType === 'Full Campaign' ? (
                 <div className="space-y-2">
                   <Label htmlFor="campaign-name">Campaign</Label>
-                  <Select value={campaignName} onValueChange={handleCampaignNameChange}>
-                    <SelectTrigger id="campaign-name">
-                      <SelectValue placeholder="Select a campaign" />
-                    </SelectTrigger>
-                    <SelectContent align="end" side="bottom" className="max-w-[min(400px,90vw)]">
-                      <ScrollArea className="h-72">
-                        {availableFullCampaigns.map((campaign) => (
-                          <SelectItem key={campaign} value={campaign}>
-                            {campaign}
-                          </SelectItem>
-                        ))}
-                      </ScrollArea>
-                    </SelectContent>
-                  </Select>
+                  <Popover open={campaignSearchOpen} onOpenChange={setCampaignSearchOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        id="campaign-name"
+                        className="w-full justify-between"
+                      >
+                        {campaignName || "Select a campaign"}
+                        <CaretUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[300px] p-0" align="end">
+                      <Command>
+                        <CommandInput placeholder="Search campaigns..." />
+                        <CommandList>
+                          <CommandEmpty>No campaign found.</CommandEmpty>
+                          <CommandGroup>
+                            <ScrollArea className="h-72">
+                              {availableFullCampaigns.map((campaign) => (
+                                <CommandItem
+                                  key={campaign}
+                                  value={campaign}
+                                  onSelect={() => handleCampaignNameChange(campaign)}
+                                >
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      campaignName === campaign ? "opacity-100" : "opacity-0"
+                                    )}
+                                  />
+                                  {campaign}
+                                </CommandItem>
+                              ))}
+                            </ScrollArea>
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 </div>
               ) : campaignType === 'Standalone' ? (
                 <div className="space-y-2">
                   <Label htmlFor="campaign-name">Scenario</Label>
-                  <Select value={campaignName} onValueChange={handleCampaignNameChange}>
-                    <SelectTrigger id="campaign-name">
-                      <SelectValue placeholder="Select a scenario" />
-                    </SelectTrigger>
-                    <SelectContent align="end" side="bottom" className="max-w-[min(400px,90vw)]">
-                      <ScrollArea className="h-72">
-                        {availableStandaloneCampaigns.map((campaign) => (
-                          <SelectItem key={campaign} value={campaign}>
-                            {campaign}
-                          </SelectItem>
-                        ))}
-                      </ScrollArea>
-                    </SelectContent>
-                  </Select>
+                  <Popover open={campaignSearchOpen} onOpenChange={setCampaignSearchOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        id="campaign-name"
+                        className="w-full justify-between"
+                      >
+                        {campaignName || "Select a scenario"}
+                        <CaretUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[300px] p-0" align="end">
+                      <Command>
+                        <CommandInput placeholder="Search scenarios..." />
+                        <CommandList>
+                          <CommandEmpty>No scenario found.</CommandEmpty>
+                          <CommandGroup>
+                            <ScrollArea className="h-72">
+                              {availableStandaloneCampaigns.map((campaign) => (
+                                <CommandItem
+                                  key={campaign}
+                                  value={campaign}
+                                  onSelect={() => handleCampaignNameChange(campaign)}
+                                >
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      campaignName === campaign ? "opacity-100" : "opacity-0"
+                                    )}
+                                  />
+                                  {campaign}
+                                </CommandItem>
+                              ))}
+                            </ScrollArea>
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 </div>
               ) : campaignType === 'Fan-Made' ? (
                 <div className="space-y-2">
