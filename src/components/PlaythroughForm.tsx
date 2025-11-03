@@ -551,7 +551,7 @@ function InvestigatorFormItem({ index, investigator, availableInvestigators, onU
           {isCustom ? (
             <Input
               id={`custom-investigator-${index}`}
-              placeholder="Enter custom investigator name"
+              placeholder="Enter investigator name"
               value={investigator.customInvestigatorName || ''}
               onChange={(e) => onUpdate(index, 'customInvestigatorName', e.target.value)}
             />
