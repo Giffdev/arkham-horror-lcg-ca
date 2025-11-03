@@ -116,13 +116,13 @@ export function PlaythroughCard({ playthrough, onEdit, onDelete }: PlaythroughCa
             <div className="space-y-2.5">
               {playthrough.investigators.map((inv, idx) => (
                 <div key={idx} className="flex flex-col md:flex-row md:items-center gap-1.5 md:gap-3 text-sm">
-                  <div className="flex items-center gap-2 min-w-0 md:min-w-[280px]">
+                  <div className="flex flex-wrap items-center gap-2 min-w-0 md:min-w-[280px]">
                     <ArchetypeBadge archetype={inv.archetype} />
-                    <span className="font-medium truncate">
+                    <span className="font-medium">
                       {inv.isUnknown || inv.investigatorName === 'Unknown' ? 'Unknown' : inv.investigatorName}
                     </span>
                     {inv.investigatorSet && !inv.isUnknown && inv.investigatorName !== 'Unknown' && (
-                      <Badge variant="outline" className="text-xs whitespace-nowrap flex-shrink-0">
+                      <Badge variant="outline" className="text-xs whitespace-nowrap">
                         {getDisplaySetName(inv.investigatorName, inv.investigatorSet)}
                       </Badge>
                     )}
