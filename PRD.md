@@ -93,12 +93,12 @@ Custom palette inspired by Arkham Horror's atmospheric noir aesthetic with vinta
 
 ## Font Selection
 
-Typography should balance readability with a clean, modern aesthetic using a single, highly legible sans-serif font family.
+Typography should balance readability with a touch of thematic character. Birmingham (a display serif) is used for headings to evoke the vintage 1920s aesthetic of Arkham Horror, while Inter provides clean, modern readability for body text.
 
 - **Typographic Hierarchy**:
-  - H1 (Page Title): Inter Semi-Bold / 32px / normal letter-spacing
-  - H2 (Section Headers): Inter Semi-Bold / 24px / normal letter-spacing
-  - H3 (Card Titles): Inter Semi-Bold / 18px / -0.01em letter-spacing
+  - H1 (Page Title): Birmingham / 32px / normal letter-spacing
+  - H2 (Section Headers): Birmingham / 24px / normal letter-spacing
+  - H3 (Card Titles): Birmingham / 18px / -0.01em letter-spacing
   - Body (Content): Inter Regular / 15px / 1.6 line-height
   - Labels: Inter Medium / 13px / 0.01em letter-spacing / uppercase
   - Caption (Dates, metadata): Inter Regular / 13px / muted color
@@ -156,7 +156,6 @@ Animations should feel like turning pages in a journal or placing cards on a tab
   - Sparkle for side stories section (adds thematic flavor)
   - CaretUpDown for collapsible trigger
   - Briefcase for total games metric
-  - Campaign-specific icons next to set names (Star for Core, Buildings for Dunwich, Moon for Carcosa, Mountains for Forgotten Age, Church for Circle Undone, Eye for Dream-Eaters, Waves for Innsmouth, Snowflake for Edge of the Earth, Key for Scarlet Keys, Grains for Hemlock Vale, Compass for Drowned City, Cat for Barkham, Skull for Standalone, Ghost for unknown)
 
 - **Spacing**: 
   - Page padding: p-6 (24px)
