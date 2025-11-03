@@ -8,7 +8,6 @@ import { EmptyState } from '@/components/EmptyState'
 import { Filters } from '@/components/Filters'
 import { PlayerStats } from '@/components/PlayerStats'
 import { PlayersOverview } from '@/components/PlayersOverview'
-import { DataExportImport } from '@/components/DataExportImport'
 
 import { Plus, BookOpen, User, SignOut, CaretDown } from '@phosphor-icons/react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -169,23 +168,6 @@ function AuthenticatedApp({ currentUser, playthroughsKey, onSignOut }: Authentic
     setSelectedCampaignTypes([])
   }
 
-  const handleImportData = (importedPlaythroughs: Playthrough[]) => {
-    setPlaythroughs((current) => {
-      const existing = current || []
-      const existingIds = new Set(existing.map(p => p.id))
-      
-      const newPlaythroughs = importedPlaythroughs.filter(p => !existingIds.has(p.id))
-      
-      if (newPlaythroughs.length === 0) {
-        toast.info('All playthroughs already exist, no new data imported')
-        return existing
-      }
-      
-      return [...existing, ...newPlaythroughs]
-    })
-    rebuildCommunityStats()
-  }
-
   const allPlayers = useMemo(() => {
     if (!playthroughs) return []
     
@@ -262,20 +244,13 @@ function AuthenticatedApp({ currentUser, playthroughsKey, onSignOut }: Authentic
           </TabsList>
 
           <TabsContent value="games" className="space-y-6">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <Filters
-                selectedArchetypes={selectedArchetypes}
-                selectedCampaignTypes={selectedCampaignTypes}
-                onArchetypeToggle={handleArchetypeToggle}
-                onCampaignTypeToggle={handleCampaignTypeToggle}
-                onClearFilters={handleClearFilters}
-              />
-              
-              <DataExportImport 
-                playthroughs={playthroughs || []} 
-                onImport={handleImportData}
-              />
-            </div>
+            <Filters
+              selectedArchetypes={selectedArchetypes}
+              selectedCampaignTypes={selectedCampaignTypes}
+              onArchetypeToggle={handleArchetypeToggle}
+              onCampaignTypeToggle={handleCampaignTypeToggle}
+              onClearFilters={handleClearFilters}
+            />
 
             {isLoadingPlaythroughs ? (
               <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
