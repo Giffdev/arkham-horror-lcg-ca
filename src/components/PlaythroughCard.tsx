@@ -91,7 +91,7 @@ export function PlaythroughCard({ playthrough, onEdit, onDelete }: PlaythroughCa
             </div>
             <div className="space-y-2">
               {playthrough.investigators.map((inv, idx) => (
-                <div key={idx} className="grid grid-cols-[auto_1fr_auto] items-center gap-3 text-sm">
+                <div key={idx} className="grid grid-cols-[100px_1fr_auto] items-center gap-3 text-sm">
                   <ArchetypeBadge archetype={inv.archetype} />
                   <div className="flex items-center gap-2 min-w-0">
                     <span className="font-medium truncate">
