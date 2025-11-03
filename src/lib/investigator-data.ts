@@ -173,7 +173,7 @@ export function getArkhamDBUrl(investigatorName: string, archetype?: Archetype):
     'Lily Chen': '08010',
     'Bob Jenkins': '08016',
     'Carson Sinclair': '09001',
-    'Vincent Lee': '09002',
+    'Vincent Lee': '09004',
     'Kymani Jones': '09008',
     'Amina Zidane': '09011',
     'Darrell Simmons': '09015',
