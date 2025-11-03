@@ -187,7 +187,9 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
                     <CardTitle className="text-sm text-muted-foreground">Side Scenarios Included</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-3xl font-bold text-foreground">{stats.topSideScenarios.length > 0 ? stats.topSideScenarios.length : 0}</p>
+                    <p className="text-3xl font-bold text-foreground">
+                      {stats.topSideScenarios.reduce((sum, scenario) => sum + scenario.count, 0)}
+                    </p>
                   </CardContent>
                 </Card>
 
@@ -196,7 +198,9 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
                     <CardTitle className="text-sm text-muted-foreground">Stand Alones Played</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-3xl font-bold text-foreground">{stats.topStandalones.length > 0 ? stats.topStandalones.length : 0}</p>
+                    <p className="text-3xl font-bold text-foreground">
+                      {stats.topStandalones.reduce((sum, standalone) => sum + standalone.count, 0)}
+                    </p>
                   </CardContent>
                 </Card>
               </div>
