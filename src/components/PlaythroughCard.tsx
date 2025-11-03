@@ -96,6 +96,7 @@ export function PlaythroughCard({ playthrough, onEdit, onDelete }: PlaythroughCa
                     <span className="font-medium truncate">
                       {inv.isUnknown || inv.investigatorName === 'Unknown' ? 'Unknown' : inv.investigatorName}
                     </span>
+                    <ArchetypeBadge archetype={inv.archetype} />
                     {inv.investigatorSet && !inv.isUnknown && inv.investigatorName !== 'Unknown' && (
                       <Badge variant="outline" className="text-xs whitespace-nowrap">
                         {getDisplaySetName(inv.investigatorName, inv.investigatorSet)}
@@ -108,7 +109,6 @@ export function PlaythroughCard({ playthrough, onEdit, onDelete }: PlaythroughCa
                         {inv.playerName}
                       </span>
                     )}
-                    <ArchetypeBadge archetype={inv.archetype} />
                   </div>
                 </div>
               ))}
