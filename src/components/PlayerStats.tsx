@@ -185,10 +185,23 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
           }
         }
       })
-      .map(inv => ({
-        ...inv,
-        count: playerData.investigatorCounts[inv.name]?.count || 0
-      }))
+      .map(inv => {
+        const playedArchetypes = inv.archetypes.filter(archetype =>
+          playedInvestigatorArchetypes.some(played => 
+            played.name === inv.name && played.archetype === archetype
+          )
+        )
+        
+        const displayArchetypes = selectedArchetypes.length > 0
+          ? playedArchetypes.filter(archetype => selectedArchetypes.includes(archetype))
+          : playedArchetypes
+        
+        return {
+          ...inv,
+          archetypes: displayArchetypes,
+          count: playerData.investigatorCounts[inv.name]?.count || 0
+        }
+      })
       .sort((a, b) => b.count - a.count)
 
     const unplayedList = filteredInvestigators
@@ -452,7 +465,7 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {unplayedInvestigators.map((investigator) => (
-                <Card key={investigator.name} className={cn("p-3 opacity-60")}>
+                <Card key={investigator.name} className="p-3">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
                       <h4 className="font-medium text-sm truncate">{investigator.name}</h4>
