@@ -89,22 +89,34 @@ export const signIn = async (email: string, password: string): Promise<{ success
   return { success: true, user }
 }
 
+const getDeviceId = (): string => {
+  let deviceId = localStorage.getItem('device-id')
+  if (!deviceId) {
+    deviceId = `device_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    localStorage.setItem('device-id', deviceId)
+  }
+  return deviceId
+}
+
 export const getCurrentSession = async (): Promise<AuthSession | null> => {
-  const session = await spark.kv.get<AuthSession>('current-session')
+  const deviceId = getDeviceId()
+  const session = await spark.kv.get<AuthSession>(`session:${deviceId}`)
   return session || null
 }
 
 export const setCurrentSession = async (user: User): Promise<void> => {
+  const deviceId = getDeviceId()
   const session: AuthSession = {
     userId: user.id,
     email: user.email,
     authProvider: user.authProvider
   }
-  await spark.kv.set('current-session', session)
+  await spark.kv.set(`session:${deviceId}`, session)
 }
 
 export const clearCurrentSession = async (): Promise<void> => {
-  await spark.kv.delete('current-session')
+  const deviceId = getDeviceId()
+  await spark.kv.delete(`session:${deviceId}`)
 }
 
 export const signInWithGoogle = async (): Promise<{ success: boolean; error?: string; user?: User }> => {
