@@ -92,11 +92,6 @@ export function PlaythroughCard({ playthrough, onEdit, onDelete }: PlaythroughCa
                     <span className="font-medium">
                       {inv.isUnknown || inv.investigatorName === 'Unknown' ? 'Unknown' : inv.investigatorName}
                     </span>
-                    {inv.investigatorSet && !inv.isCustom && (
-                      <Badge variant="outline" className="text-xs">
-                        {inv.investigatorSet}
-                      </Badge>
-                    )}
                     {inv.playerName && (
                       <span className="text-muted-foreground">
                         ({inv.playerName})
