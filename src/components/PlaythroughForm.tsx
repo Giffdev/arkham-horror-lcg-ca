@@ -59,6 +59,12 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
     setCampaignName('')
     setCustomCampaignName('')
     setSideStories([])
+    setInvestigators([{ playerName: '', investigatorName: '', archetype: 'Unknown', isUnknown: false, isCustom: false, investigatorSet: undefined }])
+  }
+
+  const handleCampaignNameChange = (name: string) => {
+    setCampaignName(name)
+    setInvestigators([{ playerName: '', investigatorName: '', archetype: 'Unknown', isUnknown: false, isCustom: false, investigatorSet: undefined }])
   }
 
   const handleAddInvestigator = () => {
@@ -169,7 +175,22 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
 
   const availableFullCampaigns = getFullCampaignNames()
   const availableStandaloneCampaigns = getStandaloneCampaignNames()
-  const availableInvestigators = getAllInvestigatorNames()
+  
+  const isBarkhamCampaign = campaignName === 'Barkham Horror: The Meddling of Meowlathotep'
+  const allInvestigatorNames = getAllInvestigatorNames()
+  const availableInvestigators = allInvestigatorNames.filter(name => {
+    const investigator = getInvestigatorByName(name)
+    if (!investigator) return true
+    
+    const isBarkhamInvestigator = investigator.set === 'Barkham Horror'
+    
+    if (isBarkhamCampaign) {
+      return isBarkhamInvestigator
+    } else {
+      return !isBarkhamInvestigator
+    }
+  })
+  
   const isFormValid = (campaignType === 'Fan-Made' 
     ? customCampaignName.trim() !== ''
     : campaignType === 'Unknown'
@@ -209,7 +230,7 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
               {campaignType === 'Full Campaign' ? (
                 <div className="space-y-2">
                   <Label htmlFor="campaign-name">Campaign</Label>
-                  <Select value={campaignName} onValueChange={setCampaignName}>
+                  <Select value={campaignName} onValueChange={handleCampaignNameChange}>
                     <SelectTrigger id="campaign-name">
                       <SelectValue placeholder="Select a campaign" />
                     </SelectTrigger>
@@ -227,7 +248,7 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
               ) : campaignType === 'Standalone' ? (
                 <div className="space-y-2">
                   <Label htmlFor="campaign-name">Scenario</Label>
-                  <Select value={campaignName} onValueChange={setCampaignName}>
+                  <Select value={campaignName} onValueChange={handleCampaignNameChange}>
                     <SelectTrigger id="campaign-name">
                       <SelectValue placeholder="Select a scenario" />
                     </SelectTrigger>

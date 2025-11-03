@@ -117,7 +117,7 @@ const STARTER_DECK_INVESTIGATORS = [
 ]
 
 export function getDisplaySetName(investigatorName: string, setName: string): string {
-  if (STARTER_DECK_INVESTIGATORS.includes(setName)) {
+  if (STARTER_DECK_INVESTIGATORS.includes(investigatorName)) {
     return 'Investigator Starter Deck'
   }
   return setName
