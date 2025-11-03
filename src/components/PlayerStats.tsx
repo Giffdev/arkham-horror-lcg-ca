@@ -288,7 +288,7 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
               .slice(0, 5)
               .map(([name, count]) => (
                 <div key={name} className="flex items-center justify-between text-sm">
-                  <span className="truncate flex-1 text-left">{name}</span>
+                  <span className="truncate flex-1">{name}</span>
                   <Badge variant="secondary" className="ml-2 shrink-0 text-xs">
                     ×{count}
                   </Badge>
