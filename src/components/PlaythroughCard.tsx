@@ -3,7 +3,7 @@ import { Card } from '@/components/ui/card'
 import { ArchetypeBadge } from './ArchetypeBadge'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { PencilSimple, Trash, Clock, UsersThree } from '@phosphor-icons/react'
+import { PencilSimple, Trash, Clock, UsersThree, Sparkle } from '@phosphor-icons/react'
 import { formatDate } from '@/lib/date-utils'
 
 interface PlaythroughCardProps {
@@ -61,6 +61,22 @@ export function PlaythroughCard({ playthrough, onEdit, onDelete }: PlaythroughCa
             </Button>
           </div>
         </div>
+
+        {playthrough.sideStories && playthrough.sideStories.length > 0 && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground uppercase tracking-wide">
+              <Sparkle size={16} weight="duotone" />
+              <span>Side Stories</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {playthrough.sideStories.map((story) => (
+                <Badge key={story} variant="outline" className="text-xs">
+                  {story}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
 
         {playthrough.investigators.length > 0 && (
           <div className="space-y-3">

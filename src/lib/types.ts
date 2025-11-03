@@ -16,6 +16,7 @@ export interface Playthrough {
   campaignName: string
   campaignType: CampaignType
   customCampaignName?: string
+  sideStories?: string[]
   investigators: InvestigatorAssignment[]
 }
 

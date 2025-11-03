@@ -8,12 +8,14 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Playthrough, InvestigatorAssignment, CAMPAIGN_TYPES, Archetype, CampaignType } from '@/lib/types'
 import { getFullCampaignNames, getStandaloneCampaignNames, getCampaignSet } from '@/lib/campaign-data'
 import { getAllInvestigatorNames, getInvestigatorByName, isDualClassInvestigator } from '@/lib/investigator-data'
-import { Plus, Trash } from '@phosphor-icons/react'
+import { Plus, Trash, Sparkle } from '@phosphor-icons/react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Check, CaretUpDown } from '@phosphor-icons/react'
 import { cn } from '@/lib/utils'
+import { Badge } from '@/components/ui/badge'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 
 interface PlaythroughFormProps {
   open: boolean
@@ -26,6 +28,8 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
   const [campaignType, setCampaignType] = useState<CampaignType>('Full Campaign')
   const [campaignName, setCampaignName] = useState('')
   const [customCampaignName, setCustomCampaignName] = useState('')
+  const [sideStories, setSideStories] = useState<string[]>([])
+  const [sideStoriesOpen, setSideStoriesOpen] = useState(false)
   const [investigators, setInvestigators] = useState<InvestigatorAssignment[]>([])
 
   useEffect(() => {
@@ -33,6 +37,7 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
       setCampaignType(editPlaythrough.campaignType)
       setCampaignName(editPlaythrough.campaignName === 'Unknown Campaign' ? '' : editPlaythrough.campaignName)
       setCustomCampaignName(editPlaythrough.customCampaignName || '')
+      setSideStories(editPlaythrough.sideStories || [])
       setInvestigators(editPlaythrough.investigators.map(inv => ({
         ...inv,
         isUnknown: inv.isUnknown || inv.investigatorName === 'Unknown' || inv.archetype === 'Unknown'
@@ -41,6 +46,7 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
       setCampaignType('Full Campaign')
       setCampaignName('')
       setCustomCampaignName('')
+      setSideStories([])
       setInvestigators([{ playerName: '', investigatorName: '', archetype: 'Unknown', isUnknown: false }])
     }
   }, [editPlaythrough, open])
@@ -49,6 +55,7 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
     setCampaignType(value)
     setCampaignName('')
     setCustomCampaignName('')
+    setSideStories([])
   }
 
   const handleAddInvestigator = () => {
@@ -111,6 +118,7 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
       campaignName: finalCampaignName,
       ...(campaignSet && { campaignSet }),
       ...(campaignType === 'Fan-Made' && { customCampaignName }),
+      ...(sideStories.length > 0 && { sideStories }),
       investigators: investigators.map(inv => ({
         ...inv,
         investigatorName: inv.isUnknown ? 'Unknown' : inv.investigatorName,
@@ -120,6 +128,18 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
 
     onSave(playthroughData as Playthrough)
     onOpenChange(false)
+  }
+
+  const handleToggleSideStory = (storyName: string) => {
+    setSideStories((current) =>
+      current.includes(storyName)
+        ? current.filter((s) => s !== storyName)
+        : [...current, storyName]
+    )
+  }
+
+  const handleRemoveSideStory = (storyName: string) => {
+    setSideStories((current) => current.filter((s) => s !== storyName))
   }
 
   const availableFullCampaigns = getFullCampaignNames()
@@ -209,6 +229,67 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
                 </div>
               ) : null}
             </div>
+
+            {campaignType === 'Full Campaign' && campaignName && (
+              <Collapsible open={sideStoriesOpen} onOpenChange={setSideStoriesOpen} className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Sparkle size={18} weight="duotone" className="text-accent" />
+                    <Label className="cursor-pointer">Side Stories ({sideStories.length})</Label>
+                  </div>
+                  <CollapsibleTrigger asChild>
+                    <Button variant="ghost" size="sm" className="gap-2">
+                      {sideStoriesOpen ? 'Hide' : 'Add Side Stories'}
+                      <CaretUpDown size={16} />
+                    </Button>
+                  </CollapsibleTrigger>
+                </div>
+
+                {sideStories.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {sideStories.map((story) => (
+                      <Badge key={story} variant="secondary" className="gap-1.5 pl-3 pr-2 py-1">
+                        {story}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveSideStory(story)}
+                          className="ml-1 hover:bg-secondary-foreground/20 rounded-full p-0.5"
+                        >
+                          <Trash size={12} />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+
+                <CollapsibleContent className="space-y-3">
+                  <div className="p-4 border rounded-lg bg-muted/30">
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Select standalone scenarios that were played as side stories during this campaign
+                    </p>
+                    <ScrollArea className="h-48">
+                      <div className="space-y-2 pr-4">
+                        {availableStandaloneCampaigns.map((scenario) => (
+                          <div key={scenario} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`side-story-${scenario}`}
+                              checked={sideStories.includes(scenario)}
+                              onCheckedChange={() => handleToggleSideStory(scenario)}
+                            />
+                            <Label
+                              htmlFor={`side-story-${scenario}`}
+                              className="text-sm font-normal cursor-pointer flex-1"
+                            >
+                              {scenario}
+                            </Label>
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+            )}
 
             <div className="space-y-4">
               <div className="flex items-center justify-between">

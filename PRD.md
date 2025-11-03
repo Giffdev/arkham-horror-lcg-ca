@@ -13,18 +13,18 @@ A campaign playthrough tracker for Arkham Horror: The Card Game that allows play
 ## Essential Features
 
 ### Log a Playthrough
-- **Functionality**: Create a new campaign playthrough record with campaign selection from a comprehensive list of full campaigns, standalone scenarios, custom fan-made campaigns, or unknown campaigns when details are forgotten, players, and investigator assignments with automatic class detection
-- **Purpose**: Capture gaming memories quickly with accurate campaign and investigator information from the official product catalog, while gracefully accommodating incomplete memories
+- **Functionality**: Create a new campaign playthrough record with campaign selection from a comprehensive list of full campaigns, standalone scenarios, custom fan-made campaigns, or unknown campaigns when details are forgotten, optional side story scenarios for full campaigns, players, and investigator assignments with automatic class detection
+- **Purpose**: Capture gaming memories quickly with accurate campaign and investigator information from the official product catalog, while gracefully accommodating incomplete memories and recording side stories played during campaigns
 - **Trigger**: User clicks "Log New Game" button
-- **Progression**: Click "Log New Game" → Modal/form appears → Select campaign type (Full Campaign/Standalone/Fan-Made/Unknown) → If Full Campaign: Select campaign from dropdown (set is automatically associated) → If Standalone: Select standalone scenario from dropdown → If Fan-Made: Enter custom campaign name → If Unknown: No campaign selection needed (automatically logged as "Unknown Campaign") → Add investigators by selecting from searchable dropdown (class is automatically set for single-class investigators, dual-class investigators like Agatha Crane require manual selection) → Can mark individual investigators as unknown via checkbox → Optionally add player names → Save → Returns to log list with new entry visible
-- **Success criteria**: Record persists between sessions, displays in the main list with accurate campaign and set information, investigator classes are automatically assigned except for dual-class characters, fan-made campaigns allow free-text entry, standalone scenarios are separated from full campaigns, unknown campaigns and investigators are gracefully handled
+- **Progression**: Click "Log New Game" → Modal/form appears → Select campaign type (Full Campaign/Standalone/Fan-Made/Unknown) → If Full Campaign: Select campaign from dropdown (set is automatically associated) → Optionally expand "Side Stories" section and select standalone scenarios that were played during this campaign → If Standalone: Select standalone scenario from dropdown → If Fan-Made: Enter custom campaign name → If Unknown: No campaign selection needed (automatically logged as "Unknown Campaign") → Add investigators by selecting from searchable dropdown (class is automatically set for single-class investigators, dual-class investigators like Agatha Crane require manual selection) → Can mark individual investigators as unknown via checkbox → Optionally add player names → Save → Returns to log list with new entry visible
+- **Success criteria**: Record persists between sessions, displays in the main list with accurate campaign and set information, side stories display as badges on the playthrough card, investigator classes are automatically assigned except for dual-class characters, fan-made campaigns allow free-text entry, standalone scenarios are separated from full campaigns, unknown campaigns and investigators are gracefully handled
 
 ### View Playthrough History
-- **Functionality**: Display all logged playthroughs in a scannable card format showing campaign name, set (for official campaigns), campaign type, date, players, and investigators
-- **Purpose**: Allow users to reminisce and see their gaming history at a glance with complete campaign context
+- **Functionality**: Display all logged playthroughs in a scannable card format showing campaign name, set (for official campaigns), campaign type, side stories (if any), date, players, and investigators
+- **Purpose**: Allow users to reminisce and see their gaming history at a glance with complete campaign context including which side stories were experienced
 - **Trigger**: Default view on app load
-- **Progression**: App loads → Displays list of all playthroughs sorted by date (newest first) → Each entry shows campaign name, set badge (if official), campaign type, players, and investigators with archetypes
-- **Success criteria**: All logged games appear with proper campaign metadata, dates are human-readable, set badges display for official campaigns
+- **Progression**: App loads → Displays list of all playthroughs sorted by date (newest first) → Each entry shows campaign name, set badge (if official), campaign type, side story badges (if any), players, and investigators with archetypes
+- **Success criteria**: All logged games appear with proper campaign metadata, side stories display as small badges, dates are human-readable, set badges display for official campaigns
 
 ### Filter by Archetype
 - **Functionality**: Filter playthrough list to show only games where specific archetypes (Guardian, Survivor, Seeker, Rogue, Mystic, Neutral) were played
@@ -63,6 +63,8 @@ A campaign playthrough tracker for Arkham Horror: The Card Game that allows play
 - **Dual-class investigators**: Investigators like Agatha Crane who can be either Seeker or Mystic show a class selector; single-class investigators auto-assign their class
 - **Full campaign vs. standalone**: Separate dropdowns for full campaigns and standalone scenarios for better organization and findability
 - **Official campaign/scenario selection**: Dropdowns list campaigns or scenarios based on selected type; set information is automatically associated
+- **Side stories**: Only available when Full Campaign type is selected; displayed in a collapsible section; can add multiple side stories via checkbox list; side stories display as badges on the playthrough card
+- **No side stories**: Side stories section is optional and only shows when expanded; playthroughs without side stories don't show the section on the card
 - **Duplicate investigators**: Multiple players can select the same investigator (helpful for tracking different builds or repeated favorites)
 - **Very long campaign or player names**: Truncate with ellipsis, show full name on hover
 - **No playthroughs yet**: Show welcoming empty state with prominent "Log Your First Game" call-to-action
@@ -115,14 +117,17 @@ Animations should feel like turning pages in a journal or placing cards on a tab
   - Dialog for add/edit playthrough forms with form fields for all optional inputs
   - Command (searchable combobox) for investigator selection with autocomplete
   - Select dropdown for campaign selection from comprehensive list
+  - Collapsible for side stories section with smooth expand/collapse animation
+  - Checkbox list within collapsible for selecting multiple side story scenarios
   - Card components for each playthrough entry with subtle hover states (border color shift, shadow increase)
   - Card components for player statistics showing key metrics (total games, investigators used, favorite class)
   - Badge components for archetype tags with archetype-specific colors (Guardian: blue, Seeker: orange, Rogue: green, Mystic: purple, Survivor: red, Neutral: grey)
+  - Badge components for side story scenario names (outline variant) with remove button
   - Button with primary variant for "Log New Game", ghost variants for filters and player list
   - Select dropdowns for dual-class investigator class selection and campaign types
   - Input fields for player names and custom campaign names
   - Separator for visual organization between sections
-  - Scroll-area for long lists of playthroughs and dropdown contents
+  - Scroll-area for long lists of playthroughs, dropdown contents, and side story checkboxes
   - Label components for form fields
   - Alert-dialog for delete confirmation
   - Popover for command palette positioning
@@ -148,6 +153,8 @@ Animations should feel like turning pages in a journal or placing cards on a tab
   - Users or UsersThree for players/investigators count
   - User for individual player
   - BookOpen or Notebook for campaigns
+  - Sparkle for side stories section (adds thematic flavor)
+  - CaretUpDown for collapsible trigger
   - Briefcase for total games metric
 
 - **Spacing**: 
