@@ -16,8 +16,8 @@ interface PlayerStatsProps {
 }
 
 export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
-  const [selectedArchetype, setSelectedArchetype] = useState<Archetype | 'All'>('All')
-  const [selectedSet, setSelectedSet] = useState<string>('All')
+  const [selectedArchetypes, setSelectedArchetypes] = useState<Archetype[]>([])
+  const [selectedSets, setSelectedSets] = useState<string[]>([])
 
   const playerData = useMemo(() => {
     const playerGames = playthroughs.filter(p =>
@@ -149,14 +149,14 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
     
     let filteredInvestigators = INVESTIGATORS
 
-    if (selectedArchetype !== 'All') {
+    if (selectedArchetypes.length > 0) {
       filteredInvestigators = filteredInvestigators.filter(inv => 
-        inv.archetypes.includes(selectedArchetype)
+        inv.archetypes.some(archetype => selectedArchetypes.includes(archetype))
       )
     }
 
-    if (selectedSet !== 'All') {
-      filteredInvestigators = filteredInvestigators.filter(inv => inv.set === selectedSet)
+    if (selectedSets.length > 0) {
+      filteredInvestigators = filteredInvestigators.filter(inv => selectedSets.includes(inv.set))
     }
 
     const playedList = filteredInvestigators
@@ -172,7 +172,7 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
       .sort((a, b) => a.name.localeCompare(b.name))
 
     return { playedInvestigators: playedList, unplayedInvestigators: unplayedList }
-  }, [playerData.investigatorCounts, selectedArchetype, selectedSet])
+  }, [playerData.investigatorCounts, selectedArchetypes, selectedSets])
 
   return (
     <div className="space-y-6">
@@ -298,12 +298,7 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
         </Card>
       </div>
 
-      <Tabs defaultValue="played" className="space-y-4" onValueChange={(value) => {
-        if (value === 'played' || value === 'unplayed') {
-          setSelectedArchetype('All')
-          setSelectedSet('All')
-        }
-      }}>
+      <Tabs defaultValue="played" className="space-y-4">
         <TabsList className="grid w-full max-w-md grid-cols-3">
           <TabsTrigger value="played" className="gap-2">
             <Check size={16} weight="bold" />
@@ -324,8 +319,8 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
           <div className="flex flex-wrap gap-2">
             <Button
               size="sm"
-              variant={selectedArchetype === 'All' ? 'default' : 'outline'}
-              onClick={() => setSelectedArchetype('All')}
+              variant={selectedArchetypes.length === 0 ? 'default' : 'outline'}
+              onClick={() => setSelectedArchetypes([])}
             >
               All Classes
             </Button>
@@ -333,8 +328,14 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
               <Button
                 key={archetype}
                 size="sm"
-                variant={selectedArchetype === archetype ? 'default' : 'outline'}
-                onClick={() => setSelectedArchetype(archetype)}
+                variant={selectedArchetypes.includes(archetype) ? 'default' : 'outline'}
+                onClick={() => {
+                  setSelectedArchetypes(current =>
+                    current.includes(archetype)
+                      ? current.filter(a => a !== archetype)
+                      : [...current, archetype]
+                  )
+                }}
               >
                 {archetype}
               </Button>
@@ -346,8 +347,8 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
           <div className="flex flex-wrap gap-2">
             <Button
               size="sm"
-              variant={selectedSet === 'All' ? 'default' : 'outline'}
-              onClick={() => setSelectedSet('All')}
+              variant={selectedSets.length === 0 ? 'default' : 'outline'}
+              onClick={() => setSelectedSets([])}
             >
               All Sets
             </Button>
@@ -355,8 +356,14 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
               <Button
                 key={set}
                 size="sm"
-                variant={selectedSet === set ? 'default' : 'outline'}
-                onClick={() => setSelectedSet(set)}
+                variant={selectedSets.includes(set) ? 'default' : 'outline'}
+                onClick={() => {
+                  setSelectedSets(current =>
+                    current.includes(set)
+                      ? current.filter(s => s !== set)
+                      : [...current, set]
+                  )
+                }}
               >
                 {set}
               </Button>
@@ -398,7 +405,7 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
             <Card className="p-6 text-center">
               <Check size={48} weight="duotone" className="mx-auto mb-4 text-accent" />
               <p className="text-muted-foreground">
-                {selectedArchetype === 'All' && selectedSet === 'All'
+                {selectedArchetypes.length === 0 && selectedSets.length === 0
                   ? 'You\'ve played all investigators!'
                   : 'All investigators in this category have been played!'}
               </p>
