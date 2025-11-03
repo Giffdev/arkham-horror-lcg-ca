@@ -117,9 +117,9 @@ export function PlaythroughCard({ playthrough, onEdit, onDelete, activeArchetype
             <div className="space-y-2.5">
               {playthrough.investigators.map((inv, idx) => {
                 const allArchetypes = inv.archetypes || (inv.archetype ? [inv.archetype] : [])
-                const displayArchetypes = activeArchetypeFilters.length === 0 
-                  ? allArchetypes
-                  : allArchetypes.filter(archetype => activeArchetypeFilters.includes(archetype))
+                const displayArchetypes = activeArchetypeFilters && activeArchetypeFilters.length > 0
+                  ? allArchetypes.filter(archetype => activeArchetypeFilters.includes(archetype))
+                  : allArchetypes
                 
                 return (
                   <div key={idx} className="flex flex-col md:flex-row md:items-center gap-1.5 md:gap-3 text-sm">
