@@ -77,7 +77,11 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
 
   const allSets = useMemo(() => {
     const sets = new Set(INVESTIGATORS.map(inv => inv.set))
-    return Array.from(sets).sort()
+    return Array.from(sets).sort((a, b) => {
+      if (a === 'Barkham Horror') return 1
+      if (b === 'Barkham Horror') return -1
+      return a.localeCompare(b)
+    })
   }, [])
 
   const { playedInvestigators, unplayedInvestigators } = useMemo(() => {
