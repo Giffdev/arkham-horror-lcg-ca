@@ -199,7 +199,7 @@ export function Filters({
     return (
       <div className="space-y-3">
         <div className="flex items-center gap-2 justify-between">
-          <Sheet open={open} onOpenChange={setOpen} key={`${selectedArchetypes.join(',')}-${selectedCampaignTypes.join(',')}-${selectedCampaigns.join(',')}`}>
+          <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
               <Button variant="outline" className="gap-2 flex-1">
                 <Funnel size={16} />
