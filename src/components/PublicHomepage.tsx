@@ -28,6 +28,12 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
       }
     }
     loadStats()
+
+    const interval = setInterval(() => {
+      loadStats()
+    }, 5000)
+
+    return () => clearInterval(interval)
   }, [])
 
   const handleLogin = () => {
