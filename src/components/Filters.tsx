@@ -233,7 +233,7 @@ export function Filters({
                 )}
               </div>
             </SheetHeader>
-            <div className="py-6">
+            <div className="pt-4 pb-6">
               <FilterContent
                 selectedArchetypes={selectedArchetypes}
                 selectedCampaignTypes={selectedCampaignTypes}
