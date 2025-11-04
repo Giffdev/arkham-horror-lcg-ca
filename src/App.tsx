@@ -276,43 +276,47 @@ function AuthenticatedApp({ currentUser, playthroughsKey, onSignOut }: Authentic
           </TabsList>
 
           <TabsContent value="games" className="space-y-6">
-            <Filters
-              selectedArchetypes={selectedArchetypes}
-              selectedCampaignTypes={selectedCampaignTypes}
-              selectedCampaigns={selectedCampaigns}
-              onArchetypeToggle={handleArchetypeToggle}
-              onCampaignTypeToggle={handleCampaignTypeToggle}
-              onCampaignToggle={handleCampaignToggle}
-              onClearFilters={handleClearFilters}
-              playthroughs={playthroughs || []}
-            />
-
             {isLoadingPlaythroughs ? (
               <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
                 <BookOpen size={48} className="text-primary mb-4 animate-pulse" weight="duotone" />
                 <p className="text-muted-foreground">Loading playthroughs...</p>
               </div>
-            ) : playthroughs && playthroughs.length === 0 ? (
-              <EmptyState />
-            ) : filteredPlaythroughs.length === 0 && playthroughs && playthroughs.length > 0 ? (
-              <div className="text-center py-16">
-                <p className="text-muted-foreground">
-                  No playthroughs match your selected filters.
-                </p>
-              </div>
-            ) : playthroughs && playthroughs.length > 0 ? (
-              <div className="space-y-3">
-                {filteredPlaythroughs.map((playthrough) => (
-                  <PlaythroughCard
-                    key={playthrough.id}
-                    playthrough={playthrough}
-                    onEdit={handleEdit}
-                    onDelete={setDeleteId}
-                    activeArchetypeFilters={selectedArchetypes}
-                  />
-                ))}
-              </div>
-            ) : null}
+            ) : (
+              <>
+                <Filters
+                  selectedArchetypes={selectedArchetypes}
+                  selectedCampaignTypes={selectedCampaignTypes}
+                  selectedCampaigns={selectedCampaigns}
+                  onArchetypeToggle={handleArchetypeToggle}
+                  onCampaignTypeToggle={handleCampaignTypeToggle}
+                  onCampaignToggle={handleCampaignToggle}
+                  onClearFilters={handleClearFilters}
+                  playthroughs={playthroughs || []}
+                />
+
+                {playthroughs && playthroughs.length === 0 ? (
+                  <EmptyState />
+                ) : filteredPlaythroughs.length === 0 && playthroughs && playthroughs.length > 0 ? (
+                  <div className="text-center py-16">
+                    <p className="text-muted-foreground">
+                      No playthroughs match your selected filters.
+                    </p>
+                  </div>
+                ) : playthroughs && playthroughs.length > 0 ? (
+                  <div className="space-y-3">
+                    {filteredPlaythroughs.map((playthrough) => (
+                      <PlaythroughCard
+                        key={playthrough.id}
+                        playthrough={playthrough}
+                        onEdit={handleEdit}
+                        onDelete={setDeleteId}
+                        activeArchetypeFilters={selectedArchetypes}
+                      />
+                    ))}
+                  </div>
+                ) : null}
+              </>
+            )}
           </TabsContent>
 
           <TabsContent value="players" className="space-y-6">
@@ -394,7 +398,7 @@ function AuthenticatedApp({ currentUser, playthroughsKey, onSignOut }: Authentic
       </AlertDialog>
 
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-sm border-t border-border pb-safe z-50">
-        <div className="grid grid-cols-3 gap-0 px-2 py-2 pb-6">
+        <div className="grid grid-cols-3 gap-0 px-2 py-2 pb-3">
           <button
             onClick={() => setActiveTab("games")}
             className={`flex flex-col items-center justify-center gap-1 py-2 px-3 rounded-lg transition-colors ${
