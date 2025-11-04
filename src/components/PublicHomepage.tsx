@@ -75,7 +75,7 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
                 <p className="text-muted-foreground">See what the community is playing</p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                 <Card>
                   <CardHeader className="pb-3">
                     <div className="flex items-center gap-2">
@@ -85,6 +85,18 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
                   </CardHeader>
                   <CardContent>
                     <div className="text-3xl font-bold text-foreground">{communityStats.totalGames}</div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center gap-2">
+                      <Users size={20} className="text-primary" weight="duotone" />
+                      <CardTitle className="text-sm text-muted-foreground">Community Members</CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-3xl font-bold text-foreground">{communityStats.registeredUsers}</div>
                   </CardContent>
                 </Card>
 

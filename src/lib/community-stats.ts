@@ -7,6 +7,7 @@ export interface CommunityStats {
   totalInvestigatorsPlayed: number
   topSideScenarios: { name: string; count: number }[]
   topStandalones: { name: string; count: number; set?: string }[]
+  registeredUsers: number
   lastUpdated: number
 }
 
@@ -16,6 +17,7 @@ export async function rebuildCommunityStats(): Promise<void> {
   try {
     const allKeys = await spark.kv.keys()
     const playthroughKeys = allKeys.filter(key => key.includes('playthroughs') && !key.includes('migration') && !key.includes('public:'))
+    const userKeys = allKeys.filter(key => key.startsWith('user:') && !key.includes(':password') && key.includes('@'))
     
     const campaignCounts = new Map<string, { count: number; set?: string }>()
     const investigatorCounts = new Map<string, { count: number; archetypes: Archetype[] }>()
@@ -93,6 +95,7 @@ export async function rebuildCommunityStats(): Promise<void> {
       totalInvestigatorsPlayed: investigatorCounts.size,
       topSideScenarios,
       topStandalones,
+      registeredUsers: userKeys.length,
       lastUpdated: Date.now()
     }
 
