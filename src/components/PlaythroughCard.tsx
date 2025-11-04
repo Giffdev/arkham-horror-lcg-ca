@@ -116,57 +116,231 @@ export function PlaythroughCard({ playthrough, onEdit, onDelete, activeArchetype
 
         <div className="flex-1 min-w-0 flex flex-col gap-3">
           {playthrough.investigators.length > 0 && (
-            <div className="space-y-2.5">
-              {playthrough.investigators.map((inv, idx) => {
-                const chosenArchetype = inv.archetype
-                
-                const defaultUrl = getArkhamDBUrl(inv.investigatorName)
-                
-                return (
-                  <div key={idx} className="flex flex-col md:flex-row md:items-center gap-1.5 md:gap-3 text-sm">
-                    <div className="flex flex-col md:flex-row md:flex-wrap md:items-center gap-1.5 md:gap-2 min-w-0 md:min-w-[280px]">
-                      <div className="flex items-center gap-2">
-                        <ArchetypeBadge 
-                          archetype={chosenArchetype}
-                          investigatorName={inv.investigatorName}
-                        />
-                        {defaultUrl && !inv.isUnknown && inv.investigatorName !== 'Unknown' ? (
-                          <a 
-                            href={defaultUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="font-medium hover:underline hover:text-accent transition-colors"
-                          >
-                            {inv.investigatorName}
-                          </a>
-                        ) : (
-                          <span className="font-medium">
-                            {inv.isUnknown || inv.investigatorName === 'Unknown' ? 'Unknown' : inv.investigatorName}
-                          </span>
+            <>
+              {isDreamEaters ? (
+                <div className="space-y-4">
+                  {(() => {
+                    const pathAInvestigators = playthrough.investigators.filter(
+                      inv => inv.dreamEatersPath === 'A: The Dream-Quest'
+                    )
+                    const pathBInvestigators = playthrough.investigators.filter(
+                      inv => inv.dreamEatersPath === 'B: The Web of Dreams'
+                    )
+                    const noPathInvestigators = playthrough.investigators.filter(
+                      inv => !inv.dreamEatersPath
+                    )
+
+                    return (
+                      <>
+                        {pathAInvestigators.length > 0 && (
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <Badge variant="secondary" className="text-xs font-semibold">
+                                Campaign A: The Dream-Quest
+                              </Badge>
+                            </div>
+                            <div className="space-y-2.5">
+                              {pathAInvestigators.map((inv, idx) => {
+                                const chosenArchetype = inv.archetype
+                                const defaultUrl = getArkhamDBUrl(inv.investigatorName)
+                                
+                                return (
+                                  <div key={idx} className="flex flex-col md:flex-row md:items-center gap-1.5 md:gap-3 text-sm">
+                                    <div className="flex flex-col md:flex-row md:flex-wrap md:items-center gap-1.5 md:gap-2 min-w-0 md:min-w-[280px]">
+                                      <div className="flex items-center gap-2">
+                                        <ArchetypeBadge 
+                                          archetype={chosenArchetype}
+                                          investigatorName={inv.investigatorName}
+                                        />
+                                        {defaultUrl && !inv.isUnknown && inv.investigatorName !== 'Unknown' ? (
+                                          <a 
+                                            href={defaultUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="font-medium hover:underline hover:text-accent transition-colors"
+                                          >
+                                            {inv.investigatorName}
+                                          </a>
+                                        ) : (
+                                          <span className="font-medium">
+                                            {inv.isUnknown || inv.investigatorName === 'Unknown' ? 'Unknown' : inv.investigatorName}
+                                          </span>
+                                        )}
+                                      </div>
+                                      {inv.investigatorSet && !inv.isUnknown && inv.investigatorName !== 'Unknown' && (
+                                        <Badge variant="outline" className="text-xs whitespace-nowrap">
+                                          {getDisplaySetName(inv.investigatorName, inv.investigatorSet)}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    <div className="flex items-center gap-2 flex-shrink-0 md:ml-auto">
+                                      {inv.playerName && (
+                                        <span className="text-muted-foreground whitespace-nowrap">
+                                          {inv.playerName}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </div>
                         )}
+                        
+                        {pathBInvestigators.length > 0 && (
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <Badge variant="secondary" className="text-xs font-semibold">
+                                Campaign B: The Web of Dreams
+                              </Badge>
+                            </div>
+                            <div className="space-y-2.5">
+                              {pathBInvestigators.map((inv, idx) => {
+                                const chosenArchetype = inv.archetype
+                                const defaultUrl = getArkhamDBUrl(inv.investigatorName)
+                                
+                                return (
+                                  <div key={idx} className="flex flex-col md:flex-row md:items-center gap-1.5 md:gap-3 text-sm">
+                                    <div className="flex flex-col md:flex-row md:flex-wrap md:items-center gap-1.5 md:gap-2 min-w-0 md:min-w-[280px]">
+                                      <div className="flex items-center gap-2">
+                                        <ArchetypeBadge 
+                                          archetype={chosenArchetype}
+                                          investigatorName={inv.investigatorName}
+                                        />
+                                        {defaultUrl && !inv.isUnknown && inv.investigatorName !== 'Unknown' ? (
+                                          <a 
+                                            href={defaultUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="font-medium hover:underline hover:text-accent transition-colors"
+                                          >
+                                            {inv.investigatorName}
+                                          </a>
+                                        ) : (
+                                          <span className="font-medium">
+                                            {inv.isUnknown || inv.investigatorName === 'Unknown' ? 'Unknown' : inv.investigatorName}
+                                          </span>
+                                        )}
+                                      </div>
+                                      {inv.investigatorSet && !inv.isUnknown && inv.investigatorName !== 'Unknown' && (
+                                        <Badge variant="outline" className="text-xs whitespace-nowrap">
+                                          {getDisplaySetName(inv.investigatorName, inv.investigatorSet)}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    <div className="flex items-center gap-2 flex-shrink-0 md:ml-auto">
+                                      {inv.playerName && (
+                                        <span className="text-muted-foreground whitespace-nowrap">
+                                          {inv.playerName}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        {noPathInvestigators.length > 0 && (
+                          <div className="space-y-2.5">
+                            {noPathInvestigators.map((inv, idx) => {
+                              const chosenArchetype = inv.archetype
+                              const defaultUrl = getArkhamDBUrl(inv.investigatorName)
+                              
+                              return (
+                                <div key={idx} className="flex flex-col md:flex-row md:items-center gap-1.5 md:gap-3 text-sm">
+                                  <div className="flex flex-col md:flex-row md:flex-wrap md:items-center gap-1.5 md:gap-2 min-w-0 md:min-w-[280px]">
+                                    <div className="flex items-center gap-2">
+                                      <ArchetypeBadge 
+                                        archetype={chosenArchetype}
+                                        investigatorName={inv.investigatorName}
+                                      />
+                                      {defaultUrl && !inv.isUnknown && inv.investigatorName !== 'Unknown' ? (
+                                        <a 
+                                          href={defaultUrl}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="font-medium hover:underline hover:text-accent transition-colors"
+                                        >
+                                          {inv.investigatorName}
+                                        </a>
+                                      ) : (
+                                        <span className="font-medium">
+                                          {inv.isUnknown || inv.investigatorName === 'Unknown' ? 'Unknown' : inv.investigatorName}
+                                        </span>
+                                      )}
+                                    </div>
+                                    {inv.investigatorSet && !inv.isUnknown && inv.investigatorName !== 'Unknown' && (
+                                      <Badge variant="outline" className="text-xs whitespace-nowrap">
+                                        {getDisplaySetName(inv.investigatorName, inv.investigatorSet)}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2 flex-shrink-0 md:ml-auto">
+                                    {inv.playerName && (
+                                      <span className="text-muted-foreground whitespace-nowrap">
+                                        {inv.playerName}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </>
+                    )
+                  })()}
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  {playthrough.investigators.map((inv, idx) => {
+                    const chosenArchetype = inv.archetype
+                    const defaultUrl = getArkhamDBUrl(inv.investigatorName)
+                    
+                    return (
+                      <div key={idx} className="flex flex-col md:flex-row md:items-center gap-1.5 md:gap-3 text-sm">
+                        <div className="flex flex-col md:flex-row md:flex-wrap md:items-center gap-1.5 md:gap-2 min-w-0 md:min-w-[280px]">
+                          <div className="flex items-center gap-2">
+                            <ArchetypeBadge 
+                              archetype={chosenArchetype}
+                              investigatorName={inv.investigatorName}
+                            />
+                            {defaultUrl && !inv.isUnknown && inv.investigatorName !== 'Unknown' ? (
+                              <a 
+                                href={defaultUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="font-medium hover:underline hover:text-accent transition-colors"
+                              >
+                                {inv.investigatorName}
+                              </a>
+                            ) : (
+                              <span className="font-medium">
+                                {inv.isUnknown || inv.investigatorName === 'Unknown' ? 'Unknown' : inv.investigatorName}
+                              </span>
+                            )}
+                          </div>
+                          {inv.investigatorSet && !inv.isUnknown && inv.investigatorName !== 'Unknown' && (
+                            <Badge variant="outline" className="text-xs whitespace-nowrap">
+                              {getDisplaySetName(inv.investigatorName, inv.investigatorSet)}
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0 md:ml-auto">
+                          {inv.playerName && (
+                            <span className="text-muted-foreground whitespace-nowrap">
+                              {inv.playerName}
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      {inv.investigatorSet && !inv.isUnknown && inv.investigatorName !== 'Unknown' && (
-                        <Badge variant="outline" className="text-xs whitespace-nowrap">
-                          {getDisplaySetName(inv.investigatorName, inv.investigatorSet)}
-                        </Badge>
-                      )}
-                      {isDreamEaters && inv.dreamEatersPath && (
-                        <Badge variant="secondary" className="text-xs whitespace-nowrap">
-                          {inv.dreamEatersPath}
-                        </Badge>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 flex-shrink-0 md:ml-auto">
-                      {inv.playerName && (
-                        <span className="text-muted-foreground whitespace-nowrap">
-                          {inv.playerName}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
+                    )
+                  })}
+                </div>
+              )}
+            </>
           )}
         </div>
 
