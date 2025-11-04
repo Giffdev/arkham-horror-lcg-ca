@@ -225,7 +225,7 @@ export function Filters({
                     }} 
                     variant="ghost" 
                     size="sm"
-                    className="gap-1 h-8 text-xs"
+                    className="gap-1 h-8 text-xs text-foreground hover:text-foreground"
                   >
                     <X size={14} />
                     Clear All
@@ -255,7 +255,7 @@ export function Filters({
                 variant="outline"
                 size="sm"
                 onClick={onClearFilters}
-                className="gap-2 h-7 text-xs"
+                className="gap-2 h-7 text-xs text-foreground border-foreground/20 hover:bg-muted hover:text-foreground"
               >
                 <X size={14} />
                 Clear All
