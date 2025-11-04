@@ -37,6 +37,7 @@ function AuthenticatedApp({ currentUser, playthroughsKey, onSignOut }: Authentic
   const [selectedCampaigns, setSelectedCampaigns] = useState<string[]>([])
   const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null)
   const [isLoadingPlaythroughs, setIsLoadingPlaythroughs] = useState(true)
+  const [activeTab, setActiveTab] = useState("games")
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -257,9 +258,9 @@ function AuthenticatedApp({ currentUser, playthroughsKey, onSignOut }: Authentic
         </div>
       </header>
 
-      <main className="container mx-auto px-6 py-8">
-        <Tabs defaultValue="games" className="space-y-6">
-          <TabsList className="grid w-full max-w-2xl mx-auto grid-cols-3">
+      <main className="container mx-auto px-6 py-8 md:pb-8 pb-24">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="hidden md:grid w-full max-w-2xl mx-auto grid-cols-3">
             <TabsTrigger value="games" className="gap-2">
               <BookOpen size={18} weight="duotone" />
               All Games
@@ -391,6 +392,44 @@ function AuthenticatedApp({ currentUser, playthroughsKey, onSignOut }: Authentic
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-sm border-t border-border pb-safe z-50">
+        <div className="grid grid-cols-3 gap-0 px-2 py-2 pb-6">
+          <button
+            onClick={() => setActiveTab("games")}
+            className={`flex flex-col items-center justify-center gap-1 py-2 px-3 rounded-lg transition-colors ${
+              activeTab === "games"
+                ? "text-primary bg-primary/10"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+            }`}
+          >
+            <BookOpen size={24} weight={activeTab === "games" ? "fill" : "regular"} />
+            <span className="text-xs font-medium">All Games</span>
+          </button>
+          <button
+            onClick={() => setActiveTab("players")}
+            className={`flex flex-col items-center justify-center gap-1 py-2 px-3 rounded-lg transition-colors ${
+              activeTab === "players"
+                ? "text-primary bg-primary/10"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+            }`}
+          >
+            <User size={24} weight={activeTab === "players" ? "fill" : "regular"} />
+            <span className="text-xs font-medium">Players</span>
+          </button>
+          <button
+            onClick={() => setActiveTab("community")}
+            className={`flex flex-col items-center justify-center gap-1 py-2 px-3 rounded-lg transition-colors ${
+              activeTab === "community"
+                ? "text-primary bg-primary/10"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+            }`}
+          >
+            <UsersThree size={24} weight={activeTab === "community" ? "fill" : "regular"} />
+            <span className="text-xs font-medium">Community</span>
+          </button>
+        </div>
+      </nav>
     </div>
   )
 }

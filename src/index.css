@@ -6,6 +6,12 @@
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Birmingham', serif;
   }
+
+  @supports (padding: max(0px)) {
+    .pb-safe {
+      padding-bottom: max(env(safe-area-inset-bottom), 0.5rem);
+    }
+  }
 }
 
 :root {
