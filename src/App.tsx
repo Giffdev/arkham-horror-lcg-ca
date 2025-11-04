@@ -8,8 +8,9 @@ import { EmptyState } from '@/components/EmptyState'
 import { Filters } from '@/components/Filters'
 import { PlayerStats } from '@/components/PlayerStats'
 import { PlayersOverview } from '@/components/PlayersOverview'
+import { CommunityStats } from '@/components/CommunityStats'
 
-import { Plus, BookOpen, User, SignOut, CaretDown } from '@phosphor-icons/react'
+import { Plus, BookOpen, User, SignOut, CaretDown, UsersThree } from '@phosphor-icons/react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card } from '@/components/ui/card'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
@@ -238,7 +239,7 @@ function AuthenticatedApp({ currentUser, playthroughsKey, onSignOut }: Authentic
 
       <main className="container mx-auto px-6 py-8">
         <Tabs defaultValue="games" className="space-y-6">
-          <TabsList className="grid w-full max-w-md mx-auto grid-cols-2">
+          <TabsList className="grid w-full max-w-2xl mx-auto grid-cols-3">
             <TabsTrigger value="games" className="gap-2">
               <BookOpen size={18} weight="duotone" />
               All Games
@@ -246,6 +247,10 @@ function AuthenticatedApp({ currentUser, playthroughsKey, onSignOut }: Authentic
             <TabsTrigger value="players" className="gap-2">
               <User size={18} weight="duotone" />
               Players
+            </TabsTrigger>
+            <TabsTrigger value="community" className="gap-2">
+              <UsersThree size={18} weight="duotone" />
+              Community
             </TabsTrigger>
           </TabsList>
 
@@ -332,6 +337,10 @@ function AuthenticatedApp({ currentUser, playthroughsKey, onSignOut }: Authentic
                 </div>
               </div>
             ) : null}
+          </TabsContent>
+
+          <TabsContent value="community" className="space-y-6">
+            <CommunityStats />
           </TabsContent>
         </Tabs>
       </main>
