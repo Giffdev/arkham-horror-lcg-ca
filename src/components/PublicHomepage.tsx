@@ -31,7 +31,7 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
 
     const interval = setInterval(() => {
       loadStats()
-    }, 5000)
+    }, 2000)
 
     return () => clearInterval(interval)
   }, [])

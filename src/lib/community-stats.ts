@@ -15,7 +15,7 @@ const COMMUNITY_STATS_KEY = 'public:community-stats'
 export async function rebuildCommunityStats(): Promise<void> {
   try {
     const allKeys = await spark.kv.keys()
-    const playthroughKeys = allKeys.filter(key => key.endsWith('_playthroughs'))
+    const playthroughKeys = allKeys.filter(key => key.includes('playthroughs') && !key.includes('migration'))
     
     const campaignCounts = new Map<string, { count: number; set?: string }>()
     const investigatorCounts = new Map<string, { count: number; archetypes: Archetype[] }>()
@@ -48,8 +48,10 @@ export async function rebuildCommunityStats(): Promise<void> {
 
         if (playthrough.sideStories && Array.isArray(playthrough.sideStories)) {
           for (const sideStory of playthrough.sideStories) {
-            const count = sideScenarioCounts.get(sideStory) || 0
-            sideScenarioCounts.set(sideStory, count + 1)
+            if (sideStory && sideStory.trim()) {
+              const count = sideScenarioCounts.get(sideStory) || 0
+              sideScenarioCounts.set(sideStory, count + 1)
+            }
           }
         }
 

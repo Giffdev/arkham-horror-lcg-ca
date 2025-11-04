@@ -126,9 +126,7 @@ function AuthenticatedApp({ currentUser, playthroughsKey, onSignOut }: Authentic
     })
     setEditingPlaythrough(null)
     
-    setTimeout(() => {
-      rebuildCommunityStats()
-    }, 500)
+    rebuildCommunityStats()
   }
 
   const handleDeletePlaythrough = () => {
@@ -137,9 +135,7 @@ function AuthenticatedApp({ currentUser, playthroughsKey, onSignOut }: Authentic
       toast.success('Playthrough deleted')
       setDeleteId(null)
       
-      setTimeout(() => {
-        rebuildCommunityStats()
-      }, 500)
+      rebuildCommunityStats()
     }
   }
 
