@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { BookOpen, Users, ChartBar, Sparkle, Trophy, GameController } from '@phosphor-icons/react'
 import { getCommunityStats, CommunityStats as CommunityStatsType } from '@/lib/community-stats'
 import { ArchetypeBadge } from '@/components/ArchetypeBadge'
+import { getArkhamDBUrl } from '@/lib/investigator-data'
 
 export function CommunityStats() {
   const [communityStats, setCommunityStats] = useState<CommunityStatsType | null>(null)
@@ -136,28 +137,43 @@ export function CommunityStats() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {communityStats.topInvestigators.slice(0, 5).map((investigator, index) => (
-                <div key={investigator.name} className="flex items-center justify-between">
-                  <div className="flex items-center gap-3 min-w-0 flex-1">
-                    <span className="text-2xl font-bold text-muted-foreground/40 w-6 text-right flex-shrink-0">
-                      {index + 1}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <div className="flex gap-1">
-                          {investigator.archetypes.map((archetype) => (
-                            <ArchetypeBadge key={archetype} archetype={archetype} />
-                          ))}
+              {communityStats.topInvestigators.slice(0, 5).map((investigator, index) => {
+                const arkhamDBUrl = getArkhamDBUrl(investigator.name, investigator.archetypes[0])
+                
+                return (
+                  <div key={investigator.name} className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <span className="text-2xl font-bold text-muted-foreground/40 w-6 text-right flex-shrink-0">
+                        {index + 1}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <div className="flex gap-1">
+                            {investigator.archetypes.map((archetype) => (
+                              <ArchetypeBadge key={archetype} archetype={archetype} />
+                            ))}
+                          </div>
+                          {arkhamDBUrl ? (
+                            <a
+                              href={arkhamDBUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="font-medium text-foreground hover:text-primary transition-colors underline decoration-transparent hover:decoration-primary"
+                            >
+                              {investigator.name}
+                            </a>
+                          ) : (
+                            <span className="font-medium text-foreground">{investigator.name}</span>
+                          )}
                         </div>
-                        <span className="font-medium text-foreground">{investigator.name}</span>
                       </div>
                     </div>
+                    <span className="text-sm text-muted-foreground ml-2 flex-shrink-0">
+                      {investigator.count} {investigator.count === 1 ? 'play' : 'plays'}
+                    </span>
                   </div>
-                  <span className="text-sm text-muted-foreground ml-2 flex-shrink-0">
-                    {investigator.count} {investigator.count === 1 ? 'play' : 'plays'}
-                  </span>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </CardContent>
         </Card>
