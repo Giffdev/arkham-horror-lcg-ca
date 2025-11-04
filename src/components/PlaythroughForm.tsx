@@ -45,7 +45,8 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
         isUnknown: inv.isUnknown || inv.investigatorName === 'Unknown' || inv.archetype === 'Unknown',
         isCustom: inv.isCustom || false,
         customInvestigatorName: inv.customInvestigatorName || (inv.isCustom ? inv.investigatorName : ''),
-        investigatorSet: inv.investigatorSet
+        investigatorSet: inv.investigatorSet,
+        dreamEatersPath: inv.dreamEatersPath
       })))
     } else {
       setCampaignType('Full Campaign')
@@ -53,7 +54,14 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
       setCustomCampaignName('')
       setSideStories([])
       setSideStoriesOpen(false)
-      setInvestigators([{ playerName: '', investigatorName: '', archetype: 'Unknown', isUnknown: false, isCustom: false, investigatorSet: undefined }])
+      setInvestigators([{ 
+        playerName: '', 
+        investigatorName: '', 
+        archetype: 'Unknown', 
+        isUnknown: false, 
+        isCustom: false, 
+        investigatorSet: undefined 
+      }])
     }
   }, [editPlaythrough, open])
 
@@ -70,10 +78,18 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
   }
 
   const handleAddInvestigator = () => {
-    if (investigators.length < 4) {
+    const maxInvestigators = campaignName === 'The Dream-Eaters' ? 8 : 4
+    if (investigators.length < maxInvestigators) {
       setInvestigators([
         ...investigators,
-        { playerName: '', investigatorName: '', archetype: 'Unknown', isUnknown: false, isCustom: false }
+        { 
+          playerName: '', 
+          investigatorName: '', 
+          archetype: 'Unknown', 
+          isUnknown: false, 
+          isCustom: false,
+          ...(campaignName === 'The Dream-Eaters' && { dreamEatersPath: 'A: The Dream-Quest' as DreamEatersCampaignPath })
+        }
       ])
     }
   }
@@ -144,7 +160,8 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
     
     if (!finalCampaignName.trim()) return
 
-    if (investigators.length === 0 || investigators.length > 4) return
+    const maxInvestigators = finalCampaignName === 'The Dream-Eaters' ? 8 : 4
+    if (investigators.length === 0 || investigators.length > maxInvestigators) return
 
     const campaignSet = (campaignType === 'Full Campaign' || campaignType === 'Standalone') ? getCampaignSet(finalCampaignName) : undefined
 
@@ -183,6 +200,7 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
   const availableStandaloneCampaigns = getStandaloneCampaignNames()
   
   const isBarkhamCampaign = campaignName === 'Barkham Horror: The Meddling of Meowlathotep'
+  const isDreamEatersCampaign = campaignName === 'The Dream-Eaters'
   const allInvestigatorNames = getAllInvestigatorNames()
   const availableInvestigators = allInvestigatorNames.filter(name => {
     const investigator = getInvestigatorByName(name)
@@ -197,13 +215,28 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
     }
   })
   
+  const dreamEatersPathCounts = isDreamEatersCampaign ? {
+    'A: The Dream-Quest': investigators.filter(inv => (inv.dreamEatersPath || 'A: The Dream-Quest') === 'A: The Dream-Quest').length,
+    'B: The Web of Dreams': investigators.filter(inv => inv.dreamEatersPath === 'B: The Web of Dreams').length
+  } : null
+
+  const dreamEatersPathError = isDreamEatersCampaign && dreamEatersPathCounts && (
+    dreamEatersPathCounts['A: The Dream-Quest'] > 4 || dreamEatersPathCounts['B: The Web of Dreams'] > 4
+  ) ? (
+    dreamEatersPathCounts['A: The Dream-Quest'] > 4 
+      ? `Too many investigators in Path A (${dreamEatersPathCounts['A: The Dream-Quest']}/4). Maximum 4 per path.`
+      : `Too many investigators in Path B (${dreamEatersPathCounts['B: The Web of Dreams']}/4). Maximum 4 per path.`
+  ) : null
+  
+  const maxInvestigators = isDreamEatersCampaign ? 8 : 4
   const isFormValid = (campaignType === 'Fan-Made' 
     ? customCampaignName.trim() !== ''
     : campaignType === 'Unknown'
       ? true
       : campaignName.trim() !== '') && 
     investigators.length >= 1 && 
-    investigators.length <= 4
+    investigators.length <= maxInvestigators &&
+    !dreamEatersPathError
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -442,15 +475,28 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
                 <div>
                   <Label>Investigators</Label>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Add 1-4 investigators for this game ({investigators.length}/4)
+                    {isDreamEatersCampaign 
+                      ? `Add 1-8 investigators for this game (${investigators.length}/8)` 
+                      : `Add 1-4 investigators for this game (${investigators.length}/4)`
+                    }
                   </p>
+                  {isDreamEatersCampaign && dreamEatersPathCounts && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Path A: {dreamEatersPathCounts['A: The Dream-Quest']}/4 • Path B: {dreamEatersPathCounts['B: The Web of Dreams']}/4
+                    </p>
+                  )}
+                  {dreamEatersPathError && (
+                    <p className="text-xs text-destructive mt-1 font-medium">
+                      {dreamEatersPathError}
+                    </p>
+                  )}
                 </div>
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   onClick={handleAddInvestigator}
-                  disabled={investigators.length >= 4}
+                  disabled={investigators.length >= maxInvestigators}
                   className="gap-2"
                 >
                   <Plus size={16} />
