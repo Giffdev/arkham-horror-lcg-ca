@@ -252,7 +252,7 @@ export function Filters({
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-foreground">Active Filters</span>
               <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
                 onClick={onClearFilters}
                 className="gap-2 h-7 text-xs"
