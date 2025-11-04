@@ -211,14 +211,14 @@ export function Filters({
                 )}
               </Button>
             </SheetTrigger>
-            <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto">
-              <SheetHeader>
+            <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto px-6">
+              <SheetHeader className="px-0">
                 <SheetTitle className="flex items-center gap-2">
                   <Funnel size={20} />
                   Filter Games
                 </SheetTitle>
               </SheetHeader>
-              <div className="py-4">
+              <div className="py-6">
                 <FilterContent
                   selectedArchetypes={selectedArchetypes}
                   selectedCampaignTypes={selectedCampaignTypes}
@@ -230,7 +230,7 @@ export function Filters({
                 />
               </div>
               {hasActiveFilters && (
-                <div className="sticky bottom-0 bg-background border-t pt-4 -mx-4 px-4 pb-4">
+                <div className="sticky bottom-0 bg-background border-t pt-4 -mx-6 px-6 pb-4">
                   <Button 
                     onClick={() => {
                       onClearFilters()
