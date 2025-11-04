@@ -248,15 +248,18 @@ export function Filters({
         
         {hasActiveFilters && (
           <div className="space-y-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onClearFilters}
-              className="gap-2 w-full"
-            >
-              <X size={16} />
-              Clear All Filters
-            </Button>
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-foreground">Active Filters</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onClearFilters}
+                className="gap-2 h-7 text-xs"
+              >
+                <X size={14} />
+                Clear All
+              </Button>
+            </div>
             <div className="flex flex-wrap gap-2">
               {selectedArchetypes.map((archetype) => (
                 <Badge key={archetype} variant="secondary" className="gap-1">
