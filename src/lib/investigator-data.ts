@@ -89,6 +89,19 @@ export const INVESTIGATORS: Investigator[] = [
   { name: '"Skids" O\'Drool', archetypes: ['Rogue'], set: 'Barkham Horror' },
   { name: 'Jacqueline Canine', archetypes: ['Mystic'], set: 'Barkham Horror' },
   { name: 'Duke', archetypes: ['Survivor'], set: 'Barkham Horror' },
+
+  { name: 'Roland Banks (Parallel)', archetypes: ['Guardian'], set: 'Parallel' },
+  { name: 'Zoey Samaras (Parallel)', archetypes: ['Guardian'], set: 'Parallel' },
+  { name: 'Daisy Walker (Parallel)', archetypes: ['Seeker'], set: 'Parallel' },
+  { name: 'Rex Murphy (Parallel)', archetypes: ['Seeker'], set: 'Parallel' },
+  { name: '"Skids" O\'Toole (Parallel)', archetypes: ['Rogue'], set: 'Parallel' },
+  { name: 'Jenny Barnes (Parallel)', archetypes: ['Rogue'], set: 'Parallel' },
+  { name: 'Monterey Jack (Parallel)', archetypes: ['Rogue'], set: 'Parallel' },
+  { name: 'Agnes Baker (Parallel)', archetypes: ['Mystic'], set: 'Parallel' },
+  { name: 'Father Mateo (Parallel)', archetypes: ['Mystic'], set: 'Parallel' },
+  { name: 'Jim Culver (Parallel)', archetypes: ['Mystic'], set: 'Parallel' },
+  { name: '"Ashcan" Pete (Parallel)', archetypes: ['Survivor'], set: 'Parallel' },
+  { name: 'Wendy Adams (Parallel)', archetypes: ['Survivor'], set: 'Parallel' },
 ]
 
 export const INVESTIGATOR_SETS: string[] = [
@@ -109,7 +122,8 @@ export const INVESTIGATOR_SETS: string[] = [
   'Jacqueline Fine',
   'Stella Clark',
   'The Blob That Ate Everything',
-  'Barkham Horror'
+  'Barkham Horror',
+  'Parallel'
 ]
 
 export function getInvestigatorsByArchetype(archetype: Archetype): Investigator[] {
@@ -218,7 +232,19 @@ export function getArkhamDBUrl(investigatorName: string, archetype?: Archetype):
     'Winifred Habbamock': '60301',
     'Jacqueline Fine': '60401',
     'Stella Clark': '60501',
-    'Subject 5U-21 (Suzi)': '89001'
+    'Subject 5U-21 (Suzi)': '89001',
+    'Roland Banks (Parallel)': '90024',
+    'Zoey Samaras (Parallel)': '90059',
+    'Daisy Walker (Parallel)': '90001',
+    'Rex Murphy (Parallel)': '90078',
+    '"Skids" O\'Toole (Parallel)': '90008',
+    'Jenny Barnes (Parallel)': '90084',
+    'Monterey Jack (Parallel)': '90062',
+    'Agnes Baker (Parallel)': '90017',
+    'Father Mateo (Parallel)': '90081',
+    'Jim Culver (Parallel)': '90049',
+    '"Ashcan" Pete (Parallel)': '90046',
+    'Wendy Adams (Parallel)': '90037'
   }
   
   const mapping = slugMap[investigatorName]
