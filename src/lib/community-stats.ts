@@ -15,7 +15,7 @@ const COMMUNITY_STATS_KEY = 'public:community-stats'
 export async function rebuildCommunityStats(): Promise<void> {
   try {
     const allKeys = await spark.kv.keys()
-    const playthroughKeys = allKeys.filter(key => key.includes('playthroughs') && !key.includes('migration'))
+    const playthroughKeys = allKeys.filter(key => key.includes('playthroughs') && !key.includes('migration') && !key.includes('public:'))
     
     const campaignCounts = new Map<string, { count: number; set?: string }>()
     const investigatorCounts = new Map<string, { count: number; archetypes: Archetype[] }>()
@@ -30,7 +30,7 @@ export async function rebuildCommunityStats(): Promise<void> {
       totalGames += playthroughs.length
       
       for (const playthrough of playthroughs) {
-        if (playthrough.campaignName && playthrough.campaignName !== 'Unknown') {
+        if (playthrough.campaignName && playthrough.campaignName !== 'Unknown' && playthrough.campaignName !== 'Unknown Campaign') {
           const existing = campaignCounts.get(playthrough.campaignName) || { count: 0, set: playthrough.campaignSet }
           campaignCounts.set(playthrough.campaignName, {
             count: existing.count + 1,
@@ -46,9 +46,9 @@ export async function rebuildCommunityStats(): Promise<void> {
           }
         }
 
-        if (playthrough.sideStories && Array.isArray(playthrough.sideStories)) {
+        if (playthrough.sideStories && Array.isArray(playthrough.sideStories) && playthrough.sideStories.length > 0) {
           for (const sideStory of playthrough.sideStories) {
-            if (sideStory && sideStory.trim()) {
+            if (sideStory && typeof sideStory === 'string' && sideStory.trim()) {
               const count = sideScenarioCounts.get(sideStory) || 0
               sideScenarioCounts.set(sideStory, count + 1)
             }

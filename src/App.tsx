@@ -126,7 +126,9 @@ function AuthenticatedApp({ currentUser, playthroughsKey, onSignOut }: Authentic
     })
     setEditingPlaythrough(null)
     
-    rebuildCommunityStats()
+    setTimeout(() => {
+      rebuildCommunityStats()
+    }, 500)
   }
 
   const handleDeletePlaythrough = () => {
@@ -135,7 +137,9 @@ function AuthenticatedApp({ currentUser, playthroughsKey, onSignOut }: Authentic
       toast.success('Playthrough deleted')
       setDeleteId(null)
       
-      rebuildCommunityStats()
+      setTimeout(() => {
+        rebuildCommunityStats()
+      }, 500)
     }
   }
 
@@ -385,8 +389,13 @@ function App() {
               await spark.kv.set(newKey, oldData)
               await spark.kv.delete('playthroughs')
               toast.success(`Migrated ${oldData.length} playthroughs to your account`)
+              await rebuildCommunityStats()
             }
+          } else {
+            await rebuildCommunityStats()
           }
+        } else {
+          await rebuildCommunityStats()
         }
       } catch (error) {
         console.error('Failed to load session:', error)
@@ -411,7 +420,10 @@ function App() {
         await spark.kv.set(newKey, oldData)
         await spark.kv.delete('playthroughs')
         toast.success(`Migrated ${oldData.length} playthroughs to your account`)
+        await rebuildCommunityStats()
       }
+    } else {
+      await rebuildCommunityStats()
     }
   }
 
