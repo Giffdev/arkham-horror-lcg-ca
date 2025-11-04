@@ -22,7 +22,7 @@ export function PlaythroughCard({ playthrough, onEdit, onDelete, activeArchetype
       : playthrough.campaignName
 
   const displaySetName = playthrough.campaignType === 'Standalone'
-    ? playthrough.campaignName
+    ? null
     : playthrough.campaignSet
 
   const isDreamEaters = playthrough.campaignName === 'The Dream-Eaters'
