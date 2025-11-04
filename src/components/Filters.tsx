@@ -217,19 +217,8 @@ export function Filters({
                 Filter Games
               </SheetTitle>
             </SheetHeader>
-            <div className="py-6">
-              <FilterContent
-                selectedArchetypes={selectedArchetypes}
-                selectedCampaignTypes={selectedCampaignTypes}
-                selectedCampaigns={selectedCampaigns}
-                onArchetypeToggle={onArchetypeToggle}
-                onCampaignTypeToggle={onCampaignTypeToggle}
-                onCampaignToggle={onCampaignToggle}
-                playthroughs={playthroughs}
-              />
-            </div>
             {hasActiveFilters && (
-              <div className="sticky bottom-0 bg-background border-t pt-4 -mx-6 px-6 pb-4">
+              <div className="pt-4 pb-2">
                 <Button 
                   onClick={() => {
                     onClearFilters()
@@ -243,6 +232,17 @@ export function Filters({
                 </Button>
               </div>
             )}
+            <div className="py-6">
+              <FilterContent
+                selectedArchetypes={selectedArchetypes}
+                selectedCampaignTypes={selectedCampaignTypes}
+                selectedCampaigns={selectedCampaigns}
+                onArchetypeToggle={onArchetypeToggle}
+                onCampaignTypeToggle={onCampaignTypeToggle}
+                onCampaignToggle={onCampaignToggle}
+                playthroughs={playthroughs}
+              />
+            </div>
           </SheetContent>
         </Sheet>
         
