@@ -25,6 +25,8 @@ export function PlaythroughCard({ playthrough, onEdit, onDelete, activeArchetype
     ? playthrough.campaignName
     : playthrough.campaignSet
 
+  const isDreamEaters = playthrough.campaignName === 'The Dream-Eaters'
+
   return (
     <Card className="p-4 md:p-6 hover:border-accent transition-all duration-200 hover:shadow-lg group">
       <div className="flex flex-col md:flex-row gap-4 md:gap-6 md:items-start">
@@ -146,6 +148,11 @@ export function PlaythroughCard({ playthrough, onEdit, onDelete, activeArchetype
                       {inv.investigatorSet && !inv.isUnknown && inv.investigatorName !== 'Unknown' && (
                         <Badge variant="outline" className="text-xs whitespace-nowrap">
                           {getDisplaySetName(inv.investigatorName, inv.investigatorSet)}
+                        </Badge>
+                      )}
+                      {isDreamEaters && inv.dreamEatersPath && (
+                        <Badge variant="secondary" className="text-xs whitespace-nowrap">
+                          {inv.dreamEatersPath}
                         </Badge>
                       )}
                     </div>

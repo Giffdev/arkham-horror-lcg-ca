@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Playthrough, InvestigatorAssignment, CAMPAIGN_TYPES, Archetype, CampaignType } from '@/lib/types'
+import { Playthrough, InvestigatorAssignment, CAMPAIGN_TYPES, Archetype, CampaignType, DreamEatersCampaignPath } from '@/lib/types'
 import { getFullCampaignNames, getStandaloneCampaignNames, getCampaignSet } from '@/lib/campaign-data'
 import { getAllInvestigatorNames, getInvestigatorByName, isDualClassInvestigator } from '@/lib/investigator-data'
 import { Plus, Trash, Sparkle } from '@phosphor-icons/react'
@@ -475,6 +475,7 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
                       onUpdate={handleUpdateInvestigator}
                       onRemove={handleRemoveInvestigator}
                       canRemove={investigators.length > 1}
+                      isDreamEaters={campaignName === 'The Dream-Eaters'}
                     />
                   ))}
                 </div>
@@ -503,9 +504,10 @@ interface InvestigatorFormItemProps {
   onUpdate: (index: number, field: keyof InvestigatorAssignment, value: string | boolean) => void
   onRemove: (index: number) => void
   canRemove: boolean
+  isDreamEaters: boolean
 }
 
-function InvestigatorFormItem({ index, investigator, availableInvestigators, onUpdate, onRemove, canRemove }: InvestigatorFormItemProps) {
+function InvestigatorFormItem({ index, investigator, availableInvestigators, onUpdate, onRemove, canRemove, isDreamEaters }: InvestigatorFormItemProps) {
   const [investigatorSearchOpen, setInvestigatorSearchOpen] = useState(false)
   const [archetypeSelectOpen, setArchetypeSelectOpen] = useState(false)
   
@@ -630,6 +632,24 @@ function InvestigatorFormItem({ index, investigator, availableInvestigators, onU
           )}
         </div>
       </div>
+
+      {isDreamEaters && (
+        <div className="space-y-2">
+          <Label htmlFor={`dream-eaters-path-${index}`}>Campaign Path</Label>
+          <Select 
+            value={investigator.dreamEatersPath || 'A: The Dream-Quest'} 
+            onValueChange={(value) => onUpdate(index, 'dreamEatersPath', value as DreamEatersCampaignPath)}
+          >
+            <SelectTrigger id={`dream-eaters-path-${index}`}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="A: The Dream-Quest">A: The Dream-Quest</SelectItem>
+              <SelectItem value="B: The Web of Dreams">B: The Web of Dreams</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
       <div className="flex items-center gap-4">
         <div className="flex items-center space-x-2">

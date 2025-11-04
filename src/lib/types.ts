@@ -2,6 +2,8 @@ export type Archetype = 'Guardian' | 'Survivor' | 'Seeker' | 'Rogue' | 'Mystic' 
 
 export type CampaignType = 'Full Campaign' | 'Standalone' | 'Fan-Made' | 'Unknown'
 
+export type DreamEatersCampaignPath = 'A: The Dream-Quest' | 'B: The Web of Dreams'
+
 export interface InvestigatorAssignment {
   playerName: string
   investigatorName: string
@@ -11,6 +13,7 @@ export interface InvestigatorAssignment {
   isUnknown?: boolean
   isCustom?: boolean
   customInvestigatorName?: string
+  dreamEatersPath?: DreamEatersCampaignPath
 }
 
 export interface Playthrough {
