@@ -228,6 +228,23 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
       : `Too many investigators in Path B (${dreamEatersPathCounts['B: The Web of Dreams']}/4). Maximum 4 per path.`
   ) : null
   
+  const duplicateInvestigatorError = (() => {
+    const investigatorNames = investigators
+      .filter(inv => !inv.isUnknown && !inv.isCustom && inv.investigatorName.trim() !== '')
+      .map(inv => inv.investigatorName)
+    
+    const duplicates = investigatorNames.filter((name, index) => 
+      investigatorNames.indexOf(name) !== index
+    )
+    
+    if (duplicates.length > 0) {
+      const uniqueDuplicates = Array.from(new Set(duplicates))
+      return `Duplicate investigator${uniqueDuplicates.length > 1 ? 's' : ''} found: ${uniqueDuplicates.join(', ')}. Each investigator can only be selected once.`
+    }
+    
+    return null
+  })()
+  
   const maxInvestigators = isDreamEatersCampaign ? 8 : 4
   const isFormValid = (campaignType === 'Fan-Made' 
     ? customCampaignName.trim() !== ''
@@ -236,7 +253,8 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
       : campaignName.trim() !== '') && 
     investigators.length >= 1 && 
     investigators.length <= maxInvestigators &&
-    !dreamEatersPathError
+    !dreamEatersPathError &&
+    !duplicateInvestigatorError
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -488,6 +506,11 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
                   {dreamEatersPathError && (
                     <p className="text-xs text-destructive mt-1 font-medium">
                       {dreamEatersPathError}
+                    </p>
+                  )}
+                  {duplicateInvestigatorError && (
+                    <p className="text-xs text-destructive mt-1 font-medium">
+                      {duplicateInvestigatorError}
                     </p>
                   )}
                 </div>
