@@ -198,102 +198,100 @@ export function Filters({
   if (isMobile) {
     return (
       <div className="space-y-3">
-        <div className="flex items-center gap-2 justify-between">
-          <Sheet open={open} onOpenChange={setOpen}>
-            <SheetTrigger asChild>
-              <Button variant="outline" className="gap-2 flex-1">
-                <Funnel size={16} />
-                Filters
-                {activeFilterCount > 0 && (
-                  <Badge variant="secondary" className="ml-auto">
-                    {activeFilterCount}
-                  </Badge>
-                )}
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto px-6">
-              <SheetHeader className="px-0">
-                <SheetTitle className="flex items-center gap-2">
-                  <Funnel size={20} />
-                  Filter Games
-                </SheetTitle>
-              </SheetHeader>
-              <div className="py-6">
-                <FilterContent
-                  selectedArchetypes={selectedArchetypes}
-                  selectedCampaignTypes={selectedCampaignTypes}
-                  selectedCampaigns={selectedCampaigns}
-                  onArchetypeToggle={onArchetypeToggle}
-                  onCampaignTypeToggle={onCampaignTypeToggle}
-                  onCampaignToggle={onCampaignToggle}
-                  playthroughs={playthroughs}
-                />
-              </div>
-              {hasActiveFilters && (
-                <div className="sticky bottom-0 bg-background border-t pt-4 -mx-6 px-6 pb-4">
-                  <Button 
-                    onClick={() => {
-                      onClearFilters()
-                      setOpen(false)
-                    }} 
-                    variant="outline" 
-                    className="w-full gap-2"
-                  >
-                    <X size={16} />
-                    Clear All Filters
-                  </Button>
-                </div>
+        <Sheet open={open} onOpenChange={setOpen}>
+          <SheetTrigger asChild>
+            <Button variant="outline" className="gap-2 w-full">
+              <Funnel size={16} />
+              Filters
+              {activeFilterCount > 0 && (
+                <Badge variant="secondary" className="ml-auto">
+                  {activeFilterCount}
+                </Badge>
               )}
-            </SheetContent>
-          </Sheet>
-          {hasActiveFilters && (
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto px-6">
+            <SheetHeader className="px-0">
+              <SheetTitle className="flex items-center gap-2">
+                <Funnel size={20} />
+                Filter Games
+              </SheetTitle>
+            </SheetHeader>
+            <div className="py-6">
+              <FilterContent
+                selectedArchetypes={selectedArchetypes}
+                selectedCampaignTypes={selectedCampaignTypes}
+                selectedCampaigns={selectedCampaigns}
+                onArchetypeToggle={onArchetypeToggle}
+                onCampaignTypeToggle={onCampaignTypeToggle}
+                onCampaignToggle={onCampaignToggle}
+                playthroughs={playthroughs}
+              />
+            </div>
+            {hasActiveFilters && (
+              <div className="sticky bottom-0 bg-background border-t pt-4 -mx-6 px-6 pb-4">
+                <Button 
+                  onClick={() => {
+                    onClearFilters()
+                    setOpen(false)
+                  }} 
+                  variant="outline" 
+                  className="w-full gap-2"
+                >
+                  <X size={16} />
+                  Clear All Filters
+                </Button>
+              </div>
+            )}
+          </SheetContent>
+        </Sheet>
+        
+        {hasActiveFilters && (
+          <div className="space-y-2">
             <Button
               variant="ghost"
               size="sm"
               onClick={onClearFilters}
-              className="gap-2 flex-shrink-0"
+              className="gap-2 w-full"
             >
               <X size={16} />
-              Clear
+              Clear All Filters
             </Button>
-          )}
-        </div>
-        
-        {hasActiveFilters && (
-          <div className="flex flex-wrap gap-2">
-            {selectedArchetypes.map((archetype) => (
-              <Badge key={archetype} variant="secondary" className="gap-1">
-                {archetype}
-                <button
-                  onClick={() => onArchetypeToggle(archetype)}
-                  className="ml-1 hover:bg-muted-foreground/20 rounded-full"
-                >
-                  <X size={12} />
-                </button>
-              </Badge>
-            ))}
-            {selectedCampaignTypes.map((type) => (
-              <Badge key={type} variant="secondary" className="gap-1">
-                {type}
-                <button
-                  onClick={() => onCampaignTypeToggle(type)}
-                  className="ml-1 hover:bg-muted-foreground/20 rounded-full"
-                >
-                  <X size={12} />
-                </button>
-              </Badge>
-            ))}
-            {selectedCampaigns.map((campaign) => (
-              <Badge key={campaign} variant="secondary" className="gap-1">
-                {campaign}
-                <button
-                  onClick={() => onCampaignToggle(campaign)}
-                  className="ml-1 hover:bg-muted-foreground/20 rounded-full"
-                >
-                  <X size={12} />
-                </button>
-              </Badge>
-            ))}
+            <div className="flex flex-wrap gap-2">
+              {selectedArchetypes.map((archetype) => (
+                <Badge key={archetype} variant="secondary" className="gap-1">
+                  {archetype}
+                  <button
+                    onClick={() => onArchetypeToggle(archetype)}
+                    className="ml-1 hover:bg-muted-foreground/20 rounded-full"
+                  >
+                    <X size={12} />
+                  </button>
+                </Badge>
+              ))}
+              {selectedCampaignTypes.map((type) => (
+                <Badge key={type} variant="secondary" className="gap-1">
+                  {type}
+                  <button
+                    onClick={() => onCampaignTypeToggle(type)}
+                    className="ml-1 hover:bg-muted-foreground/20 rounded-full"
+                  >
+                    <X size={12} />
+                  </button>
+                </Badge>
+              ))}
+              {selectedCampaigns.map((campaign) => (
+                <Badge key={campaign} variant="secondary" className="gap-1">
+                  {campaign}
+                  <button
+                    onClick={() => onCampaignToggle(campaign)}
+                    className="ml-1 hover:bg-muted-foreground/20 rounded-full"
+                  >
+                    <X size={12} />
+                  </button>
+                </Badge>
+              ))}
+            </div>
           </div>
         )}
       </div>
