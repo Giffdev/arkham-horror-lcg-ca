@@ -212,26 +212,27 @@ export function Filters({
           </SheetTrigger>
           <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto px-6">
             <SheetHeader className="px-0">
-              <SheetTitle className="flex items-center gap-2">
-                <Funnel size={20} />
-                Filter Games
-              </SheetTitle>
-            </SheetHeader>
-            {hasActiveFilters && (
-              <div className="pt-4 pb-2">
-                <Button 
-                  onClick={() => {
-                    onClearFilters()
-                    setOpen(false)
-                  }} 
-                  variant="outline" 
-                  className="w-full gap-2"
-                >
-                  <X size={16} />
-                  Clear All Filters
-                </Button>
+              <div className="flex items-center justify-between w-full">
+                <SheetTitle className="flex items-center gap-2">
+                  <Funnel size={20} />
+                  Filter Games
+                </SheetTitle>
+                {hasActiveFilters && (
+                  <Button 
+                    onClick={() => {
+                      onClearFilters()
+                      setOpen(false)
+                    }} 
+                    variant="ghost" 
+                    size="sm"
+                    className="gap-1 h-8 text-xs"
+                  >
+                    <X size={14} />
+                    Clear All
+                  </Button>
+                )}
               </div>
-            )}
+            </SheetHeader>
             <div className="py-6">
               <FilterContent
                 selectedArchetypes={selectedArchetypes}
