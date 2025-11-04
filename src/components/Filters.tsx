@@ -312,7 +312,7 @@ export function Filters({
             variant="ghost"
             size="sm"
             onClick={onClearFilters}
-            className="ml-auto gap-2 h-7 text-xs"
+            className="ml-auto gap-2 h-7 text-xs text-foreground hover:text-foreground"
           >
             <X size={14} />
             Clear All
