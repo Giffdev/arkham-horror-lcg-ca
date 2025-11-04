@@ -34,6 +34,7 @@ function AuthenticatedApp({ currentUser, playthroughsKey, onSignOut }: Authentic
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [selectedArchetypes, setSelectedArchetypes] = useState<Archetype[]>([])
   const [selectedCampaignTypes, setSelectedCampaignTypes] = useState<CampaignType[]>([])
+  const [selectedCampaigns, setSelectedCampaigns] = useState<string[]>([])
   const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null)
   const [isLoadingPlaythroughs, setIsLoadingPlaythroughs] = useState(true)
 
@@ -106,9 +107,16 @@ function AuthenticatedApp({ currentUser, playthroughsKey, onSignOut }: Authentic
         }
       }
 
+      if (selectedCampaigns.length > 0) {
+        const campaignName = playthrough.customCampaignName || playthrough.campaignName
+        if (!selectedCampaigns.includes(campaignName)) {
+          return false
+        }
+      }
+
       return true
     })
-  }, [playthroughs, selectedArchetypes, selectedCampaignTypes])
+  }, [playthroughs, selectedArchetypes, selectedCampaignTypes, selectedCampaigns])
 
   const handleSavePlaythrough = (playthrough: Omit<Playthrough, 'id'> | Playthrough) => {
     setPlaythroughs((current) => {
@@ -168,11 +176,23 @@ function AuthenticatedApp({ currentUser, playthroughsKey, onSignOut }: Authentic
         ? current.filter((t) => t !== type)
         : [...current, type]
     )
+    if (selectedCampaignTypes.includes(type)) {
+      setSelectedCampaigns([])
+    }
+  }
+
+  const handleCampaignToggle = (campaign: string) => {
+    setSelectedCampaigns((current) =>
+      current.includes(campaign)
+        ? current.filter((c) => c !== campaign)
+        : [...current, campaign]
+    )
   }
 
   const handleClearFilters = () => {
     setSelectedArchetypes([])
     setSelectedCampaignTypes([])
+    setSelectedCampaigns([])
   }
 
   const allPlayers = useMemo(() => {
@@ -258,9 +278,12 @@ function AuthenticatedApp({ currentUser, playthroughsKey, onSignOut }: Authentic
             <Filters
               selectedArchetypes={selectedArchetypes}
               selectedCampaignTypes={selectedCampaignTypes}
+              selectedCampaigns={selectedCampaigns}
               onArchetypeToggle={handleArchetypeToggle}
               onCampaignTypeToggle={handleCampaignTypeToggle}
+              onCampaignToggle={handleCampaignToggle}
               onClearFilters={handleClearFilters}
+              playthroughs={playthroughs || []}
             />
 
             {isLoadingPlaythroughs ? (
