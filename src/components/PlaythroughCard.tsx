@@ -21,10 +21,6 @@ export function PlaythroughCard({ playthrough, onEdit, onDelete, activeArchetype
       ? 'Unknown Campaign'
       : playthrough.campaignName
 
-  const displaySetName = playthrough.campaignType === 'Standalone'
-    ? null
-    : playthrough.campaignSet
-
   const isDreamEaters = playthrough.campaignName === 'The Dream-Eaters'
 
   return (
@@ -43,11 +39,6 @@ export function PlaythroughCard({ playthrough, onEdit, onDelete, activeArchetype
               <Badge variant="secondary" className="text-xs">
                 {playthrough.campaignType}
               </Badge>
-              {displaySetName && (
-                <Badge variant="outline" className="text-xs">
-                  {displaySetName}
-                </Badge>
-              )}
             </div>
             {playthrough.sideStories && playthrough.sideStories.length > 0 && (
               <div className="mt-2 md:hidden flex items-start gap-2 flex-wrap">
@@ -68,11 +59,6 @@ export function PlaythroughCard({ playthrough, onEdit, onDelete, activeArchetype
               <Badge variant="secondary" className="text-xs">
                 {playthrough.campaignType}
               </Badge>
-              {displaySetName && (
-                <Badge variant="outline" className="text-xs">
-                  {displaySetName}
-                </Badge>
-              )}
             </div>
             <div className="hidden md:flex items-center gap-1 text-sm text-muted-foreground">
               <Clock size={16} weight="duotone" />
