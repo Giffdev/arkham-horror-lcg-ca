@@ -51,6 +51,15 @@ function AuthenticatedApp({ currentUser, playthroughsKey, onSignOut }: Authentic
 
     let needsUpdate = false
     const updatedPlaythroughs = playthroughs.map(playthrough => {
+      let playthroughUpdated = false
+      const updates: Partial<Playthrough> = {}
+      
+      if (playthrough.campaignType === 'Standalone' as any) {
+        updates.campaignType = 'Scenario Pack'
+        playthroughUpdated = true
+        needsUpdate = true
+      }
+      
       const updatedInvestigators = playthrough.investigators.map(inv => {
         if (inv.isCustom || inv.isUnknown || inv.investigatorName === 'Unknown') {
           return inv
@@ -58,28 +67,32 @@ function AuthenticatedApp({ currentUser, playthroughsKey, onSignOut }: Authentic
         
         const investigatorData = getInvestigatorByName(inv.investigatorName)
         let hasChanges = false
-        const updates: Partial<typeof inv> = {}
+        const invUpdates: Partial<typeof inv> = {}
         
         if (!inv.investigatorSet && investigatorData) {
-          updates.investigatorSet = investigatorData.set
+          invUpdates.investigatorSet = investigatorData.set
           hasChanges = true
         }
         
         if (!inv.archetypes && investigatorData) {
-          updates.archetypes = investigatorData.archetypes
+          invUpdates.archetypes = investigatorData.archetypes
           hasChanges = true
         }
         
         if (hasChanges) {
           needsUpdate = true
-          return { ...inv, ...updates }
+          return { ...inv, ...invUpdates }
         }
         
         return inv
       })
 
       if (JSON.stringify(updatedInvestigators) !== JSON.stringify(playthrough.investigators)) {
-        return { ...playthrough, investigators: updatedInvestigators }
+        playthroughUpdated = true
+      }
+      
+      if (playthroughUpdated) {
+        return { ...playthrough, ...updates, investigators: updatedInvestigators }
       }
       
       return playthrough
