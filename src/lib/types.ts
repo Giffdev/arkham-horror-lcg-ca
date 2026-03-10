@@ -1,6 +1,6 @@
 export type Archetype = 'Guardian' | 'Survivor' | 'Seeker' | 'Rogue' | 'Mystic' | 'Neutral' | 'Unknown'
 
-export type CampaignType = 'Full Campaign' | 'Scenario Pack' | 'Fan-Made' | 'Unknown'
+export type CampaignType = 'Full Campaign' | 'Small Campaign' | 'Scenario Pack' | 'Fan-Made' | 'Unknown'
 
 export type DreamEatersCampaignPath = 'A: The Dream-Quest' | 'B: The Web of Dreams'
 
@@ -29,7 +29,7 @@ export interface Playthrough {
 
 export const ARCHETYPES: Archetype[] = ['Guardian', 'Survivor', 'Seeker', 'Rogue', 'Mystic', 'Neutral', 'Unknown']
 
-export const CAMPAIGN_TYPES: CampaignType[] = ['Full Campaign', 'Scenario Pack', 'Fan-Made', 'Unknown']
+export const CAMPAIGN_TYPES: CampaignType[] = ['Full Campaign', 'Small Campaign', 'Scenario Pack', 'Fan-Made', 'Unknown']
 
 export const ARCHETYPE_COLORS: Record<Archetype, string> = {
   'Guardian': 'bg-guardian-bg text-guardian-text border-guardian-border',
