@@ -39,7 +39,7 @@ export async function rebuildCommunityStats(): Promise<void> {
             set: existing.set || playthrough.campaignSet
           })
 
-          if (playthrough.campaignType === 'Standalone') {
+          if (playthrough.campaignType === 'Scenario Pack') {
             const existingStandalone = standaloneCounts.get(playthrough.campaignName) || { count: 0, set: playthrough.campaignSet }
             standaloneCounts.set(playthrough.campaignName, {
               count: existingStandalone.count + 1,
