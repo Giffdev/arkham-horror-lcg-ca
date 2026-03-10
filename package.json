@@ -9,7 +9,7 @@
   },
   "devDependencies": {
     "@github/spark": "0.45.2",
-    "@tailwindcss/vite": "4.1.7",
+    "@tailwindcss/vite": "4.2.1",
     "@vitejs/plugin-react-swc": "4.2.3",
     "tailwindcss": "4.1.7",
     "vite": "^6.4.1"
