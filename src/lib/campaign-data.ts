@@ -15,7 +15,6 @@ export const FULL_CAMPAIGNS: Campaign[] = [
   { name: 'The Scarlet Keys', set: 'The Scarlet Keys', type: 'Full Campaign' },
   { name: 'The Feast of Hemlock Vale', set: 'The Feast of Hemlock Vale', type: 'Full Campaign' },
   { name: 'The Drowned City', set: 'The Drowned City', type: 'Full Campaign' },
-  { name: 'Return to The Night of the Zealot', set: 'Return to The Night of the Zealot', type: 'Full Campaign' },
   { name: 'Return to The Dunwich Legacy', set: 'Return to The Dunwich Legacy', type: 'Full Campaign' },
   { name: 'Return to The Path to Carcosa', set: 'Return to The Path to Carcosa', type: 'Full Campaign' },
   { name: 'Return to The Forgotten Age', set: 'Return to The Forgotten Age', type: 'Full Campaign' },
@@ -24,6 +23,7 @@ export const FULL_CAMPAIGNS: Campaign[] = [
 
 export const SMALL_CAMPAIGNS: Campaign[] = [
   { name: 'The Night of the Zealot', set: 'Core', type: 'Small Campaign' },
+  { name: 'Return to The Night of the Zealot', set: 'Return to The Night of the Zealot', type: 'Small Campaign' },
   { name: 'Children of Blood', set: 'Children of Blood', type: 'Small Campaign' },
 ]
 

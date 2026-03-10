@@ -66,6 +66,12 @@ function AuthenticatedApp({ currentUser, playthroughsKey, onSignOut }: Authentic
         needsUpdate = true
       }
       
+      if (playthrough.campaignName === 'Return to The Night of the Zealot' && playthrough.campaignType === 'Full Campaign') {
+        updates.campaignType = 'Small Campaign'
+        playthroughUpdated = true
+        needsUpdate = true
+      }
+      
       const updatedInvestigators = playthrough.investigators.map(inv => {
         if (inv.isCustom || inv.isUnknown || inv.investigatorName === 'Unknown') {
           return inv
