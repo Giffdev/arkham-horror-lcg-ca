@@ -35,6 +35,7 @@ export const SCENARIO_PACK_SCENARIOS: Campaign[] = [
   { name: 'Fortune and Folly', set: 'Scenario Pack', type: 'Scenario Pack' },
   { name: 'The Midwinter Gala', set: 'Scenario Pack', type: 'Scenario Pack' },
   { name: 'Film Fatale', set: 'Scenario Pack', type: 'Scenario Pack' },
+  { name: 'Traces To Nowhere', set: 'Scenario Pack', type: 'Scenario Pack' },
   { name: 'Barkham Horror: The Meddling of Meowlathotep', set: 'Barkham Horror', type: 'Scenario Pack' },
 ]
 
