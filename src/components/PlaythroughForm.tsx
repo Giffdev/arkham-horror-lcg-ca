@@ -1,728 +1,514 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
-import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/che
+import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Checkbox } from '@/components/ui/checkbox'
 import { Playthrough, InvestigatorAssignment, CAMPAIGN_TYPES, Archetype, CampaignType, DreamEatersCampaignPath } from '@/lib/types'
 import { Badge } from '@/components/ui/badge'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
+import { FULL_CAMPAIGNS, STANDALONE_SCENARIOS } from '@/lib/campaign-data'
+import { INVESTIGATORS, getInvestigatorByName } from '@/lib/investigator-data'
+import { Check, CaretDown, X, Plus, Trash, Sparkle } from '@phosphor-icons/react'
+import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
+
 interface PlaythroughFormProps {
+  open: boolean
   onOpenChange: (open: boolean) => void
+  onSave: (playthrough: Omit<Playthrough, 'id'> | Playthrough) => void
   editPlaythrough?: Playthrough | null
+}
 
+export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }: PlaythroughFormProps) {
   const [campaignType, setCampaignType] = useState<CampaignType>('Full Campaign')
-  const [customCampaignName, setCustomCampaignName] = useS
-  const [sideStoriesOpen, setSid
-import { Badge } from '@/components/ui/badge'
+  const [customCampaignName, setCustomCampaignName] = useState('')
+  const [campaignName, setCampaignName] = useState('')
+  const [campaignSet, setCampaignSet] = useState('')
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0])
+  const [investigators, setInvestigators] = useState<InvestigatorAssignment[]>([])
+  const [sideStories, setSideStories] = useState<string[]>([])
+  const [sideStoriesOpen, setSideStoriesOpen] = useState(false)
+  const [campaignSearchOpen, setCampaignSearchOpen] = useState(false)
 
-interface PlaythroughFormProps {
-      setCustom
-  onOpenChange: (open: boolean) => void
+  useEffect(() => {
+    if (open && editPlaythrough) {
+      setCampaignType(editPlaythrough.campaignType)
+      setCampaignName(editPlaythrough.campaignName)
+      setCampaignSet(editPlaythrough.campaignSet || '')
+      setCustomCampaignName(editPlaythrough.customCampaignName || '')
+      setDate(editPlaythrough.date)
+      setSideStories(editPlaythrough.sideStories || [])
       setInvestigators(editPlaythrough.investigators.map(inv => ({
-  editPlaythrough?: Playthrough | null
- 
-
-    } else {
-  const [campaignType, setCampaignType] = useState<CampaignType>('Full Campaign')
-      setSideStories([])
-      setInvestigators([{ 
-        investigatorName: '', 
-        isUnknown: false, 
-        investigatorSet: undefined 
-    }
-
-    setCampaignType
-    setCustomCampaignName(
-  }
-  const handleCampaignNameChange = (name: string) => {
-    setCampaignSearchOpen(false)
-
-      setSideStories(stories)
-      setInvestigators([
-      setInvestigators(editPlaythrough.investigators.map(inv => ({
-          inves
-          isUnknown: false, 
-          ...(campaignName === 'The Drea
-      ])
-  }
-  const handleRemoveInvestigator = (index: n
-  }
-    } else {
-      if (i !== index) return inv
+        ...inv,
+        archetypes: inv.archetypes || [inv.archetype]
+      })))
+    } else if (open) {
+      setCampaignType('Full Campaign')
       setCampaignName('')
-      if (field === 'isUnknown'
+      setCampaignSet('')
+      setCustomCampaignName('')
+      setDate(new Date().toISOString().split('T')[0])
       setSideStories([])
-        updated.customInvestiga
       setInvestigators([{ 
-      if (field === 'isU
+        playerName: '', 
         investigatorName: '', 
-      
+        archetype: 'Unknown',
         isUnknown: false, 
-        updated.archetype
         investigatorSet: undefined 
-      
+      }])
     }
-  }, [editPlaythrough, open])
-
-  const handleCampaignTypeChange = (value: CampaignType) => {
-    setCampaignType(value)
-    setCampaignName('')
-    setCustomCampaignName('')
-    setSideStories([])
-  }
+  }, [open, editPlaythrough])
 
   const handleCampaignNameChange = (name: string) => {
-    setCampaignName(name)
     setCampaignSearchOpen(false)
+    setCampaignName(name)
+    
+    const selectedCampaign = [...FULL_CAMPAIGNS, ...STANDALONE_SCENARIOS].find(c => c.name === name)
+    if (selectedCampaign) {
+      setCampaignSet(selectedCampaign.set)
+    }
   }
 
   const handleAddInvestigator = () => {
-    const maxInvestigators = campaignName === 'The Dream-Eaters' ? 8 : 4
-    if (investigators.length < maxInvestigators) {
-      setInvestigators([
-        ...investigators,
-        { 
-          playerName: '', 
-          investigatorName: '', 
-          archetype: 'Unknown', 
-          isUnknown: false, 
-          isCustom: false,
-          ...(campaignName === 'The Dream-Eaters' && { dreamEatersPath: 'A: The Dream-Quest' as DreamEatersCampaignPath })
-        }
-      ])
-    }
+    const isDreamEaters = campaignName === 'The Dream-Eaters'
+    setInvestigators([...investigators, { 
+      playerName: '', 
+      investigatorName: '', 
+      archetype: 'Unknown',
+      isUnknown: false, 
+      investigatorSet: undefined,
+      ...(isDreamEaters ? { dreamEatersPath: undefined } : {})
+    }])
   }
 
   const handleRemoveInvestigator = (index: number) => {
     setInvestigators(investigators.filter((_, i) => i !== index))
   }
 
-  const handleUpdateInvestigator = (index: number, field: keyof InvestigatorAssignment, value: string | boolean) => {
-    setInvestigators(investigators.map((inv, i) => {
+  const handleInvestigatorChange = (index: number, field: keyof InvestigatorAssignment, value: any) => {
+    const updatedInvestigators = investigators.map((inv, i) => {
       if (i !== index) return inv
-      
-      const updated = { ...inv, [field]: value }
-      
-      if (field === 'isUnknown' && value === true) {
-        updated.investigatorName = 'Unknown'
-        updated.archetype = 'Unknown'
-        updated.isCustom = false
-        updated.customInvestigatorName = ''
-        updated.investigatorSet = undefined
-      }
-      
-      if (field === 'isUnknown' && value === false) {
-        updated.investigatorName = ''
-        updated.investigatorSet = undefined
-      }
-      
-      if (field === 'isCustom' && value === true) {
-        updated.investigatorName = ''
-        updated.customInvestigatorName = ''
-        updated.archetype = 'Unknown'
-        updated.isUnknown = false
-        updated.investigatorSet = undefined
-      }
-      
-      if (field === 'isCustom' && value === false) {
-        updated.customInvestigatorName = ''
-        updated.investigatorName = ''
-        updated.investigatorSet = undefined
-      }
-      
-      if (field === 'investigatorName' && typeof value === 'string') {
-  const isBarkhamCampaign = campaignName === 'Barkham Horror:
+
+      if (field === 'investigatorName') {
+        const investigatorData = getInvestigatorByName(value)
         if (investigatorData) {
-          if (investigatorData.archetypes.length === 1) {
-            updated.archetype = investigatorData.archetypes[0]
-            updated.archetypes = investigatorData.archetypes
-          } else {
-            updated.archetype = investigatorData.archetypes[0]
-            updated.archetypes = investigatorData.archetypes
-      retur
-          updated.investigatorSet = investigatorData.set
+          return {
+            ...inv,
+            investigatorName: value,
+            archetype: investigatorData.archetypes[0],
+            archetypes: investigatorData.archetypes,
+            investigatorSet: investigatorData.set,
+            isUnknown: false,
+            isCustom: false
+          }
+        } else {
+          return {
+            ...inv,
+            investigatorName: value,
+            isCustom: true,
+            archetype: 'Unknown',
+            archetypes: ['Unknown'],
+            investigatorSet: undefined
+          }
         }
-        updated.isUnknown = false
-        updated.isCustom = false
       }
-  cons
-      return updated
-    dre
+
+      if (field === 'isUnknown') {
+        return {
+          ...inv,
+          isUnknown: value,
+          investigatorName: value ? 'Unknown' : '',
+          archetype: value ? 'Unknown' : 'Unknown',
+          archetypes: value ? ['Unknown'] : ['Unknown'],
+          investigatorSet: undefined
+        }
+      }
+
+      return { ...inv, [field]: value }
+    })
+
+    setInvestigators(updatedInvestigators)
+  }
+
+  const handleToggleSideStory = (story: string) => {
+    setSideStories(current => 
+      current.includes(story) 
+        ? current.filter(s => s !== story)
+        : [...current, story]
+    )
   }
 
   const handleSubmit = () => {
-    const finalCampaignName = campaignType === 'Fan-Made' 
-      ? customCampaignName 
-      : campaignType === 'Unknown'
-        ? 'Unknown Campaign'
-    )
-    
-      const uniqueDuplicates = Array.from
-
-    const maxInvestigators = finalCampaignName === 'The Dream-Eaters' ? 8 : 4
-    if (investigators.length === 0 || investigators.length > maxInvestigators) return
-
-    const campaignSet = (campaignType === 'Full Campaign' || campaignType === 'Standalone') ? getCampaignSet(finalCampaignName) : undefined
-
-    const playthroughData = {
-      ...(editPlaythrough ? { id: editPlaythrough.id } : {}),
-      date: editPlaythrough?.date || new Date().toISOString(),
-    !dreamEatersPat
-      campaignName: finalCampaignName,
-      ...(campaignSet && { campaignSet }),
-      ...(campaignType === 'Fan-Made' && { customCampaignName }),
-      ...(sideStories.length > 0 && { sideStories }),
-      investigators: investigators.map(inv => ({
-          </Dia
-        investigatorName: inv.isUnknown ? 'Unknown' : inv.isCustom ? (inv.customInvestigatorName || 'Custom') : inv.investigatorName,
-        archetype: inv.isUnknown ? 'Unknown' : inv.archetype
-      }))
-     
-
-    onSave(playthroughData as Playthrough)
-    onOpenChange(false)
-   
-
-  const handleToggleSideStory = (storyName: string) => {
-    setSideStories((current) =>
-      current.includes(storyName)
-        ? current.filter((s) => s !== storyName)
-        : [...current, storyName]
-    )
-   
-
-                      <Button
-    setSideStories((current) => current.filter((s) => s !== storyName))
-   
-
-  const availableFullCampaigns = getFullCampaignNames()
-  const availableStandaloneCampaigns = getStandaloneCampaignNames()
-  
-  const isBarkhamCampaign = campaignName === 'Barkham Horror: The Meddling of Meowlathotep'
-  const isDreamEatersCampaign = campaignName === 'The Dream-Eaters'
-  const allInvestigatorNames = getAllInvestigatorNames()
-  const availableInvestigators = allInvestigatorNames.filter(name => {
-    const investigator = getInvestigatorByName(name)
-    if (!investigator) return true
-    
-    const isBarkhamInvestigator = investigator.set === 'Barkham Horror'
-    
-    if (isBarkhamCampaign) {
-      return isBarkhamInvestigator
-            
-      return !isBarkhamInvestigator
-     
-  })
-  
-  const dreamEatersPathCounts = isDreamEatersCampaign ? {
-    'A: The Dream-Quest': investigators.filter(inv => (inv.dreamEatersPath || 'A: The Dream-Quest') === 'A: The Dream-Quest').length,
-    'B: The Web of Dreams': investigators.filter(inv => inv.dreamEatersPath === 'B: The Web of Dreams').length
-          
-
-  const dreamEatersPathError = isDreamEatersCampaign && dreamEatersPathCounts && (
-    dreamEatersPathCounts['A: The Dream-Quest'] > 4 || dreamEatersPathCounts['B: The Web of Dreams'] > 4
-       
-    dreamEatersPathCounts['A: The Dream-Quest'] > 4 
-      ? `Too many investigators in Path A (${dreamEatersPathCounts['A: The Dream-Quest']}/4). Maximum 4 per path.`
-      : `Too many investigators in Path B (${dreamEatersPathCounts['B: The Web of Dreams']}/4). Maximum 4 per path.`
-          
-  
-  const duplicateInvestigatorError = (() => {
-    const investigatorNames = investigators
-      .filter(inv => !inv.isUnknown && !inv.isCustom && inv.investigatorName.trim() !== '')
-      .map(inv => inv.investigatorName)
-    
-    const duplicates = investigatorNames.filter((name, index) => 
-      investigatorNames.indexOf(name) !== index
-    )
-    
-    if (duplicates.length > 0) {
-      const uniqueDuplicates = Array.from(new Set(duplicates))
-      return `Duplicate investigator${uniqueDuplicates.length > 1 ? 's' : ''} found: ${uniqueDuplicates.join(', ')}. Each investigator can only be selected once.`
-     
-    
-               
-  })()
-  
-  const maxInvestigators = isDreamEatersCampaign ? 8 : 4
-  const isFormValid = (campaignType === 'Fan-Made' 
-    ? customCampaignName.trim() !== ''
-    : campaignType === 'Unknown'
-      ? true
-      : campaignName.trim() !== '') && 
-    investigators.length >= 1 && 
-                            }
-    !dreamEatersPathError &&
-                      >
-
-          
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh]">
-        <DialogHeader>
-          <DialogTitle className="text-2xl">
-            {editPlaythrough ? 'Edit Playthrough' : 'Log New Game'}
-          </DialogTitle>
-        </DialogHeader>
-
-        <ScrollArea className="max-h-[60vh] pr-4">
-                                  {ca
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="campaign-type">Campaign Type</Label>
-                <Select value={campaignType} onValueChange={handleCampaignTypeChange}>
-                  <SelectTrigger id="campaign-type">
-                </div>
-                  </SelectTrigger>
-                  <Label htmlFor=
-                    {CAMPAIGN_TYPES.map((type) => (
-                      <SelectItem key={type} value={type}>
-                        {type}
-                  />
-                    ))}
-            </div>
-                </Select>
-              </div>
-
-                    <Sparkle size={18} weight="duot
-                <div className="space-y-2">
-                  <Label htmlFor="campaign-name">Campaign</Label>
-                  <Popover open={campaignSearchOpen} onOpenChange={setCampaignSearchOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        id="campaign-name"
-                        className="w-full justify-between"
-                      >
-                        {campaignName || "Select a campaign"}
-                        <CaretUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-[300px] p-0" align="end">
-                      <Command
-                        onKeyDown={(e) => {
-                          if (e.key === 'Tab') {
-                            e.preventDefault()
-                            const selected = (e.target as HTMLElement).closest('[data-selected="true"]')
-                            if (selected) {
-                              const value = selected.getAttribute('data-value')
-                              if (value) {
-                                handleCampaignNameChange(value)
-                                setTimeout(() => {
-                                  const firstInvestigatorInput = document.querySelector('#player-0') as HTMLInputElement
-                                  if (firstInvestigatorInput) {
-                                    firstInvestigatorInput.focus()
-                                  }
-                                }, 100)
-                              }
-                            }
-                          }
-                          
-                      >
-                        <CommandInput placeholder="Search campaigns..." />
-                        <CommandList>
-                )}
-                          <CommandGroup>
-
-                              {availableFullCampaigns.map((campaign) => (
-                                <CommandItem
-                                  key={campaign}
-                    {isDreamEatersCampaign 
-                                  onSelect={() => handleCampaignNameChange(campaign)}
-                                >
-                                  <Check
-                                    className={cn(
-                                      "mr-2 h-4 w-4",
-                                      campaignName === campaign ? "opacity-100" : "opacity-0"
-                                    )}
-                      {dreamEatersPa
-                                  {campaign}
-                                </CommandItem>
-                              ))}
-                            </ScrollArea>
-                          </CommandGroup>
-                <Button
-                      </Command>
-                  size="sm"
-                  </Popover>
-                  clas
-              ) : campaignType === 'Standalone' ? (
-                  Add Investigator
-                  <Label htmlFor="campaign-name">Scenario</Label>
-                  <Popover open={campaignSearchOpen} onOpenChange={setCampaignSearchOpen}>
-                    <PopoverTrigger asChild>
-                  <p classNam
-                        variant="outline"
-                </div>
-                        id="campaign-name"
-                        className="w-full justify-between"
-                      >
-                        {campaignName || "Select a scenario"}
-                        <CaretUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-[300px] p-0" align="end">
-                      <Command
-                        onKeyDown={(e) => {
-                          if (e.key === 'Tab') {
-                            e.preventDefault()
-                            const selected = (e.target as HTMLElement).closest('[data-selected="true"]')
-                            if (selected) {
-                              const value = selected.getAttribute('data-value')
-          </Button>
-                                handleCampaignNameChange(value)
-                                setTimeout(() => {
-                                  const firstInvestigatorInput = document.querySelector('#player-0') as HTMLInputElement
-                                  if (firstInvestigatorInput) {
-                                    firstInvestigatorInput.focus()
-
-                                }, 100)
-  investigator: InvestigatorAss
-                            }
-                          }
-                        }}
-                      >
-                        <CommandInput placeholder="Search scenarios..." />
-                        <CommandList>
-                          <CommandEmpty>No scenario found.</CommandEmpty>
-  const investigatorData = getInvestigat
-                            <ScrollArea className="h-72">
-                              {availableStandaloneCampaigns.map((campaign) => (
-                                <CommandItem
-                                  key={campaign}
-                                  value={campaign}
-                                  onSelect={() => handleCampaignNameChange(campaign)}
-                                >
-  }
-                                    className={cn(
-    <div className="p-4 border rounded-lg space-y-3 b
-                                      campaignName === campaign ? "opacity-100" : "opacity-0"
-                                    )}
-                                  />
-          type="button"
-                                </CommandItem>
-          onClick={() => onRemove
-                            </ScrollArea>
-        >
-                        </CommandList>
-      </div>
-                    </PopoverContent>
-        <div className="spac
-                </div>
-              ) : campaignType === 'Fan-Made' ? (
-                <div className="space-y-2">
-                  <Label htmlFor="custom-campaign-name">Campaign Name</Label>
-                  <Input
-
-                    placeholder="Enter custom campaign name"
-                    value={customCampaignName}
-                    onChange={(e) => setCustomCampaignName(e.target.value)}
-              placeh
-                </div>
-            />
-            </div>
-
-            {campaignType === 'Full Campaign' && campaignName && (
-              <div className="space-y-3 p-4 border rounded-lg bg-card/50">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Sparkle size={18} weight="duotone" className="text-accent" />
-                    <Label className="text-base font-semibold">Side Stories ({sideStories.length})</Label>
-                  </div>
-                  <Button 
-                    variant="outline" 
-                  onKeyDown={(
-                    className="gap-2"
-                      const selected = (e.target as HTMLElement).closest
-                    type="button"
-                   
-                    {sideStoriesOpen ? 'Hide' : 'Show'}
-                    <CaretUpDown size={16} className={cn("transition-transform", sideStoriesOpen && "rotate-180")} />
-                  </Button>
-                </div>
-
-                        }
-                  <div className="flex flex-wrap gap-2">
-                  }}
-                      <Badge key={story} variant="secondary" className="gap-1.5 pl-3 pr-2 py-1">
-                        {story}
-                        <button
-                      <ScrollArea class
-                          onClick={() => handleRemoveSideStory(story)}
-                          return (
-                        >
-                              value={name}
-                        </button>
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-
-                {sideStoriesOpen && (
-                  <div className="p-4 border rounded-lg bg-muted/30 space-y-3">
-                    <p className="text-sm text-muted-foreground">
-                      Select standalone scenarios that were played as side stories during this campaign
-                    </p>
-                    <ScrollArea className="h-48">
-                      <div className="space-y-2 pr-4">
-                        {availableStandaloneCampaigns.map((scenario) => (
-                          <div key={scenario} className="flex items-center space-x-2">
-                      </ScrollArea>
-                              id={`side-story-${scenario}`}
-                              checked={sideStories.includes(scenario)}
-                              onCheckedChange={() => handleToggleSideStory(scenario)}
-                            />
-                            <Label
-                              htmlFor={`side-story-${scenario}`}
-                              className="text-sm font-normal cursor-pointer flex-1"
-          <Label htmlFor={`dr
-                              {scenario}
-            onValueChange={(value) =
-                          </div>
-              <SelectValue 
-                      </div>
-                    </ScrollArea>
-                  </div>
-                )}
-              </div>
-
-
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label>Investigators</Label>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {isDreamEatersCampaign 
-                      ? `Add 1-8 investigators for this game (${investigators.length}/8)` 
-                      : `Add 1-4 investigators for this game (${investigators.length}/4)`
-            id={`cust
-                  </p>
-                  {isDreamEatersCampaign && dreamEatersPathCounts && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Path A: {dreamEatersPathCounts['A: The Dream-Quest']}/4 • Path B: {dreamEatersPathCounts['B: The Web of Dreams']}/4
-                    </p>
-
-                  {dreamEatersPathError && (
-                    <p className="text-xs text-destructive mt-1 font-medium">
-                      {dreamEatersPathError}
-            onValueChang
-                  )}
-                  {duplicateInvestigatorError && (
-                    <p className="text-xs text-destructive mt-1 font-medium">
-                      {duplicateInvestigatorError}
-                    </p>
-                  )}
-                </div>
-                <Button
-                  type="button"
-
-                  size="sm"
-          <Label htmlFor={`archetype-${index}`}>C
-                  disabled={investigators.length >= maxInvestigators}
-                  className="gap-2"
-                >
-          >
-                  Add Investigator
-            </SelectTrigg
-              </div>
-
-              {investigators.length === 0 ? (
-                <div className="p-4 border border-dashed rounded-lg text-center">
-                  <p className="text-sm text-muted-foreground">
-                    No investigators added yet. Add at least one investigator to log this game.
-                  </p>
-      {investigatorDat
-              ) : (
-                <div className="space-y-4">
-                  {investigators.map((inv, index) => (
-  )
-                      key={index}
-
-                      investigator={inv}
-                      availableInvestigators={availableInvestigators}
-                      onUpdate={handleUpdateInvestigator}
-
-                      canRemove={investigators.length > 1}
-                      isDreamEaters={campaignName === 'The Dream-Eaters'}
-                    />
-
-                </div>
-
-            </div>
-
-        </ScrollArea>
-
-        <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-
-          <Button onClick={handleSubmit} disabled={!isFormValid}>
-            {editPlaythrough ? 'Save Changes' : 'Log Game'}
-          </Button>
-
-      </DialogContent>
-
-  )
-}
-
-interface InvestigatorFormItemProps {
-  index: number
-  investigator: InvestigatorAssignment
-  availableInvestigators: string[]
-  onUpdate: (index: number, field: keyof InvestigatorAssignment, value: string | boolean) => void
-  onRemove: (index: number) => void
-
-  isDreamEaters: boolean
-}
-
-function InvestigatorFormItem({ index, investigator, availableInvestigators, onUpdate, onRemove, canRemove, isDreamEaters }: InvestigatorFormItemProps) {
-  const [investigatorSearchOpen, setInvestigatorSearchOpen] = useState(false)
-  const [archetypeSelectOpen, setArchetypeSelectOpen] = useState(false)
-  
-  const investigatorData = getInvestigatorByName(investigator.investigatorName)
-  const needsArchetypeSelection = investigatorData && isDualClassInvestigator(investigator.investigatorName)
-  const availableArchetypes = investigatorData?.archetypes || []
-  const isUnknown = investigator.isUnknown || investigator.investigatorName === 'Unknown'
-  const isCustom = investigator.isCustom || false
-
-  const handleInvestigatorTriggerKeyDown = (e: React.KeyboardEvent) => {
-    if (isUnknown) return
-
-    if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
-      setInvestigatorSearchOpen(true)
+    if (!campaignName && campaignType !== 'Unknown' && campaignType !== 'Fan-Made') {
+      toast.error('Please select a campaign')
+      return
     }
 
+    if (campaignType === 'Fan-Made' && !customCampaignName) {
+      toast.error('Please enter a custom campaign name')
+      return
+    }
 
+    if (investigators.length === 0) {
+      toast.error('Please add at least one investigator')
+      return
+    }
 
-    <div className="p-4 border rounded-lg space-y-3 bg-card">
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-muted-foreground">
+    const investigatorNames = investigators
+      .filter(inv => !inv.isUnknown && inv.investigatorName)
+      .map(inv => inv.investigatorName)
+    const duplicates = investigatorNames.filter((name, index) => investigatorNames.indexOf(name) !== index)
+    
+    if (duplicates.length > 0) {
+      toast.error(`The same investigator (${duplicates[0]}) cannot be selected more than once`)
+      return
+    }
 
-        </span>
+    if (campaignName === 'The Dream-Eaters') {
+      const pathA = investigators.filter(inv => inv.dreamEatersPath === 'A: The Dream-Quest')
+      const pathB = investigators.filter(inv => inv.dreamEatersPath === 'B: The Web of Dreams')
+      
+      if (pathA.length > 4) {
+        toast.error('Cannot assign more than 4 investigators to A: The Dream-Quest')
+        return
+      }
+      
+      if (pathB.length > 4) {
+        toast.error('Cannot assign more than 4 investigators to B: The Web of Dreams')
+        return
+      }
+    }
 
-          type="button"
+    const playthrough: Omit<Playthrough, 'id'> | Playthrough = {
+      ...(editPlaythrough ? { id: editPlaythrough.id } : {}),
+      date,
+      campaignName: campaignType === 'Unknown' ? 'Unknown Campaign' : campaignName,
+      campaignType,
+      ...(campaignSet ? { campaignSet } : {}),
+      ...(campaignType === 'Fan-Made' && customCampaignName ? { customCampaignName } : {}),
+      ...(campaignType === 'Full Campaign' && sideStories.length > 0 ? { sideStories } : {}),
+      investigators: investigators.map(inv => ({
+        playerName: inv.playerName,
+        investigatorName: inv.isUnknown ? 'Unknown' : inv.investigatorName,
+        archetype: inv.archetype,
+        archetypes: inv.archetypes,
+        investigatorSet: inv.investigatorSet,
+        isUnknown: inv.isUnknown,
+        isCustom: inv.isCustom,
+        ...(inv.customInvestigatorName ? { customInvestigatorName: inv.customInvestigatorName } : {}),
+        ...(inv.dreamEatersPath ? { dreamEatersPath: inv.dreamEatersPath } : {})
+      }))
+    }
 
-          size="icon"
+    onSave(playthrough as any)
+    onOpenChange(false)
+  }
 
-          disabled={!canRemove}
-          className="h-8 w-8 text-destructive hover:text-destructive disabled:opacity-50"
-        >
+  const availableCampaigns = campaignType === 'Full Campaign' ? FULL_CAMPAIGNS : STANDALONE_SCENARIOS
 
-        </Button>
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{editPlaythrough ? 'Edit Playthrough' : 'Log New Playthrough'}</DialogTitle>
+        </DialogHeader>
 
+        <div className="space-y-6 py-4">
+          <div className="space-y-2">
+            <Label htmlFor="date">Date</Label>
+            <Input
+              id="date"
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+            />
+          </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <div className="space-y-2">
+          <div className="space-y-2">
+            <Label htmlFor="campaign-type">Campaign Type</Label>
+            <Select value={campaignType} onValueChange={(value) => {
+              setCampaignType(value as CampaignType)
+              setCampaignName('')
+              setCampaignSet('')
+              setCustomCampaignName('')
+              setSideStories([])
+            }}>
+              <SelectTrigger id="campaign-type">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {CAMPAIGN_TYPES.map((type) => (
+                  <SelectItem key={type} value={type}>
+                    {type}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-          <Input
+          {campaignType !== 'Unknown' && campaignType !== 'Fan-Made' && (
+            <div className="space-y-2">
+              <Label>Campaign</Label>
+              <Popover open={campaignSearchOpen} onOpenChange={setCampaignSearchOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    className="w-full justify-between"
+                  >
+                    {campaignName || 'Select campaign...'}
+                    <CaretDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Search campaigns..." />
+                    <CommandEmpty>No campaign found.</CommandEmpty>
+                    <CommandList>
+                      <CommandGroup>
+                        {availableCampaigns.map((campaign) => (
+                          <CommandItem
+                            key={campaign.name}
+                            value={campaign.name}
+                            onSelect={() => handleCampaignNameChange(campaign.name)}
+                          >
+                            <Check
+                              className={cn(
+                                'mr-2 h-4 w-4',
+                                campaignName === campaign.name ? 'opacity-100' : 'opacity-0'
+                              )}
+                            />
+                            {campaign.name}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
+          )}
 
-            placeholder="Player name"
+          {campaignType === 'Fan-Made' && (
+            <div className="space-y-2">
+              <Label htmlFor="custom-campaign">Custom Campaign Name</Label>
+              <Input
+                id="custom-campaign"
+                value={customCampaignName}
+                onChange={(e) => setCustomCampaignName(e.target.value)}
+                placeholder="Enter custom campaign name"
+              />
+            </div>
+          )}
 
-            onChange={(e) => onUpdate(index, 'playerName', e.target.value)}
+          {campaignType === 'Full Campaign' && campaignName && (
+            <div className="space-y-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full justify-between"
+                onClick={() => setSideStoriesOpen(!sideStoriesOpen)}
+              >
+                <span className="flex items-center gap-2">
+                  <Sparkle size={16} weight="duotone" />
+                  Side Stories {sideStories.length > 0 && `(${sideStories.length})`}
+                </span>
+                <CaretDown className={cn("h-4 w-4 transition-transform", sideStoriesOpen && "rotate-180")} />
+              </Button>
+              
+              {sideStoriesOpen && (
+                <div className="border rounded-md p-4 space-y-3">
+                  <div className="text-sm text-muted-foreground">
+                    Select any standalone scenarios played during this campaign
+                  </div>
+                  <ScrollArea className="h-48">
+                    <div className="space-y-2">
+                      {STANDALONE_SCENARIOS.map((scenario) => (
+                        <div key={scenario.name} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`side-${scenario.name}`}
+                            checked={sideStories.includes(scenario.name)}
+                            onCheckedChange={() => handleToggleSideStory(scenario.name)}
+                          />
+                          <Label
+                            htmlFor={`side-${scenario.name}`}
+                            className="text-sm font-normal cursor-pointer"
+                          >
+                            {scenario.name}
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </div>
+              )}
+            </div>
+          )}
 
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label>Investigators</Label>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={handleAddInvestigator}
+                disabled={campaignName === 'The Dream-Eaters' && investigators.length >= 8}
+              >
+                <Plus size={16} weight="bold" />
+                <span className="ml-2">Add Investigator</span>
+              </Button>
+            </div>
+
+            <div className="space-y-3">
+              {investigators.map((inv, index) => (
+                <InvestigatorRow
+                  key={index}
+                  investigator={inv}
+                  index={index}
+                  isDreamEaters={campaignName === 'The Dream-Eaters'}
+                  onRemove={() => handleRemoveInvestigator(index)}
+                  onChange={(field, value) => handleInvestigatorChange(index, field, value)}
+                  canRemove={investigators.length > 1}
+                />
+              ))}
+            </div>
+          </div>
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor={`investigator-${index}`}>Investigator</Label>
-          {isCustom ? (
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleSubmit}>
+            {editPlaythrough ? 'Update' : 'Save'} Playthrough
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
 
-              id={`custom-investigator-${index}`}
-              placeholder="Enter investigator name"
-              value={investigator.customInvestigatorName || ''}
-              onChange={(e) => onUpdate(index, 'customInvestigatorName', e.target.value)}
+interface InvestigatorRowProps {
+  investigator: InvestigatorAssignment
+  index: number
+  isDreamEaters: boolean
+  onRemove: () => void
+  onChange: (field: keyof InvestigatorAssignment, value: any) => void
+  canRemove: boolean
+}
+
+function InvestigatorRow({ investigator, index, isDreamEaters, onRemove, onChange, canRemove }: InvestigatorRowProps) {
+  const [invSearchOpen, setInvSearchOpen] = useState(false)
+  const investigatorData = investigator.investigatorName ? getInvestigatorByName(investigator.investigatorName) : null
+
+  return (
+    <div className="border rounded-lg p-4 space-y-3">
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="space-y-2">
+            <Label>Player Name (Optional)</Label>
+            <Input
+              value={investigator.playerName}
+              onChange={(e) => onChange('playerName', e.target.value)}
+              placeholder="Player name"
+              disabled={investigator.isUnknown}
             />
+          </div>
 
-            <Popover open={investigatorSearchOpen} onOpenChange={setInvestigatorSearchOpen}>
+          <div className="space-y-2">
+            <Label>Investigator</Label>
+            <Popover open={invSearchOpen} onOpenChange={setInvSearchOpen}>
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
                   role="combobox"
-                  id={`investigator-${index}`}
                   className="w-full justify-between"
-                  disabled={isUnknown}
-                  onKeyDown={handleInvestigatorTriggerKeyDown}
-
-                  {isUnknown ? "Unknown" : (investigator.investigatorName || "Select investigator")}
-                  <CaretUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  disabled={investigator.isUnknown}
+                >
+                  {investigator.investigatorName || 'Select investigator...'}
+                  <CaretDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
-
-              <PopoverContent className="w-[250px] p-0">
-
-                  onKeyDown={(e) => {
-
-                      e.preventDefault()
-                      const selected = (e.target as HTMLElement).closest('[data-selected="true"]')
-                      if (selected) {
-                        const value = selected.getAttribute('data-value')
-                        if (value) {
-                          onUpdate(index, 'investigatorName', value)
-                          setInvestigatorSearchOpen(false)
-
-                            const nextInput = document.querySelector(`#player-${index + 1}`) as HTMLInputElement
-
-                              nextInput.focus()
-
-                          }, 100)
-
-                      }
-
-                  }}
-
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                <Command>
                   <CommandInput placeholder="Search investigators..." />
-
-                    <CommandEmpty>No investigator found.</CommandEmpty>
-
-                      <ScrollArea className="h-72">
-                        {availableInvestigators.map((name) => {
-                          const invData = getInvestigatorByName(name)
-
-                            <CommandItem
-
-                              value={name}
-                              onSelect={() => {
-                                onUpdate(index, 'investigatorName', name)
-                                setInvestigatorSearchOpen(false)
-                              }}
-
-                              <Check
-                                className={cn(
-                                  "mr-2 h-4 w-4",
-                                  investigator.investigatorName === name ? "opacity-100" : "opacity-0"
-                                )}
-
-                              <span className="flex-1">{name}</span>
-                              {invData?.chapter && invData.chapter !== 'Other' && (
-                                <Badge 
-                                  variant={invData.chapter === 'Chapter 2' ? 'default' : 'secondary'}
-                                  className="ml-2 text-xs shrink-0"
-
-                                  {invData.chapter === 'Chapter 2' ? 'Ch. 2' : 'Ch. 1'}
-
-                              )}
-
-                          )
-
-                      </ScrollArea>
-
+                  <CommandEmpty>No investigator found.</CommandEmpty>
+                  <CommandList>
+                    <CommandGroup>
+                      {INVESTIGATORS.map((inv) => (
+                        <CommandItem
+                          key={inv.name}
+                          value={inv.name}
+                          onSelect={(value) => {
+                            onChange('investigatorName', value)
+                            setInvSearchOpen(false)
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              'mr-2 h-4 w-4',
+                              investigator.investigatorName === inv.name ? 'opacity-100' : 'opacity-0'
+                            )}
+                          />
+                          {inv.name}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
                   </CommandList>
-
+                </Command>
               </PopoverContent>
-
-          )}
+            </Popover>
+          </div>
         </div>
+
+        {canRemove && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onRemove}
+            className="shrink-0 mt-7"
+          >
+            <Trash size={16} weight="bold" />
+          </Button>
+        )}
       </div>
 
-      {isDreamEaters && (
-
-          <Label htmlFor={`dream-eaters-path-${index}`}>Campaign Path</Label>
-
-            value={investigator.dreamEatersPath || 'A: The Dream-Quest'} 
-            onValueChange={(value) => onUpdate(index, 'dreamEatersPath', value as DreamEatersCampaignPath)}
+      {investigatorData && investigatorData.archetypes.length > 1 && !investigator.isUnknown && (
+        <div className="space-y-2">
+          <Label>Class</Label>
+          <Select
+            value={investigator.archetype}
+            onValueChange={(value) => onChange('archetype', value as Archetype)}
           >
-
+            <SelectTrigger>
               <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {investigatorData.archetypes.map((archetype) => (
+                <SelectItem key={archetype} value={archetype}>
+                  {archetype}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
+      {isDreamEaters && !investigator.isUnknown && (
+        <div className="space-y-2">
+          <Label>Campaign Path</Label>
+          <Select
+            value={investigator.dreamEatersPath || ''}
+            onValueChange={(value) => onChange('dreamEatersPath', value as DreamEatersCampaignPath)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select path..." />
+            </SelectTrigger>
             <SelectContent>
               <SelectItem value="A: The Dream-Quest">A: The Dream-Quest</SelectItem>
               <SelectItem value="B: The Web of Dreams">B: The Web of Dreams</SelectItem>
@@ -731,79 +517,16 @@ function InvestigatorFormItem({ index, investigator, availableInvestigators, onU
         </div>
       )}
 
-      <div className="flex items-center gap-4">
-        <div className="flex items-center space-x-2">
-          <Checkbox
-
-            checked={isUnknown}
-
-          />
-          <Label htmlFor={`unknown-${index}`} className="text-sm font-normal cursor-pointer">
-            Investigator unknown
-
-        </div>
-
-        <div className="flex items-center space-x-2">
-
-            id={`custom-${index}`}
-
-            onCheckedChange={(checked) => onUpdate(index, 'isCustom', checked as boolean)}
-
-          <Label htmlFor={`custom-${index}`} className="text-sm font-normal cursor-pointer">
-
-          </Label>
-
+      <div className="flex items-center space-x-2">
+        <Checkbox
+          id={`unknown-${index}`}
+          checked={investigator.isUnknown || false}
+          onCheckedChange={(checked) => onChange('isUnknown', checked)}
+        />
+        <Label htmlFor={`unknown-${index}`} className="text-sm font-normal cursor-pointer">
+          Mark as unknown investigator
+        </Label>
       </div>
-
-      {isCustom && (
-
-          <Label htmlFor={`custom-archetype-${index}`}>Class</Label>
-
-
-            onValueChange={(value) => onUpdate(index, 'archetype', value as Archetype)}
-
-            <SelectTrigger id={`custom-archetype-${index}`}>
-
-            </SelectTrigger>
-
-              {['Guardian', 'Seeker', 'Rogue', 'Mystic', 'Survivor', 'Neutral'].map((archetype) => (
-                <SelectItem key={archetype} value={archetype}>
-                  {archetype}
-
-              ))}
-
-          </Select>
-
-      )}
-
-      {needsArchetypeSelection && !isUnknown && !isCustom && (
-        <div className="space-y-2">
-          <Label htmlFor={`archetype-${index}`}>Class</Label>
-
-            value={investigator.archetype} 
-
-            open={archetypeSelectOpen}
-
-          >
-
-              <SelectValue />
-
-            <SelectContent>
-
-
-
-                </SelectItem>
-
-            </SelectContent>
-
-        </div>
-
-      
-
-
-
-        </div>
-
     </div>
-
+  )
 }
