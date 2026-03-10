@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button'
 import { Archetype, CampaignType, ARCHETYPES, CAMPAIGN_TYPES, Playthrough } from '@/lib/types'
 import { Funnel, X } from '@phosphor-icons/react'
-import { getFullCampaignNames, getStandaloneCampaignNames } from '@/lib/campaign-data'
+import { getFullCampaignNames, getScenarioPackCampaignNames } from '@/lib/campaign-data'
 import { useMemo, useState } from 'react'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
@@ -30,7 +30,7 @@ function FilterContent({
   const campaignTypeCounts = useMemo(() => {
     const counts: Record<CampaignType, number> = {
       'Full Campaign': 0,
-      'Standalone': 0,
+      'Scenario Pack': 0,
       'Fan-Made': 0,
       'Unknown': 0
     }
@@ -45,8 +45,8 @@ function FilterContent({
     
     if (selectedCampaignTypes.includes('Full Campaign')) {
       return getFullCampaignNames()
-    } else if (selectedCampaignTypes.includes('Standalone')) {
-      return getStandaloneCampaignNames()
+    } else if (selectedCampaignTypes.includes('Scenario Pack')) {
+      return getScenarioPackCampaignNames()
     }
     return []
   }, [selectedCampaignTypes])

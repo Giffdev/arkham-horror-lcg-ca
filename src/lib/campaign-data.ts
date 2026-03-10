@@ -1,7 +1,7 @@
 export interface Campaign {
   name: string
   set: string
-  type: 'Full Campaign' | 'Standalone'
+  type: 'Full Campaign' | 'Scenario Pack'
 }
 
 export const FULL_CAMPAIGNS: Campaign[] = [
@@ -23,22 +23,22 @@ export const FULL_CAMPAIGNS: Campaign[] = [
   { name: 'Return to The Circle Undone', set: 'Return to The Circle Undone', type: 'Full Campaign' },
 ]
 
-export const STANDALONE_SCENARIOS: Campaign[] = [
-  { name: 'Curse of the Rougarou', set: 'Standalone', type: 'Standalone' },
-  { name: 'Carnevale of Horrors', set: 'Standalone', type: 'Standalone' },
-  { name: 'The Labyrinths of Lunacy', set: 'Standalone', type: 'Standalone' },
-  { name: 'Guardians of the Abyss', set: 'Standalone', type: 'Standalone' },
-  { name: 'Murder at the Excelsior Hotel', set: 'Standalone', type: 'Standalone' },
-  { name: 'The Blob That Ate Everything', set: 'Standalone', type: 'Standalone' },
-  { name: 'War of the Outer Gods', set: 'Standalone', type: 'Standalone' },
-  { name: 'Machinations Through Time', set: 'Standalone', type: 'Standalone' },
-  { name: 'Fortune and Folly', set: 'Standalone', type: 'Standalone' },
-  { name: 'The Midwinter Gala', set: 'Standalone', type: 'Standalone' },
-  { name: 'Film Fatale', set: 'Standalone', type: 'Standalone' },
-  { name: 'Barkham Horror: The Meddling of Meowlathotep', set: 'Barkham Horror', type: 'Standalone' },
+export const SCENARIO_PACK_SCENARIOS: Campaign[] = [
+  { name: 'Curse of the Rougarou', set: 'Scenario Pack', type: 'Scenario Pack' },
+  { name: 'Carnevale of Horrors', set: 'Scenario Pack', type: 'Scenario Pack' },
+  { name: 'The Labyrinths of Lunacy', set: 'Scenario Pack', type: 'Scenario Pack' },
+  { name: 'Guardians of the Abyss', set: 'Scenario Pack', type: 'Scenario Pack' },
+  { name: 'Murder at the Excelsior Hotel', set: 'Scenario Pack', type: 'Scenario Pack' },
+  { name: 'The Blob That Ate Everything', set: 'Scenario Pack', type: 'Scenario Pack' },
+  { name: 'War of the Outer Gods', set: 'Scenario Pack', type: 'Scenario Pack' },
+  { name: 'Machinations Through Time', set: 'Scenario Pack', type: 'Scenario Pack' },
+  { name: 'Fortune and Folly', set: 'Scenario Pack', type: 'Scenario Pack' },
+  { name: 'The Midwinter Gala', set: 'Scenario Pack', type: 'Scenario Pack' },
+  { name: 'Film Fatale', set: 'Scenario Pack', type: 'Scenario Pack' },
+  { name: 'Barkham Horror: The Meddling of Meowlathotep', set: 'Barkham Horror', type: 'Scenario Pack' },
 ]
 
-export const ALL_CAMPAIGNS = [...FULL_CAMPAIGNS, ...STANDALONE_SCENARIOS]
+export const ALL_CAMPAIGNS = [...FULL_CAMPAIGNS, ...SCENARIO_PACK_SCENARIOS]
 
 const RELEASE_ORDER = [
   'The Night of the Zealot',
@@ -84,8 +84,8 @@ export function getFullCampaignNames(): string[] {
   }).map(c => c.name)
 }
 
-export function getStandaloneCampaignNames(): string[] {
-  return STANDALONE_SCENARIOS.sort((a, b) => {
+export function getScenarioPackCampaignNames(): string[] {
+  return SCENARIO_PACK_SCENARIOS.sort((a, b) => {
     const indexA = RELEASE_ORDER.indexOf(a.name)
     const indexB = RELEASE_ORDER.indexOf(b.name)
     
@@ -99,5 +99,5 @@ export function getStandaloneCampaignNames(): string[] {
 
 export function getCampaignSet(campaignName: string): string {
   const campaign = ALL_CAMPAIGNS.find(c => c.name === campaignName)
-  return campaign ? campaign.set : 'Standalone'
+  return campaign ? campaign.set : 'Scenario Pack'
 }
