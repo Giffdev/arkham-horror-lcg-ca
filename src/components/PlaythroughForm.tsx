@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
-import { FULL_CAMPAIGNS, SCENARIO_PACK_SCENARIOS } from '@/lib/campaign-data'
+import { FULL_CAMPAIGNS, SCENARIO_PACK_SCENARIOS, SMALL_CAMPAIGNS } from '@/lib/campaign-data'
 import { INVESTIGATORS, getInvestigatorByName } from '@/lib/investigator-data'
 import { Check, CaretDown, X, Plus, Trash, Sparkle } from '@phosphor-icons/react'
 import { cn } from '@/lib/utils'
@@ -67,7 +67,7 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
     setCampaignSearchOpen(false)
     setCampaignName(name)
     
-    const selectedCampaign = [...FULL_CAMPAIGNS, ...SCENARIO_PACK_SCENARIOS].find(c => c.name === name)
+    const selectedCampaign = [...FULL_CAMPAIGNS, ...SMALL_CAMPAIGNS, ...SCENARIO_PACK_SCENARIOS].find(c => c.name === name)
     if (selectedCampaign) {
       setCampaignSet(selectedCampaign.set)
     }
@@ -208,7 +208,10 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
     onOpenChange(false)
   }
 
-  const availableCampaigns = campaignType === 'Full Campaign' ? FULL_CAMPAIGNS : SCENARIO_PACK_SCENARIOS
+  const availableCampaigns = 
+    campaignType === 'Full Campaign' ? FULL_CAMPAIGNS :
+    campaignType === 'Small Campaign' ? SMALL_CAMPAIGNS :
+    SCENARIO_PACK_SCENARIOS
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
