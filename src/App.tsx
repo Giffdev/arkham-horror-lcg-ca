@@ -479,21 +479,9 @@ function App() {
             createdAt: Date.now(),
             authProvider: session.authProvider
           })
-          const newKey = `${session.userId}_playthroughs`
+          const newKey = `playthroughs:${session.userId}`
           setPlaythroughsKey(newKey)
-          
-          const existingData = await spark.kv.get<Playthrough[]>(newKey)
-          if (!existingData || existingData.length === 0) {
-            const oldData = await spark.kv.get<Playthrough[]>('playthroughs')
-            if (oldData && oldData.length > 0) {
-              await spark.kv.set(newKey, oldData)
-              await spark.kv.delete('playthroughs')
-              toast.success(`Migrated ${oldData.length} playthroughs to your account`)
-              await rebuildCommunityStats()
-            }
-          } else {
-            await rebuildCommunityStats()
-          }
+          await rebuildCommunityStats()
         } else {
           await rebuildCommunityStats()
         }
@@ -510,21 +498,9 @@ function App() {
 
   const handleAuthSuccess = async (user: AuthUser) => {
     setCurrentUser(user)
-    const newKey = `${user.id}_playthroughs`
+    const newKey = `playthroughs:${user.id}`
     setPlaythroughsKey(newKey)
-    
-    const existingData = await spark.kv.get<Playthrough[]>(newKey)
-    if (!existingData || existingData.length === 0) {
-      const oldData = await spark.kv.get<Playthrough[]>('playthroughs')
-      if (oldData && oldData.length > 0) {
-        await spark.kv.set(newKey, oldData)
-        await spark.kv.delete('playthroughs')
-        toast.success(`Migrated ${oldData.length} playthroughs to your account`)
-        await rebuildCommunityStats()
-      }
-    } else {
-      await rebuildCommunityStats()
-    }
+    await rebuildCommunityStats()
   }
 
   const handleSignOut = async () => {

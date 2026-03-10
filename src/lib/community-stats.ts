@@ -16,8 +16,8 @@ const COMMUNITY_STATS_KEY = 'public:community-stats'
 export async function rebuildCommunityStats(): Promise<void> {
   try {
     const allKeys = await spark.kv.keys()
-    const playthroughKeys = allKeys.filter(key => key.includes('playthroughs') && !key.includes('migration') && !key.includes('public:'))
-    const userKeys = allKeys.filter(key => key.startsWith('user:') && !key.includes(':password') && key.includes('@'))
+    const playthroughKeys = allKeys.filter((key: string) => key.startsWith('playthroughs:'))
+    const userKeys = allKeys.filter((key: string) => key.startsWith('user:') && !key.includes(':password') && key.includes('@'))
     
     const campaignCounts = new Map<string, { count: number; set?: string }>()
     const investigatorCounts = new Map<string, { count: number; archetypes: Archetype[] }>()

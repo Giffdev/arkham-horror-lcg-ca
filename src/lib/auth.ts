@@ -26,6 +26,15 @@ const generateSalt = (): string => {
   return Array.from(array).map(b => b.toString(16).padStart(2, '0')).join('')
 }
 
+const generateUserIdFromEmail = async (email: string): Promise<string> => {
+  const encoder = new TextEncoder()
+  const data = encoder.encode(email.toLowerCase().trim())
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+  const hashArray = Array.from(new Uint8Array(hashBuffer))
+  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+  return `user_${hashHex.substring(0, 16)}`
+}
+
 export const createAccount = async (email: string, password: string): Promise<{ success: boolean; error?: string; userId?: string }> => {
   const normalizedEmail = email.toLowerCase().trim()
   
@@ -48,7 +57,7 @@ export const createAccount = async (email: string, password: string): Promise<{ 
   
   const salt = generateSalt()
   const hashedPassword = await hashPassword(password, salt)
-  const userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  const userId = await generateUserIdFromEmail(normalizedEmail)
   
   const user: User = {
     id: userId,
@@ -59,7 +68,6 @@ export const createAccount = async (email: string, password: string): Promise<{ 
   
   await spark.kv.set(`user:${normalizedEmail}`, user)
   await spark.kv.set(`user:${normalizedEmail}:password`, { hash: hashedPassword, salt })
-  await spark.kv.set(`email-to-userid:${normalizedEmail}`, userId)
   
   return { success: true, userId }
 }
@@ -185,7 +193,7 @@ export const signInWithGoogle = async (): Promise<{ success: boolean; error?: st
             let user = await spark.kv.get<User>(`user:${normalizedEmail}`)
             
             if (!user) {
-              const userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+              const userId = await generateUserIdFromEmail(normalizedEmail)
               user = {
                 id: userId,
                 email: normalizedEmail,
@@ -194,7 +202,6 @@ export const signInWithGoogle = async (): Promise<{ success: boolean; error?: st
                 displayName: userInfo.name
               }
               await spark.kv.set(`user:${normalizedEmail}`, user)
-              await spark.kv.set(`email-to-userid:${normalizedEmail}`, userId)
             }
 
             resolve({ success: true, user })
@@ -282,7 +289,7 @@ export const signInWithMicrosoft = async (): Promise<{ success: boolean; error?:
             let user = await spark.kv.get<User>(`user:${normalizedEmailLower}`)
             
             if (!user) {
-              const userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+              const userId = await generateUserIdFromEmail(normalizedEmailLower)
               user = {
                 id: userId,
                 email: normalizedEmailLower,
@@ -291,7 +298,6 @@ export const signInWithMicrosoft = async (): Promise<{ success: boolean; error?:
                 displayName: userInfo.displayName
               }
               await spark.kv.set(`user:${normalizedEmailLower}`, user)
-              await spark.kv.set(`email-to-userid:${normalizedEmailLower}`, userId)
             }
 
             resolve({ success: true, user })
