@@ -11,7 +11,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
 import { FULL_CAMPAIGNS, SCENARIO_PACK_SCENARIOS, SMALL_CAMPAIGNS } from '@/lib/campaign-data'
-import { INVESTIGATORS, getInvestigatorByName } from '@/lib/investigator-data'
+import { INVESTIGATORS, getInvestigatorById, getInvestigatorDisplayName, getChapterBadgeLabel, isChapterBadgeSpecial, type Investigator } from '@/lib/investigator-data'
 import { Check, CaretDown, X, Plus, Trash, Sparkle } from '@phosphor-icons/react'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -21,9 +21,10 @@ interface PlaythroughFormProps {
   onOpenChange: (open: boolean) => void
   onSave: (playthrough: Omit<Playthrough, 'id'> | Playthrough) => void
   editPlaythrough?: Playthrough | null
+  knownPlayerNames?: string[]
 }
 
-export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }: PlaythroughFormProps) {
+export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough, knownPlayerNames = [] }: PlaythroughFormProps) {
   const [campaignType, setCampaignType] = useState<CampaignType>('Full Campaign')
   const [customCampaignName, setCustomCampaignName] = useState('')
   const [campaignName, setCampaignName] = useState('')
@@ -94,11 +95,14 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
       if (i !== index) return inv
 
       if (field === 'investigatorName') {
-        const investigatorData = getInvestigatorByName(value)
+        // value is the investigator ID from the picker
+        const investigatorData = getInvestigatorById(value)
         if (investigatorData) {
           return {
             ...inv,
-            investigatorName: value,
+            investigatorName: investigatorData.name,
+            investigatorId: investigatorData.id,
+            chapter: investigatorData.chapter,
             archetype: investigatorData.archetypes[0],
             archetypes: investigatorData.archetypes,
             investigatorSet: investigatorData.set,
@@ -109,6 +113,8 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
           return {
             ...inv,
             investigatorName: value,
+            investigatorId: undefined,
+            chapter: undefined,
             isCustom: true,
             archetype: 'Unknown',
             archetypes: ['Unknown'],
@@ -158,13 +164,14 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
       return
     }
 
-    const investigatorNames = investigators
-      .filter(inv => !inv.isUnknown && inv.investigatorName)
-      .map(inv => inv.investigatorName)
-    const duplicates = investigatorNames.filter((name, index) => investigatorNames.indexOf(name) !== index)
+    const investigatorIds = investigators
+      .filter(inv => !inv.isUnknown && inv.investigatorId)
+      .map(inv => inv.investigatorId!)
+    const duplicates = investigatorIds.filter((id, index) => investigatorIds.indexOf(id) !== index)
     
     if (duplicates.length > 0) {
-      toast.error(`The same investigator (${duplicates[0]}) cannot be selected more than once`)
+      const dupInv = getInvestigatorById(duplicates[0])
+      toast.error(`The same investigator (${dupInv?.name || duplicates[0]}) cannot be selected more than once`)
       return
     }
 
@@ -268,7 +275,10 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                  <Command>
+                  <Command filter={(value, search) => {
+                    if (!search) return 1
+                    return value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0
+                  }}>
                     <CommandInput placeholder="Search campaigns..." />
                     <CommandEmpty>No campaign found.</CommandEmpty>
                     <CommandList>
@@ -377,6 +387,7 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough }:
                   onRemove={() => handleRemoveInvestigator(index)}
                   onChange={(field, value) => handleInvestigatorChange(index, field, value)}
                   canRemove={investigators.length > 1}
+                  knownPlayerNames={knownPlayerNames}
                 />
               ))}
             </div>
@@ -403,11 +414,22 @@ interface InvestigatorRowProps {
   onRemove: () => void
   onChange: (field: keyof InvestigatorAssignment, value: any) => void
   canRemove: boolean
+  knownPlayerNames: string[]
 }
 
-function InvestigatorRow({ investigator, index, isDreamEaters, onRemove, onChange, canRemove }: InvestigatorRowProps) {
+function InvestigatorRow({ investigator, index, isDreamEaters, onRemove, onChange, canRemove, knownPlayerNames }: InvestigatorRowProps) {
   const [invSearchOpen, setInvSearchOpen] = useState(false)
-  const investigatorData = investigator.investigatorName ? getInvestigatorByName(investigator.investigatorName) : null
+  const [playerSearchOpen, setPlayerSearchOpen] = useState(false)
+  const [chapterFilter, setChapterFilter] = useState<1 | 2 | null>(null)
+  const investigatorData = investigator.investigatorId ? getInvestigatorById(investigator.investigatorId) : null
+
+  const filteredInvestigators = chapterFilter
+    ? INVESTIGATORS.filter(inv => inv.chapter === chapterFilter)
+    : INVESTIGATORS
+
+  const displayName = investigatorData 
+    ? getInvestigatorDisplayName(investigatorData) 
+    : investigator.investigatorName || 'Select investigator...'
 
   return (
     <div className="border rounded-lg p-4 space-y-3">
@@ -415,12 +437,63 @@ function InvestigatorRow({ investigator, index, isDreamEaters, onRemove, onChang
         <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3">
           <div className="space-y-2">
             <Label>Player Name (Optional)</Label>
-            <Input
-              value={investigator.playerName}
-              onChange={(e) => onChange('playerName', e.target.value)}
-              placeholder="Player name"
-              disabled={investigator.isUnknown}
-            />
+            <Popover open={playerSearchOpen} onOpenChange={setPlayerSearchOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={playerSearchOpen}
+                  className="w-full justify-between font-normal"
+                  disabled={investigator.isUnknown}
+                >
+                  {investigator.playerName || 'Player name'}
+                  <CaretDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[250px] p-0" align="start">
+                <Command filter={(value, search) => {
+                  if (!search) return 1
+                  return value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0
+                }}>
+                  <CommandInput
+                    placeholder="Search or type new..."
+                    value={investigator.playerName}
+                    onValueChange={(v) => onChange('playerName', v)}
+                  />
+                  <CommandList>
+                    <CommandEmpty>
+                      {investigator.playerName ? (
+                        <button
+                          className="w-full px-2 py-1.5 text-sm text-left hover:bg-accent rounded cursor-pointer"
+                          onClick={() => setPlayerSearchOpen(false)}
+                        >
+                          Use "{investigator.playerName}"
+                        </button>
+                      ) : (
+                        'Type a player name'
+                      )}
+                    </CommandEmpty>
+                    <CommandGroup>
+                      {knownPlayerNames
+                        .filter(name => name.toLowerCase().includes((investigator.playerName || '').toLowerCase()))
+                        .map(name => (
+                          <CommandItem
+                            key={name}
+                            value={name}
+                            onSelect={() => {
+                              onChange('playerName', name)
+                              setPlayerSearchOpen(false)
+                            }}
+                          >
+                            <Check className={cn('mr-2 h-4 w-4', investigator.playerName === name ? 'opacity-100' : 'opacity-0')} />
+                            {name}
+                          </CommandItem>
+                        ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
 
           <div className="space-y-2">
@@ -433,32 +506,59 @@ function InvestigatorRow({ investigator, index, isDreamEaters, onRemove, onChang
                   className="w-full justify-between"
                   disabled={investigator.isUnknown}
                 >
-                  {investigator.investigatorName || 'Select investigator...'}
+                  <span className="truncate">{displayName}</span>
                   <CaretDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                <Command>
+                <Command filter={(value, search) => {
+                  if (!search) return 1
+                  return value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0
+                }}>
                   <CommandInput placeholder="Search investigators..." />
+                  <div className="flex gap-1 px-2 py-1.5 border-b">
+                    {([null, 1, 2] as const).map((ch) => (
+                      <button
+                        key={ch ?? 'all'}
+                        onClick={() => setChapterFilter(ch)}
+                        className={cn(
+                          'px-2 py-0.5 text-xs rounded-full border transition-colors',
+                          chapterFilter === ch
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : 'bg-muted/50 hover:bg-muted'
+                        )}
+                      >
+                        {ch === null ? 'All' : `Ch. ${ch}`}
+                      </button>
+                    ))}
+                  </div>
                   <CommandEmpty>No investigator found.</CommandEmpty>
                   <CommandList>
                     <CommandGroup>
-                      {INVESTIGATORS.map((inv) => (
+                      {filteredInvestigators.map((inv) => (
                         <CommandItem
-                          key={inv.name}
-                          value={inv.name}
-                          onSelect={(value) => {
-                            onChange('investigatorName', value)
+                          key={inv.id}
+                          value={`${inv.name} ${inv.chapter === 2 ? 'chapter 2 ch2' : 'chapter 1 ch1'} ${inv.set}`}
+                          onSelect={() => {
+                            onChange('investigatorName', inv.id)
                             setInvSearchOpen(false)
                           }}
                         >
                           <Check
                             className={cn(
                               'mr-2 h-4 w-4',
-                              investigator.investigatorName === inv.name ? 'opacity-100' : 'opacity-0'
+                              investigator.investigatorId === inv.id ? 'opacity-100' : 'opacity-0'
                             )}
                           />
-                          {inv.name}
+                          <span className="flex-1">{inv.name}</span>
+                          <span className={cn(
+                            'ml-2 text-xs font-medium',
+                            isChapterBadgeSpecial(inv)
+                              ? 'text-violet-400'
+                              : 'text-muted-foreground opacity-60'
+                          )}>
+                            · {getChapterBadgeLabel(inv)}
+                          </span>
                         </CommandItem>
                       ))}
                     </CommandGroup>

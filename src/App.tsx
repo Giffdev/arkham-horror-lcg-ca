@@ -18,7 +18,7 @@ import { Card } from '@/components/ui/card'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Toaster, toast } from 'sonner'
-import { getInvestigatorByName } from '@/lib/investigator-data'
+import { getInvestigatorByName, resolveInvestigator } from '@/lib/investigator-data'
 import { signOutUser, User as AuthUser } from '@/lib/auth'
 import { PublicHomepage } from '@/components/PublicHomepage'
 import { rebuildCommunityStats } from '@/lib/community-stats'
@@ -65,10 +65,11 @@ function AuthenticatedApp({ currentUser, onSignOut }: AuthenticatedAppProps) {
 
       const updatedInvestigators = playthrough.investigators.map(inv => {
         if (inv.isCustom || inv.isUnknown || inv.investigatorName === 'Unknown') return inv
-        const data = getInvestigatorByName(inv.investigatorName)
+        const data = resolveInvestigator(inv)
         const invUpdates: Partial<typeof inv> = {}
         if (!inv.investigatorSet && data) { invUpdates.investigatorSet = data.set; changed = true }
         if (!inv.archetypes && data) { invUpdates.archetypes = data.archetypes; changed = true }
+        if (!inv.investigatorId && data) { invUpdates.investigatorId = data.id; invUpdates.chapter = data.chapter; changed = true }
         return Object.keys(invUpdates).length ? { ...inv, ...invUpdates } : inv
       })
 
@@ -81,6 +82,22 @@ function AuthenticatedApp({ currentUser, onSignOut }: AuthenticatedAppProps) {
       Promise.all(toUpdate.map(p => playthroughActions.update(p))).catch(console.error)
     }
   }, [playthroughs]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Rebuild community stats whenever playthroughs change
+  useEffect(() => {
+    if (playthroughs && playthroughs.length > 0) {
+      rebuildCommunityStats(playthroughs).catch(console.error)
+    }
+  }, [playthroughs])
+
+  const knownPlayerNames = useMemo(() => {
+    if (!playthroughs) return []
+    const names = new Set<string>()
+    playthroughs.forEach(p => p.investigators.forEach(inv => {
+      if (inv.playerName?.trim()) names.add(inv.playerName.trim())
+    }))
+    return Array.from(names).sort((a, b) => a.localeCompare(b))
+  }, [playthroughs])
 
   const filteredPlaythroughs = useMemo(() => {
     if (!playthroughs) return []
@@ -125,7 +142,7 @@ function AuthenticatedApp({ currentUser, onSignOut }: AuthenticatedAppProps) {
       toast.error('Failed to save playthrough')
     }
     setEditingPlaythrough(null)
-    setTimeout(() => rebuildCommunityStats(), 500)
+    setTimeout(() => rebuildCommunityStats(playthroughs || []), 500)
   }
 
   const handleDeletePlaythrough = async () => {
@@ -138,7 +155,7 @@ function AuthenticatedApp({ currentUser, onSignOut }: AuthenticatedAppProps) {
         toast.error('Failed to delete playthrough')
       }
       setDeleteId(null)
-      setTimeout(() => rebuildCommunityStats(), 500)
+      setTimeout(() => rebuildCommunityStats(playthroughs || []), 500)
     }
   }
 
@@ -367,6 +384,7 @@ function AuthenticatedApp({ currentUser, onSignOut }: AuthenticatedAppProps) {
         onOpenChange={setFormOpen}
         onSave={handleSavePlaythrough}
         editPlaythrough={editingPlaythrough}
+        knownPlayerNames={knownPlayerNames}
       />
 
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
@@ -440,10 +458,10 @@ function App() {
           createdAt: Date.now(),
           authProvider: fbUser.providerData[0]?.providerId === 'google.com' ? 'google' : 'email',
         })
-        rebuildCommunityStats().catch(console.error)
+        rebuildCommunityStats([]).catch(console.error)
       } else {
         setCurrentUser(null)
-        rebuildCommunityStats().catch(console.error)
+        rebuildCommunityStats([]).catch(console.error)
       }
       setIsLoading(false)
     })
@@ -452,7 +470,7 @@ function App() {
 
   const handleAuthSuccess = async (_user: AuthUser) => {
     // Firebase onAuthStateChanged already handles setting the user
-    await rebuildCommunityStats()
+    await rebuildCommunityStats(playthroughs || [])
   }
 
   const handleSignOut = async () => {

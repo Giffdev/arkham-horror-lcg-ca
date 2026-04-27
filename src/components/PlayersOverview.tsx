@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Playthrough, Archetype } from '@/lib/types'
 import { Card } from '@/components/ui/card'
-import { INVESTIGATORS, Investigator, getArkhamDBUrl, INVESTIGATOR_SETS } from '@/lib/investigator-data'
+import { INVESTIGATORS, Investigator, getArkhamDBUrl, INVESTIGATOR_SETS, getInvestigatorById, resolveInvestigator, getInvestigatorDisplayName, getArkhamDBUrlById, getChapterBadgeLabel } from '@/lib/investigator-data'
 import { Check, ArrowSquareOut, Funnel } from '@phosphor-icons/react'
 import { ArchetypeBadge } from '@/components/ArchetypeBadge'
 import { cn } from '@/lib/utils'
@@ -14,6 +14,7 @@ interface PlayersOverviewProps {
 export function PlayersOverview({ playthroughs }: PlayersOverviewProps) {
   const [selectedArchetypes, setSelectedArchetypes] = useState<Archetype[]>([])
   const [selectedSets, setSelectedSets] = useState<string[]>([])
+  const [selectedChapter, setSelectedChapter] = useState<'all' | 1 | 2>('all')
 
   const { investigatorsPlayed, investigatorsNeverPlayed } = useMemo(() => {
     const investigatorPlayCount = new Map<string, {
@@ -24,15 +25,16 @@ export function PlayersOverview({ playthroughs }: PlayersOverviewProps) {
     playthroughs.forEach(playthrough => {
       playthrough.investigators.forEach(inv => {
         if (!inv.isUnknown && inv.investigatorName !== 'Unknown') {
-          const investigatorData = INVESTIGATORS.find(i => i.name === inv.investigatorName)
-          if (investigatorData) {
-            if (!investigatorPlayCount.has(inv.investigatorName)) {
-              investigatorPlayCount.set(inv.investigatorName, {
-                investigator: investigatorData,
+          const resolved = resolveInvestigator(inv)
+          if (resolved) {
+            const key = resolved.id
+            if (!investigatorPlayCount.has(key)) {
+              investigatorPlayCount.set(key, {
+                investigator: resolved,
                 timesPlayed: 0
               })
             }
-            investigatorPlayCount.get(inv.investigatorName)!.timesPlayed++
+            investigatorPlayCount.get(key)!.timesPlayed++
           }
         }
       })
@@ -41,12 +43,14 @@ export function PlayersOverview({ playthroughs }: PlayersOverviewProps) {
     const playedArray = Array.from(investigatorPlayCount.values())
       .sort((a, b) => b.timesPlayed - a.timesPlayed || a.investigator.name.localeCompare(b.investigator.name))
 
-    const playedInvestigatorNames = new Set(investigatorPlayCount.keys())
+    const playedInvestigatorIds = new Set(investigatorPlayCount.keys())
     const neverPlayed = INVESTIGATORS
-      .filter(inv => !playedInvestigatorNames.has(inv.name))
+      .filter(inv => !playedInvestigatorIds.has(inv.id))
       .sort((a, b) => a.name.localeCompare(b.name))
 
     const filteredPlayed = playedArray.filter(({ investigator }) => {
+      if (selectedChapter !== 'all' && investigator.chapter !== selectedChapter) return false
+
       if (selectedArchetypes.length > 0) {
         const hasMatchingArchetype = investigator.archetypes.some(archetype => 
           selectedArchetypes.includes(archetype)
@@ -62,6 +66,8 @@ export function PlayersOverview({ playthroughs }: PlayersOverviewProps) {
     })
 
     const filteredNeverPlayed = neverPlayed.filter(investigator => {
+      if (selectedChapter !== 'all' && investigator.chapter !== selectedChapter) return false
+
       if (selectedArchetypes.length > 0) {
         const hasMatchingArchetype = investigator.archetypes.some(archetype => 
           selectedArchetypes.includes(archetype)
@@ -80,7 +86,7 @@ export function PlayersOverview({ playthroughs }: PlayersOverviewProps) {
       investigatorsPlayed: filteredPlayed,
       investigatorsNeverPlayed: filteredNeverPlayed
     }
-  }, [playthroughs, selectedArchetypes, selectedSets])
+  }, [playthroughs, selectedArchetypes, selectedSets, selectedChapter])
 
   const handleArchetypeToggle = (archetype: Archetype) => {
     setSelectedArchetypes(current =>
@@ -107,7 +113,15 @@ export function PlayersOverview({ playthroughs }: PlayersOverviewProps) {
   }
 
   const archetypes: Archetype[] = ['Guardian', 'Seeker', 'Rogue', 'Mystic', 'Survivor', 'Neutral']
-  const hasActiveFilters = selectedArchetypes.length > 0 || selectedSets.length > 0
+  const hasActiveFilters = selectedArchetypes.length > 0 || selectedSets.length > 0 || selectedChapter !== 'all'
+
+  const filteredSets = useMemo(() => {
+    const chapterFiltered = selectedChapter === 'all'
+      ? INVESTIGATORS
+      : INVESTIGATORS.filter(inv => inv.chapter === selectedChapter)
+    const sets = new Set(chapterFiltered.map(inv => inv.set))
+    return INVESTIGATOR_SETS.filter(set => sets.has(set))
+  }, [selectedChapter])
 
   return (
     <div className="space-y-6">
@@ -118,6 +132,29 @@ export function PlayersOverview({ playthroughs }: PlayersOverviewProps) {
         </div>
 
         <div className="space-y-3">
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-foreground">Chapter</p>
+            <div className="inline-flex rounded-lg border border-border overflow-hidden">
+              {([['all', 'All'], [1, 'Chapter 1'], [2, 'Chapter 2']] as const).map(([value, label]) => (
+                <button
+                  key={String(value)}
+                  onClick={() => {
+                    setSelectedChapter(value)
+                    setSelectedSets([])
+                  }}
+                  className={cn(
+                    'px-3 py-1.5 text-sm font-medium transition-colors',
+                    selectedChapter === value
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-transparent text-muted-foreground hover:text-foreground hover:bg-muted'
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <p className="text-sm font-medium text-foreground">Class</p>
@@ -161,7 +198,7 @@ export function PlayersOverview({ playthroughs }: PlayersOverviewProps) {
               )}
             </div>
             <div className="flex flex-wrap gap-2">
-              {INVESTIGATOR_SETS.map(set => (
+              {filteredSets.map(set => (
                 <Button
                   key={set}
                   variant={selectedSets.includes(set) ? 'default' : 'outline'}
@@ -187,13 +224,13 @@ export function PlayersOverview({ playthroughs }: PlayersOverviewProps) {
         ) : (
           <>
             <p className="text-sm text-foreground mb-4">
-              {investigatorsPlayed.length} of {INVESTIGATORS.length} investigators have been played
+              {investigatorsPlayed.length} of {investigatorsPlayed.length + investigatorsNeverPlayed.length} investigators have been played
             </p>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {investigatorsPlayed.map(({ investigator, timesPlayed }) => {
-                const arkhamDBUrl = getArkhamDBUrl(investigator.name)
+                const arkhamDBUrl = getArkhamDBUrlById(investigator.id)
                 return (
-                  <Card key={investigator.name} className={cn("p-4 group relative", arkhamDBUrl && "hover:border-accent transition-colors")}>
+                  <Card key={investigator.id} className={cn("p-4 group relative", arkhamDBUrl && "hover:border-accent transition-colors")}>
                     {arkhamDBUrl && (
                       <a 
                         href={arkhamDBUrl}
@@ -218,7 +255,9 @@ export function PlayersOverview({ playthroughs }: PlayersOverviewProps) {
                             ))}
                           </div>
                         </div>
-                        <p className="text-xs text-muted-foreground mt-1">{investigator.set}</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {investigator.set} <span className="opacity-60">· {getChapterBadgeLabel(investigator)}</span>
+                        </p>
                       </div>
                       <div className="flex-shrink-0 text-right relative z-20">
                         <div className="text-2xl font-bold text-primary">{timesPlayed}</div>
@@ -240,19 +279,19 @@ export function PlayersOverview({ playthroughs }: PlayersOverviewProps) {
             <Check size={48} weight="duotone" className="mx-auto mb-4 text-accent" />
             <p className="text-lg font-medium mb-2">Every investigator has made it to the table!</p>
             <p className="text-muted-foreground">
-              All {INVESTIGATORS.length} investigators have been played at least once.
+              All {investigatorsPlayed.length + investigatorsNeverPlayed.length} investigators have been played at least once.
             </p>
           </Card>
         ) : (
           <>
             <p className="text-sm text-foreground mb-4">
-              {investigatorsNeverPlayed.length} of {INVESTIGATORS.length} investigators haven't been played yet
+              {investigatorsNeverPlayed.length} of {investigatorsPlayed.length + investigatorsNeverPlayed.length} investigators haven't been played yet
             </p>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
               {investigatorsNeverPlayed.map(investigator => {
-                const arkhamDBUrl = getArkhamDBUrl(investigator.name)
+                const arkhamDBUrl = getArkhamDBUrlById(investigator.id)
                 return (
-                  <Card key={investigator.name} className={cn("p-3 group relative", arkhamDBUrl && "hover:border-accent transition-colors")}>
+                  <Card key={investigator.id} className={cn("p-3 group relative", arkhamDBUrl && "hover:border-accent transition-colors")}>
                     {arkhamDBUrl && (
                       <a 
                         href={arkhamDBUrl}
@@ -274,7 +313,9 @@ export function PlayersOverview({ playthroughs }: PlayersOverviewProps) {
                           <ArchetypeBadge key={archetype} archetype={archetype} className="text-xs px-1.5 py-0" />
                         ))}
                       </div>
-                      <p className="text-xs text-muted-foreground mt-1">{investigator.set}</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {investigator.set} <span className="opacity-60">· {getChapterBadgeLabel(investigator)}</span>
+                      </p>
                     </div>
                   </Card>
                 )

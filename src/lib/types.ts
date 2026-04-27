@@ -7,6 +7,8 @@ export type DreamEatersCampaignPath = 'A: The Dream-Quest' | 'B: The Web of Drea
 export interface InvestigatorAssignment {
   playerName: string
   investigatorName: string
+  investigatorId?: string
+  chapter?: 1 | 2
   archetype: Archetype
   archetypes?: Archetype[]
   investigatorSet?: string

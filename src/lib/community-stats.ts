@@ -1,10 +1,11 @@
 import { Playthrough, Archetype } from './types'
 import { getCommunityStatsFromFirestore, saveCommunityStats } from './firestore'
+import { getCampaignSet } from './campaign-data'
 
 export interface CommunityStats {
   totalGames: number
   topCampaigns: { name: string; count: number; set?: string }[]
-  topInvestigators: { name: string; count: number; archetypes: Archetype[] }[]
+  topInvestigators: { name: string; count: number; archetypes: Archetype[]; chapter?: 1 | 2 }[]
   totalInvestigatorsPlayed: number
   topSideScenarios: { name: string; count: number }[]
   topStandalones: { name: string; count: number; set?: string }[]
@@ -13,14 +14,54 @@ export interface CommunityStats {
 }
 
 /**
- * Rebuild community stats.
- * In this Firebase version we just write a placeholder / no-op on the client.
- * A Cloud Function should do the real aggregation long-term.
- * For now the public homepage shows whatever's in the aggregate doc.
+ * Rebuild community stats from playthroughs and save to Firestore.
  */
-export async function rebuildCommunityStats(): Promise<void> {
-  // no-op on client — aggregation should be done server-side
-  // We keep this export so existing call-sites don't break.
+export async function rebuildCommunityStats(playthroughs: Playthrough[]): Promise<void> {
+  if (!playthroughs.length) return
+
+  const campaignCounts = new Map<string, { count: number; set?: string }>()
+  const investigatorCounts = new Map<string, { count: number; archetypes: Archetype[]; chapter?: 1 | 2 }>()
+  const uniqueInvestigators = new Set<string>()
+
+  for (const p of playthroughs) {
+    // Count campaigns
+    const existing = campaignCounts.get(p.campaignName) || { count: 0, set: getCampaignSet(p.campaignName) }
+    existing.count++
+    campaignCounts.set(p.campaignName, existing)
+
+    // Count investigators
+    for (const inv of p.investigators) {
+      if (inv.isUnknown || !inv.investigatorName || inv.investigatorName === 'Unknown') continue
+      const name = inv.investigatorName
+      uniqueInvestigators.add(name)
+      const invEntry = investigatorCounts.get(name) || { count: 0, archetypes: inv.archetypes || [inv.archetype], chapter: inv.chapter as 1 | 2 | undefined }
+      invEntry.count++
+      investigatorCounts.set(name, invEntry)
+    }
+  }
+
+  const topCampaigns = Array.from(campaignCounts.entries())
+    .map(([name, data]) => ({ name, ...data }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10)
+
+  const topInvestigators = Array.from(investigatorCounts.entries())
+    .map(([name, data]) => ({ name, ...data }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10)
+
+  const stats: CommunityStats = {
+    totalGames: playthroughs.length,
+    topCampaigns,
+    topInvestigators,
+    totalInvestigatorsPlayed: uniqueInvestigators.size,
+    topSideScenarios: [],
+    topStandalones: [],
+    registeredUsers: 1,
+    lastUpdated: Date.now(),
+  }
+
+  await saveCommunityStats(stats)
 }
 
 /**

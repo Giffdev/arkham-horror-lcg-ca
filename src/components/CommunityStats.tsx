@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { BookOpen, Users, ChartBar, Sparkle, Trophy, GameController } from '@phosphor-icons/react'
+import { MapTrifold, Users, Scroll, Sparkle, Trophy, BookOpen, UserFocus, Detective } from '@phosphor-icons/react'
 import { getCommunityStats, CommunityStats as CommunityStatsType } from '@/lib/community-stats'
 import { ArchetypeBadge } from '@/components/ArchetypeBadge'
-import { getArkhamDBUrl } from '@/lib/investigator-data'
+import { getArkhamDBUrl, getChapterBadgeLabel, isChapterBadgeSpecial, resolveInvestigator } from '@/lib/investigator-data'
 
 export function CommunityStats() {
   const [communityStats, setCommunityStats] = useState<CommunityStatsType | null>(null)
@@ -53,7 +53,7 @@ export function CommunityStats() {
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
-              <GameController size={20} className="text-primary" weight="duotone" />
+              <BookOpen size={20} className="text-primary" weight="duotone" />
               <CardTitle className="text-sm text-muted-foreground">Total Games Logged</CardTitle>
             </div>
           </CardHeader>
@@ -77,7 +77,7 @@ export function CommunityStats() {
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
-              <Users size={20} className="text-primary" weight="duotone" />
+              <UserFocus size={20} className="text-primary" weight="duotone" />
               <CardTitle className="text-sm text-muted-foreground">Investigators Played</CardTitle>
             </div>
           </CardHeader>
@@ -89,7 +89,7 @@ export function CommunityStats() {
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
-              <BookOpen size={20} className="text-primary" weight="duotone" />
+              <MapTrifold size={20} className="text-primary" weight="duotone" />
               <CardTitle className="text-sm text-muted-foreground">Unique Campaigns</CardTitle>
             </div>
           </CardHeader>
@@ -131,14 +131,16 @@ export function CommunityStats() {
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
-              <Users size={20} className="text-primary" weight="duotone" />
+              <Detective size={20} className="text-primary" weight="duotone" />
               <CardTitle>Most Played Investigators</CardTitle>
             </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
               {communityStats.topInvestigators.slice(0, 5).map((investigator, index) => {
-                const arkhamDBUrl = getArkhamDBUrl(investigator.name, investigator.archetypes[0])
+                const resolved = resolveInvestigator({ investigatorName: investigator.name, chapter: investigator.chapter })
+                const arkhamDBUrl = getArkhamDBUrl(investigator.name, investigator.archetypes[0], investigator.chapter)
+                const chapterInfo = resolved || { set: undefined, chapter: investigator.chapter || 1 }
                 
                 return (
                   <div key={investigator.name} className="flex items-center justify-between">
@@ -165,6 +167,13 @@ export function CommunityStats() {
                           ) : (
                             <span className="font-medium text-foreground">{investigator.name}</span>
                           )}
+                          <span className={`text-xs font-medium ${
+                            isChapterBadgeSpecial(chapterInfo)
+                              ? 'text-violet-400'
+                              : 'text-muted-foreground opacity-60'
+                          }`}>
+                            · {getChapterBadgeLabel(chapterInfo)}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -212,7 +221,7 @@ export function CommunityStats() {
           <Card>
             <CardHeader>
               <div className="flex items-center gap-2">
-                <ChartBar size={20} className="text-primary" weight="duotone" />
+                <Scroll size={20} className="text-primary" weight="duotone" />
                 <CardTitle>Popular Side Stories</CardTitle>
               </div>
             </CardHeader>

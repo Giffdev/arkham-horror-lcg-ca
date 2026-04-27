@@ -1,16 +1,22 @@
 import { Archetype, ARCHETYPE_COLORS } from '@/lib/types'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
-import { getArkhamDBUrl } from '@/lib/investigator-data'
+import { getArkhamDBUrl, getArkhamDBUrlById } from '@/lib/investigator-data'
 
 interface ArchetypeBadgeProps {
   archetype: Archetype
   className?: string
   investigatorName?: string
+  investigatorId?: string
+  chapter?: 1 | 2
 }
 
-export function ArchetypeBadge({ archetype, className, investigatorName }: ArchetypeBadgeProps) {
-  const url = investigatorName ? getArkhamDBUrl(investigatorName, archetype) : null
+export function ArchetypeBadge({ archetype, className, investigatorName, investigatorId, chapter }: ArchetypeBadgeProps) {
+  const url = investigatorId 
+    ? getArkhamDBUrlById(investigatorId, archetype)
+    : investigatorName 
+      ? getArkhamDBUrl(investigatorName, archetype, chapter) 
+      : null
   
   if (url) {
     return (

@@ -2,29 +2,34 @@ export interface Campaign {
   name: string
   set: string
   type: 'Full Campaign' | 'Small Campaign' | 'Scenario Pack'
+  chapter?: 1 | 2
 }
 
+// Chapter 2 campaign sets
+const CHAPTER_2_CAMPAIGN_SETS = new Set(['Children of Blood'])
+
 export const FULL_CAMPAIGNS: Campaign[] = [
-  { name: 'The Dunwich Legacy', set: 'The Dunwich Legacy', type: 'Full Campaign' },
-  { name: 'The Path to Carcosa', set: 'The Path to Carcosa', type: 'Full Campaign' },
-  { name: 'The Forgotten Age', set: 'The Forgotten Age', type: 'Full Campaign' },
-  { name: 'The Circle Undone', set: 'The Circle Undone', type: 'Full Campaign' },
-  { name: 'The Dream-Eaters', set: 'The Dream-Eaters', type: 'Full Campaign' },
-  { name: 'The Innsmouth Conspiracy', set: 'The Innsmouth Conspiracy', type: 'Full Campaign' },
-  { name: 'Edge of the Earth', set: 'Edge of the Earth', type: 'Full Campaign' },
-  { name: 'The Scarlet Keys', set: 'The Scarlet Keys', type: 'Full Campaign' },
-  { name: 'The Feast of Hemlock Vale', set: 'The Feast of Hemlock Vale', type: 'Full Campaign' },
-  { name: 'The Drowned City', set: 'The Drowned City', type: 'Full Campaign' },
-  { name: 'Return to The Dunwich Legacy', set: 'Return to The Dunwich Legacy', type: 'Full Campaign' },
-  { name: 'Return to The Path to Carcosa', set: 'Return to The Path to Carcosa', type: 'Full Campaign' },
-  { name: 'Return to The Forgotten Age', set: 'Return to The Forgotten Age', type: 'Full Campaign' },
-  { name: 'Return to The Circle Undone', set: 'Return to The Circle Undone', type: 'Full Campaign' },
+  { name: 'The Dunwich Legacy', set: 'The Dunwich Legacy', type: 'Full Campaign', chapter: 1 },
+  { name: 'The Path to Carcosa', set: 'The Path to Carcosa', type: 'Full Campaign', chapter: 1 },
+  { name: 'The Forgotten Age', set: 'The Forgotten Age', type: 'Full Campaign', chapter: 1 },
+  { name: 'The Circle Undone', set: 'The Circle Undone', type: 'Full Campaign', chapter: 1 },
+  { name: 'The Dream-Eaters', set: 'The Dream-Eaters', type: 'Full Campaign', chapter: 1 },
+  { name: 'The Innsmouth Conspiracy', set: 'The Innsmouth Conspiracy', type: 'Full Campaign', chapter: 1 },
+  { name: 'Edge of the Earth', set: 'Edge of the Earth', type: 'Full Campaign', chapter: 1 },
+  { name: 'The Scarlet Keys', set: 'The Scarlet Keys', type: 'Full Campaign', chapter: 1 },
+  { name: 'The Feast of Hemlock Vale', set: 'The Feast of Hemlock Vale', type: 'Full Campaign', chapter: 1 },
+  { name: 'The Drowned City', set: 'The Drowned City', type: 'Full Campaign', chapter: 1 },
+  { name: 'Return to The Dunwich Legacy', set: 'Return to The Dunwich Legacy', type: 'Full Campaign', chapter: 1 },
+  { name: 'Return to The Path to Carcosa', set: 'Return to The Path to Carcosa', type: 'Full Campaign', chapter: 1 },
+  { name: 'Return to The Forgotten Age', set: 'Return to The Forgotten Age', type: 'Full Campaign', chapter: 1 },
+  { name: 'Return to The Circle Undone', set: 'Return to The Circle Undone', type: 'Full Campaign', chapter: 1 },
 ]
 
 export const SMALL_CAMPAIGNS: Campaign[] = [
-  { name: 'The Night of the Zealot', set: 'Core', type: 'Small Campaign' },
-  { name: 'Return to The Night of the Zealot', set: 'Return to The Night of the Zealot', type: 'Small Campaign' },
-  { name: 'Children of Blood', set: 'Children of Blood', type: 'Small Campaign' },
+  { name: 'The Night of the Zealot', set: 'Core', type: 'Small Campaign', chapter: 1 },
+  { name: 'Return to The Night of the Zealot', set: 'Return to The Night of the Zealot', type: 'Small Campaign', chapter: 1 },
+  { name: 'Children of Blood', set: 'Children of Blood', type: 'Small Campaign', chapter: 2 },
+  { name: 'Brethren of Ash', set: 'Core 2026', type: 'Small Campaign', chapter: 2 },
 ]
 
 export const SCENARIO_PACK_SCENARIOS: Campaign[] = [
@@ -74,6 +79,9 @@ const RELEASE_ORDER = [
   'Return to The Forgotten Age',
   'Return to The Circle Undone',
   'Barkham Horror: The Meddling of Meowlathotep',
+  'Children of Blood',
+  'Brethren of Ash',
+  'Traces To Nowhere',
 ]
 
 export function getFullCampaignNames(): string[] {
@@ -119,3 +127,10 @@ export function getCampaignSet(campaignName: string): string {
   const campaign = ALL_CAMPAIGNS.find(c => c.name === campaignName)
   return campaign ? campaign.set : 'Scenario Pack'
 }
+
+export function getCampaignChapter(campaignName: string): 1 | 2 {
+  const campaign = ALL_CAMPAIGNS.find(c => c.name === campaignName)
+  return campaign?.chapter || 1
+}
+
+export const CAMPAIGN_SETS: string[] = Array.from(new Set(ALL_CAMPAIGNS.map(c => c.set)))
