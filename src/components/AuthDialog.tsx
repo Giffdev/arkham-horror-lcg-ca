@@ -3,9 +3,9 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { createAccount, signIn, setCurrentSession, User } from '@/lib/auth'
+import { createAccount, signIn, signInWithGoogle, User } from '@/lib/auth'
 import { toast } from 'sonner'
-import { Eye, EyeSlash, Warning } from '@phosphor-icons/react'
+import { Eye, EyeSlash, Warning, GoogleLogo } from '@phosphor-icons/react'
 
 interface AuthDialogProps {
   open: boolean
@@ -38,9 +38,10 @@ export function AuthDialog({ open, onOpenChange, onSuccess }: AuthDialogProps) {
 
         const result = await createAccount(email, password)
         if (result.success && result.userId) {
+          // Firebase auto-signs in after createAccount, but we do a signIn
+          // to get the user object for the callback
           const signInResult = await signIn(email, password)
           if (signInResult.success && signInResult.user) {
-            await setCurrentSession(signInResult.user)
             toast.success('Account created successfully')
             onSuccess(signInResult.user)
             onOpenChange(false)
@@ -52,20 +53,34 @@ export function AuthDialog({ open, onOpenChange, onSuccess }: AuthDialogProps) {
       } else {
         const result = await signIn(email, password)
         if (result.success && result.user) {
-          await setCurrentSession(result.user)
           toast.success('Signed in successfully')
           onSuccess(result.user)
           onOpenChange(false)
           resetForm()
         } else {
-          if (result.error && (result.error.includes('No account found') || result.error.includes('Please sign up'))) {
-            setErrorMessage('No account found with this email. Please sign up to create a new account.')
-          } else if (result.error && result.error.includes('Incorrect password')) {
-            setErrorMessage('Incorrect password. Please check your password and try again.')
-          } else {
-            setErrorMessage(result.error || 'Failed to sign in. Please try again.')
-          }
+          setErrorMessage(result.error || 'Failed to sign in. Please try again.')
         }
+      }
+    } catch (error) {
+      setErrorMessage('An unexpected error occurred')
+      console.error(error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleGoogleSignIn = async () => {
+    setLoading(true)
+    setErrorMessage(null)
+    try {
+      const result = await signInWithGoogle()
+      if (result.success && result.user) {
+        toast.success('Signed in with Google')
+        onSuccess(result.user)
+        onOpenChange(false)
+        resetForm()
+      } else {
+        setErrorMessage(result.error || 'Google sign in failed')
       }
     } catch (error) {
       setErrorMessage('An unexpected error occurred')
@@ -89,8 +104,6 @@ export function AuthDialog({ open, onOpenChange, onSuccess }: AuthDialogProps) {
     resetForm()
   }
 
-
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
@@ -102,6 +115,28 @@ export function AuthDialog({ open, onOpenChange, onSuccess }: AuthDialogProps) {
               : 'Create an account to start tracking your games'}
           </DialogDescription>
         </DialogHeader>
+
+        <div className="space-y-4">
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full gap-2"
+            onClick={handleGoogleSignIn}
+            disabled={loading}
+          >
+            <GoogleLogo size={18} weight="bold" />
+            Continue with Google
+          </Button>
+
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">Or continue with email</span>
+            </div>
+          </div>
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
@@ -125,14 +160,14 @@ export function AuthDialog({ open, onOpenChange, onSuccess }: AuthDialogProps) {
               <Input
                 id="password"
                 type={showPassword ? 'text' : 'password'}
-                placeholder={mode === 'signup' ? 'At least 8 characters' : '••••••••'}
+                placeholder={mode === 'signup' ? 'At least 6 characters' : '••••••••'}
                 value={password}
                 onChange={(e) => {
                   setPassword(e.target.value)
                   setErrorMessage(null)
                 }}
                 required
-                minLength={8}
+                minLength={6}
                 autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
                 className="pr-10"
               />
@@ -162,7 +197,7 @@ export function AuthDialog({ open, onOpenChange, onSuccess }: AuthDialogProps) {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
-                  minLength={8}
+                  minLength={6}
                   autoComplete="new-password"
                   className="pr-10"
                 />

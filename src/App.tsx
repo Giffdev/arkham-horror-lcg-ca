@@ -1,5 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
-import { useKV } from '@github/spark/hooks'
+import { onAuthStateChanged, type User as FirebaseUser } from 'firebase/auth'
+import { auth } from '@/lib/firebase'
+import { usePlaythroughs } from '@/hooks/usePlaythroughs'
 import { Playthrough, Archetype, CampaignType } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { PlaythroughCard } from '@/components/PlaythroughCard'
@@ -17,18 +19,17 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Toaster, toast } from 'sonner'
 import { getInvestigatorByName } from '@/lib/investigator-data'
-import { getCurrentSession, clearCurrentSession, User as AuthUser } from '@/lib/auth'
+import { signOutUser, User as AuthUser } from '@/lib/auth'
 import { PublicHomepage } from '@/components/PublicHomepage'
 import { rebuildCommunityStats } from '@/lib/community-stats'
 
 interface AuthenticatedAppProps {
   currentUser: AuthUser
-  playthroughsKey: string
   onSignOut: () => void
 }
 
-function AuthenticatedApp({ currentUser, playthroughsKey, onSignOut }: AuthenticatedAppProps) {
-  const [playthroughs, setPlaythroughs] = useKV<Playthrough[]>(playthroughsKey, [])
+function AuthenticatedApp({ currentUser, onSignOut }: AuthenticatedAppProps) {
+  const [playthroughs, playthroughActions, isLoadingPlaythroughs] = usePlaythroughs(currentUser.id)
   const [formOpen, setFormOpen] = useState(false)
   const [editingPlaythrough, setEditingPlaythrough] = useState<Playthrough | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
@@ -36,84 +37,50 @@ function AuthenticatedApp({ currentUser, playthroughsKey, onSignOut }: Authentic
   const [selectedCampaignTypes, setSelectedCampaignTypes] = useState<CampaignType[]>([])
   const [selectedCampaigns, setSelectedCampaigns] = useState<string[]>([])
   const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null)
-  const [isLoadingPlaythroughs, setIsLoadingPlaythroughs] = useState(true)
   const [activeTab, setActiveTab] = useState("games")
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoadingPlaythroughs(false)
-    }, 500)
-    return () => clearTimeout(timer)
-  }, [])
-
+  // Auto-fix legacy data (campaign types, investigator metadata)
   useEffect(() => {
     if (!playthroughs || playthroughs.length === 0) return
 
-    let needsUpdate = false
-    const updatedPlaythroughs = playthroughs.map(playthrough => {
-      let playthroughUpdated = false
+    const toUpdate: Playthrough[] = []
+
+    for (const playthrough of playthroughs) {
+      let changed = false
       const updates: Partial<Playthrough> = {}
-      
+
       if (playthrough.campaignType === 'Standalone' as any) {
         updates.campaignType = 'Scenario Pack'
-        playthroughUpdated = true
-        needsUpdate = true
+        changed = true
       }
-      
-      if (playthrough.campaignName === 'The Night of the Zealot' && playthrough.campaignType === 'Full Campaign') {
+
+      if (
+        (playthrough.campaignName === 'The Night of the Zealot' ||
+         playthrough.campaignName === 'Return to The Night of the Zealot') &&
+        playthrough.campaignType === 'Full Campaign'
+      ) {
         updates.campaignType = 'Small Campaign'
-        playthroughUpdated = true
-        needsUpdate = true
+        changed = true
       }
-      
-      if (playthrough.campaignName === 'Return to The Night of the Zealot' && playthrough.campaignType === 'Full Campaign') {
-        updates.campaignType = 'Small Campaign'
-        playthroughUpdated = true
-        needsUpdate = true
-      }
-      
+
       const updatedInvestigators = playthrough.investigators.map(inv => {
-        if (inv.isCustom || inv.isUnknown || inv.investigatorName === 'Unknown') {
-          return inv
-        }
-        
-        const investigatorData = getInvestigatorByName(inv.investigatorName)
-        let hasChanges = false
+        if (inv.isCustom || inv.isUnknown || inv.investigatorName === 'Unknown') return inv
+        const data = getInvestigatorByName(inv.investigatorName)
         const invUpdates: Partial<typeof inv> = {}
-        
-        if (!inv.investigatorSet && investigatorData) {
-          invUpdates.investigatorSet = investigatorData.set
-          hasChanges = true
-        }
-        
-        if (!inv.archetypes && investigatorData) {
-          invUpdates.archetypes = investigatorData.archetypes
-          hasChanges = true
-        }
-        
-        if (hasChanges) {
-          needsUpdate = true
-          return { ...inv, ...invUpdates }
-        }
-        
-        return inv
+        if (!inv.investigatorSet && data) { invUpdates.investigatorSet = data.set; changed = true }
+        if (!inv.archetypes && data) { invUpdates.archetypes = data.archetypes; changed = true }
+        return Object.keys(invUpdates).length ? { ...inv, ...invUpdates } : inv
       })
 
-      if (JSON.stringify(updatedInvestigators) !== JSON.stringify(playthrough.investigators)) {
-        playthroughUpdated = true
+      if (changed) {
+        toUpdate.push({ ...playthrough, ...updates, investigators: updatedInvestigators })
       }
-      
-      if (playthroughUpdated) {
-        return { ...playthrough, ...updates, investigators: updatedInvestigators }
-      }
-      
-      return playthrough
-    })
-
-    if (needsUpdate) {
-      setPlaythroughs(updatedPlaythroughs)
     }
-  }, [playthroughs, setPlaythroughs])
+
+    if (toUpdate.length > 0) {
+      Promise.all(toUpdate.map(p => playthroughActions.update(p))).catch(console.error)
+    }
+  }, [playthroughs]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const filteredPlaythroughs = useMemo(() => {
     if (!playthroughs) return []
@@ -144,37 +111,34 @@ function AuthenticatedApp({ currentUser, playthroughsKey, onSignOut }: Authentic
     })
   }, [playthroughs, selectedArchetypes, selectedCampaignTypes, selectedCampaigns])
 
-  const handleSavePlaythrough = (playthrough: Omit<Playthrough, 'id'> | Playthrough) => {
-    setPlaythroughs((current) => {
-      const existing = current || []
+  const handleSavePlaythrough = async (playthrough: Omit<Playthrough, 'id'> | Playthrough) => {
+    try {
       if ('id' in playthrough) {
+        await playthroughActions.update(playthrough)
         toast.success('Playthrough updated successfully')
-        return existing.map((p) => (p.id === playthrough.id ? playthrough : p))
       } else {
-        const newPlaythrough = {
-          ...playthrough,
-          id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-        } as Playthrough
+        await playthroughActions.add(playthrough)
         toast.success('Playthrough logged successfully')
-        return [newPlaythrough, ...existing]
       }
-    })
+    } catch (error) {
+      console.error('Failed to save playthrough:', error)
+      toast.error('Failed to save playthrough')
+    }
     setEditingPlaythrough(null)
-    
-    setTimeout(() => {
-      rebuildCommunityStats()
-    }, 500)
+    setTimeout(() => rebuildCommunityStats(), 500)
   }
 
-  const handleDeletePlaythrough = () => {
+  const handleDeletePlaythrough = async () => {
     if (deleteId) {
-      setPlaythroughs((current) => (current || []).filter((p) => p.id !== deleteId))
-      toast.success('Playthrough deleted')
+      try {
+        await playthroughActions.remove(deleteId)
+        toast.success('Playthrough deleted')
+      } catch (error) {
+        console.error('Failed to delete playthrough:', error)
+        toast.error('Failed to delete playthrough')
+      }
       setDeleteId(null)
-      
-      setTimeout(() => {
-        rebuildCommunityStats()
-      }, 500)
+      setTimeout(() => rebuildCommunityStats(), 500)
     }
   }
 
@@ -466,47 +430,34 @@ function AuthenticatedApp({ currentUser, playthroughsKey, onSignOut }: Authentic
 function App() {
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [playthroughsKey, setPlaythroughsKey] = useState<string>('')
 
   useEffect(() => {
-    async function loadSession() {
-      try {
-        const session = await getCurrentSession()
-        if (session) {
-          setCurrentUser({ 
-            id: session.userId, 
-            email: session.email,
-            createdAt: Date.now(),
-            authProvider: session.authProvider
-          })
-          const newKey = `playthroughs:${session.userId}`
-          setPlaythroughsKey(newKey)
-          await rebuildCommunityStats()
-        } else {
-          await rebuildCommunityStats()
-        }
-      } catch (error) {
-        console.error('Failed to load session:', error)
-      } finally {
-        setIsLoading(false)
+    const unsubscribe = onAuthStateChanged(auth, async (fbUser: FirebaseUser | null) => {
+      if (fbUser) {
+        setCurrentUser({
+          id: fbUser.uid,
+          email: fbUser.email || '',
+          createdAt: Date.now(),
+          authProvider: fbUser.providerData[0]?.providerId === 'google.com' ? 'google' : 'email',
+        })
+        rebuildCommunityStats().catch(console.error)
+      } else {
+        setCurrentUser(null)
+        rebuildCommunityStats().catch(console.error)
       }
-    }
-    loadSession()
+      setIsLoading(false)
+    })
+    return () => unsubscribe()
   }, [])
 
-
-
-  const handleAuthSuccess = async (user: AuthUser) => {
-    setCurrentUser(user)
-    const newKey = `playthroughs:${user.id}`
-    setPlaythroughsKey(newKey)
+  const handleAuthSuccess = async (_user: AuthUser) => {
+    // Firebase onAuthStateChanged already handles setting the user
     await rebuildCommunityStats()
   }
 
   const handleSignOut = async () => {
-    await clearCurrentSession()
+    await signOutUser()
     setCurrentUser(null)
-    setPlaythroughsKey('')
     toast.success('Signed out successfully')
   }
 
@@ -521,14 +472,13 @@ function App() {
     )
   }
 
-  if (!currentUser || !playthroughsKey) {
+  if (!currentUser) {
     return <PublicHomepage onAuthSuccess={handleAuthSuccess} />
   }
 
   return (
     <AuthenticatedApp
       currentUser={currentUser}
-      playthroughsKey={playthroughsKey}
       onSignOut={handleSignOut}
     />
   )
