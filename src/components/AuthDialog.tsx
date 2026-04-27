@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { createAccount, signIn, signInWithGoogle, User } from '@/lib/auth'
+import { createAccount, signIn, signInWithGoogle, resetPassword, User } from '@/lib/auth'
 import { toast } from 'sonner'
 import { Eye, EyeSlash, Warning, GoogleLogo } from '@phosphor-icons/react'
 
@@ -14,7 +14,7 @@ interface AuthDialogProps {
 }
 
 export function AuthDialog({ open, onOpenChange, onSuccess }: AuthDialogProps) {
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin')
+  const [mode, setMode] = useState<'signin' | 'signup' | 'reset'>('signin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -29,7 +29,16 @@ export function AuthDialog({ open, onOpenChange, onSuccess }: AuthDialogProps) {
     setErrorMessage(null)
 
     try {
-      if (mode === 'signup') {
+      if (mode === 'reset') {
+        const result = await resetPassword(email)
+        if (result.success) {
+          toast.success('Password reset email sent! Check your inbox.')
+          setMode('signin')
+          resetForm()
+        } else {
+          setErrorMessage(result.error || 'Failed to send reset email')
+        }
+      } else if (mode === 'signup') {
         if (password !== confirmPassword) {
           setErrorMessage('Passwords do not match')
           setLoading(false)
@@ -108,35 +117,39 @@ export function AuthDialog({ open, onOpenChange, onSuccess }: AuthDialogProps) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{mode === 'signin' ? 'Sign In' : 'Create Account'}</DialogTitle>
+          <DialogTitle>{mode === 'signin' ? 'Sign In' : mode === 'signup' ? 'Create Account' : 'Reset Password'}</DialogTitle>
           <DialogDescription>
             {mode === 'signin' 
               ? 'Sign in to access your game logs' 
-              : 'Create an account to start tracking your games'}
+              : mode === 'signup'
+              ? 'Create an account to start tracking your games'
+              : 'Enter your email and we\'ll send you a reset link'}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full gap-2"
-            onClick={handleGoogleSignIn}
-            disabled={loading}
-          >
-            <GoogleLogo size={18} weight="bold" />
-            Continue with Google
-          </Button>
+        {mode !== 'reset' && (
+          <div className="space-y-4">
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full gap-2"
+              onClick={handleGoogleSignIn}
+              disabled={loading}
+            >
+              <GoogleLogo size={18} weight="bold" />
+              Continue with Google
+            </Button>
 
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">Or continue with email</span>
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">Or continue with email</span>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
@@ -154,40 +167,50 @@ export function AuthDialog({ open, onOpenChange, onSuccess }: AuthDialogProps) {
               autoComplete="email"
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <div className="relative">
-              <Input
-                id="password"
-                type={showPassword ? 'text' : 'password'}
-                placeholder={mode === 'signup' ? 'At least 6 characters' : '••••••••'}
-                value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value)
-                  setErrorMessage(null)
-                }}
-                required
-                minLength={6}
-                autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
-                className="pr-10"
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-                onClick={() => setShowPassword(!showPassword)}
-              >
-                {showPassword ? (
-                  <EyeSlash size={18} className="text-muted-foreground" />
-                ) : (
-                  <Eye size={18} className="text-muted-foreground" />
-                )}
-              </Button>
-            </div>
-          </div>
-          {mode === 'signup' && (
+          {mode !== 'reset' && (
             <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder={mode === 'signup' ? 'At least 6 characters' : '••••••••'}
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value)
+                    setErrorMessage(null)
+                  }}
+                  required
+                  minLength={6}
+                  autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+                  className="pr-10"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? (
+                    <EyeSlash size={18} className="text-muted-foreground" />
+                  ) : (
+                    <Eye size={18} className="text-muted-foreground" />
+                  )}
+                </Button>
+              </div>
+              {mode === 'signin' && (
+                <button
+                  type="button"
+                  className="text-xs text-muted-foreground hover:text-primary transition-colors"
+                  onClick={() => { setMode('reset'); setErrorMessage(null) }}
+                >
+                  Forgot password?
+                </button>
+              )}
+            </div>
+          )}
+          {mode === 'signup' && (            <div className="space-y-2">
               <Label htmlFor="confirm-password">Confirm Password</Label>
               <div className="relative">
                 <Input
@@ -227,11 +250,17 @@ export function AuthDialog({ open, onOpenChange, onSuccess }: AuthDialogProps) {
 
           <div className="flex flex-col gap-3 pt-2">
             <Button type="submit" disabled={loading} className="w-full">
-              {loading ? 'Please wait...' : mode === 'signin' ? 'Sign In' : 'Create Account'}
+              {loading ? 'Please wait...' : mode === 'signin' ? 'Sign In' : mode === 'signup' ? 'Create Account' : 'Send Reset Email'}
             </Button>
-            <Button type="button" variant="secondary" onClick={switchMode} disabled={loading} className="bg-secondary text-secondary-foreground hover:bg-secondary/80">
-              {mode === 'signin' ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
-            </Button>
+            {mode === 'reset' ? (
+              <Button type="button" variant="secondary" onClick={() => { setMode('signin'); resetForm() }} disabled={loading} className="bg-secondary text-secondary-foreground hover:bg-secondary/80">
+                Back to Sign In
+              </Button>
+            ) : (
+              <Button type="button" variant="secondary" onClick={switchMode} disabled={loading} className="bg-secondary text-secondary-foreground hover:bg-secondary/80">
+                {mode === 'signin' ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
+              </Button>
+            )}
           </div>
         </form>
       </DialogContent>

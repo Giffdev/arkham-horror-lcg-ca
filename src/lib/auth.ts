@@ -3,6 +3,9 @@ import {
   signInWithEmailAndPassword,
   signInWithPopup,
   GoogleAuthProvider,
+  EmailAuthProvider,
+  linkWithCredential,
+  sendPasswordResetEmail,
   signOut as firebaseSignOut,
   onAuthStateChanged,
   type User as FirebaseUser,
@@ -135,5 +138,59 @@ export const setCurrentSession = async (_user: User): Promise<void> => {
 
 export const clearCurrentSession = async (): Promise<void> => {
   await firebaseSignOut(auth)
+}
+
+export const linkEmailPassword = async (
+  password: string
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const currentUser = auth.currentUser
+    if (!currentUser) {
+      return { success: false, error: 'No user is currently signed in' }
+    }
+    if (!currentUser.email) {
+      return { success: false, error: 'Current user has no email address' }
+    }
+    const credential = EmailAuthProvider.credential(currentUser.email, password)
+    await linkWithCredential(currentUser, credential)
+    return { success: true }
+  } catch (error: any) {
+    const code = error?.code || ''
+    if (code === 'auth/provider-already-linked') {
+      return { success: false, error: 'A password is already linked to this account' }
+    }
+    if (code === 'auth/weak-password') {
+      return { success: false, error: 'Password must be at least 6 characters' }
+    }
+    if (code === 'auth/requires-recent-login') {
+      return { success: false, error: 'Please sign out and sign back in, then try again' }
+    }
+    return { success: false, error: error?.message || 'Failed to link password' }
+  }
+}
+
+export const getLinkedProviders = (): string[] => {
+  const currentUser = auth.currentUser
+  if (!currentUser) return []
+  return currentUser.providerData.map(p => p.providerId)
+}
+
+export const resetPassword = async (
+  email: string
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    await sendPasswordResetEmail(auth, email)
+    return { success: true }
+  } catch (error: any) {
+    const code = error?.code || ''
+    if (code === 'auth/user-not-found') {
+      // Don't reveal whether the email exists for security
+      return { success: true }
+    }
+    if (code === 'auth/invalid-email') {
+      return { success: false, error: 'Please enter a valid email address' }
+    }
+    return { success: false, error: error?.message || 'Failed to send reset email' }
+  }
 }
 

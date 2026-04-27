@@ -12,14 +12,16 @@ import { PlayerStats } from '@/components/PlayerStats'
 import { PlayersOverview } from '@/components/PlayersOverview'
 import { CommunityStats } from '@/components/CommunityStats'
 
-import { Plus, BookOpen, User, SignOut, CaretDown, UsersThree } from '@phosphor-icons/react'
+import { Plus, BookOpen, User, SignOut, CaretDown, UsersThree, Lock } from '@phosphor-icons/react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card } from '@/components/ui/card'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Toaster, toast } from 'sonner'
 import { getInvestigatorByName, resolveInvestigator } from '@/lib/investigator-data'
-import { signOutUser, User as AuthUser } from '@/lib/auth'
+import { signOutUser, User as AuthUser, linkEmailPassword, getLinkedProviders } from '@/lib/auth'
 import { PublicHomepage } from '@/components/PublicHomepage'
 import { rebuildCommunityStats } from '@/lib/community-stats'
 
@@ -38,6 +40,41 @@ function AuthenticatedApp({ currentUser, onSignOut }: AuthenticatedAppProps) {
   const [selectedCampaigns, setSelectedCampaigns] = useState<string[]>([])
   const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState("games")
+  const [linkPasswordOpen, setLinkPasswordOpen] = useState(false)
+  const [linkPassword, setLinkPassword] = useState('')
+  const [linkPasswordConfirm, setLinkPasswordConfirm] = useState('')
+  const [linkPasswordLoading, setLinkPasswordLoading] = useState(false)
+  const [linkedProviders, setLinkedProviders] = useState<string[]>([])
+
+  useEffect(() => {
+    setLinkedProviders(getLinkedProviders())
+  }, [currentUser])
+
+  const hasPasswordLinked = linkedProviders.includes('password')
+  const isGoogleUser = currentUser.authProvider === 'google'
+
+  const handleLinkPassword = async () => {
+    if (linkPassword.length < 6) {
+      toast.error('Password must be at least 6 characters')
+      return
+    }
+    if (linkPassword !== linkPasswordConfirm) {
+      toast.error('Passwords do not match')
+      return
+    }
+    setLinkPasswordLoading(true)
+    const result = await linkEmailPassword(linkPassword)
+    setLinkPasswordLoading(false)
+    if (result.success) {
+      toast.success('Password linked! You can now sign in with email/password too.')
+      setLinkPasswordOpen(false)
+      setLinkPassword('')
+      setLinkPasswordConfirm('')
+      setLinkedProviders(getLinkedProviders())
+    } else {
+      toast.error(result.error || 'Failed to link password')
+    }
+  }
 
   // Auto-fix legacy data (campaign types, investigator metadata)
   useEffect(() => {
@@ -248,6 +285,15 @@ function AuthenticatedApp({ currentUser, onSignOut }: AuthenticatedAppProps) {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48">
+                    {isGoogleUser && !hasPasswordLinked && (
+                      <DropdownMenuItem 
+                        onClick={() => setLinkPasswordOpen(true)}
+                        className="gap-2 cursor-pointer"
+                      >
+                        <Lock size={16} weight="bold" />
+                        Set Password
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem 
                       onClick={onSignOut}
                       variant="destructive"
@@ -403,6 +449,48 @@ function AuthenticatedApp({ currentUser, onSignOut }: AuthenticatedAppProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={linkPasswordOpen} onOpenChange={(open) => { setLinkPasswordOpen(open); if (!open) { setLinkPassword(''); setLinkPasswordConfirm(''); } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Set Password</DialogTitle>
+            <DialogDescription>
+              Add a password to your Google account so you can also sign in with email and password.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Email</label>
+              <Input value={currentUser.email} disabled className="opacity-70" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">New Password</label>
+              <Input 
+                type="password" 
+                placeholder="At least 6 characters"
+                value={linkPassword}
+                onChange={(e) => setLinkPassword(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Confirm Password</label>
+              <Input 
+                type="password" 
+                placeholder="Re-enter password"
+                value={linkPasswordConfirm}
+                onChange={(e) => setLinkPasswordConfirm(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleLinkPassword() }}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setLinkPasswordOpen(false)}>Cancel</Button>
+            <Button onClick={handleLinkPassword} disabled={linkPasswordLoading}>
+              {linkPasswordLoading ? 'Linking...' : 'Set Password'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-sm border-t border-border pb-safe z-50">
         <div className="grid grid-cols-3 gap-0 px-2 py-2 pb-3">
