@@ -64,7 +64,7 @@ export const createAccount = async (
   } catch (error: any) {
     const code = error?.code || ''
     if (code === 'auth/email-already-in-use') {
-      return { success: false, error: 'An account with this email already exists' }
+      return { success: false, error: 'An account with this email already exists. If you signed in with Google, use the "Set Password" option in your profile menu instead.' }
     }
     if (code === 'auth/weak-password') {
       return { success: false, error: 'Password must be at least 6 characters' }

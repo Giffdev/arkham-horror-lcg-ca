@@ -222,12 +222,12 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough, k
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="max-w-3xl max-h-[90dvh] flex flex-col overflow-hidden">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle>{editPlaythrough ? 'Edit Playthrough' : 'Log New Playthrough'}</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6 py-4">
+        <div className="space-y-6 py-4 overflow-y-auto flex-1 min-h-0 pr-1">
           <div className="space-y-2">
             <Label htmlFor="date">Date</Label>
             <Input
@@ -394,7 +394,7 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough, k
           </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="flex-shrink-0">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
