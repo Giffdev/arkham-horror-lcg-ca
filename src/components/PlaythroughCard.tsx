@@ -233,7 +233,7 @@ export function PlaythroughCard({ playthrough, onEdit, onDelete, activeArchetype
         {playthrough.notes && (
           <div className="mt-2 flex items-start gap-2 text-sm text-muted-foreground">
             <Notepad size={16} weight="duotone" className="mt-0.5 flex-shrink-0" />
-            <p className="whitespace-pre-wrap">{playthrough.notes}</p>
+            <p className="whitespace-pre-wrap break-words min-w-0">{playthrough.notes}</p>
           </div>
         )}
 

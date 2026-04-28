@@ -202,7 +202,7 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough, k
       ...(campaignSet ? { campaignSet } : {}),
       ...(campaignType === 'Fan-Made' && customCampaignName ? { customCampaignName } : {}),
       ...(campaignType === 'Full Campaign' && sideStories.length > 0 ? { sideStories } : {}),
-      ...(notes.trim() ? { notes: notes.trim() } : {}),
+      ...(notes.trim() ? { notes: notes.trim() } : { notes: '' }),
       investigators: investigators.map(inv => ({
         playerName: inv.playerName,
         investigatorName: inv.isUnknown ? 'Unknown' : inv.investigatorName,
