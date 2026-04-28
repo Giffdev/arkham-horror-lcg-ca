@@ -45,12 +45,22 @@ export async function rebuildCommunityStats(_localPlaythroughs?: Playthrough[]):
   }
 
   const topCampaigns = Array.from(campaignCounts.entries())
-    .map(([name, data]) => ({ name, ...data }))
+    .map(([name, data]) => {
+      const entry: { name: string; count: number; set?: string } = { name, count: data.count }
+      if (data.set) entry.set = data.set
+      return entry
+    })
     .sort((a, b) => b.count - a.count)
     .slice(0, 10)
 
   const topInvestigators = Array.from(investigatorCounts.entries())
-    .map(([name, data]) => ({ name, ...data }))
+    .map(([name, data]) => {
+      const entry: { name: string; count: number; archetypes: Archetype[]; chapter?: 1 | 2 } = {
+        name, count: data.count, archetypes: data.archetypes || []
+      }
+      if (data.chapter) entry.chapter = data.chapter
+      return entry
+    })
     .sort((a, b) => b.count - a.count)
     .slice(0, 10)
 
