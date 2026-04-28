@@ -213,7 +213,7 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough, k
       campaignType,
       ...(campaignSet ? { campaignSet } : {}),
       ...(campaignType === 'Fan-Made' && customCampaignName ? { customCampaignName } : {}),
-      ...(campaignType === 'Full Campaign' && sideStories.length > 0 ? { sideStories } : {}),
+      sideStories: campaignType === 'Full Campaign' ? sideStories : [],
       ...(notes.trim() ? { notes: notes.trim() } : { notes: '' }),
       investigators: investigators.map(inv => {
         // Auto-set to unknown if no investigator was selected
