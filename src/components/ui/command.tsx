@@ -1,6 +1,6 @@
 "use client"
 
-import { ComponentProps } from "react"
+import { ComponentProps, useEffect, useRef } from "react"
 import { Command as CommandPrimitive } from "cmdk"
 import SearchIcon from "lucide-react/dist/esm/icons/search"
 
@@ -79,16 +79,52 @@ function CommandList({
   className,
   ...props
 }: ComponentProps<typeof CommandPrimitive.List>) {
+  const wrapperRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const wrapper = wrapperRef.current
+    if (!wrapper) return
+
+    // Find the actual scrollable [cmdk-list-sizer] or use the wrapper itself
+    const getScrollEl = () => wrapper.querySelector('[cmdk-list-sizer]')?.parentElement || wrapper.firstElementChild as HTMLElement | null
+
+    const handleTouchStart = (e: TouchEvent) => {
+      const scrollEl = getScrollEl()
+      if (!scrollEl) return
+      // Store start position for direction detection
+      ;(wrapper as any).__touchStartY = e.touches[0].clientY
+    }
+
+    const handleTouchMove = (e: TouchEvent) => {
+      const scrollEl = getScrollEl()
+      if (!scrollEl || scrollEl.scrollHeight <= scrollEl.clientHeight) return
+
+      // Allow scrolling within the list by stopping the event from reaching
+      // Radix Dialog's RemoveScroll which would block it
+      e.stopPropagation()
+    }
+
+    wrapper.addEventListener('touchstart', handleTouchStart, { passive: true })
+    wrapper.addEventListener('touchmove', handleTouchMove, { passive: false })
+
+    return () => {
+      wrapper.removeEventListener('touchstart', handleTouchStart)
+      wrapper.removeEventListener('touchmove', handleTouchMove)
+    }
+  }, [])
+
   return (
-    <CommandPrimitive.List
-      data-slot="command-list"
-      className={cn(
-        "max-h-[300px] scroll-py-1 overflow-x-hidden overflow-y-auto overscroll-contain",
-        "[touch-action:pan-y] [-webkit-overflow-scrolling:touch]",
-        className
-      )}
-      {...props}
-    />
+    <div ref={wrapperRef} className="overflow-hidden">
+      <CommandPrimitive.List
+        data-slot="command-list"
+        className={cn(
+          "max-h-[300px] scroll-py-1 overflow-x-hidden overflow-y-auto overscroll-contain",
+          "[touch-action:pan-y] [-webkit-overflow-scrolling:touch]",
+          className
+        )}
+        {...props}
+      />
+    </div>
   )
 }
 

@@ -78,5 +78,10 @@ export async function getAllPlaythroughs(): Promise<{ playthroughs: Playthrough[
     if (pathParts.length >= 2) userIds.add(pathParts[1])
     return { id: d.id, ...d.data() } as Playthrough
   })
-  return { playthroughs, userCount: userIds.size }
+
+  // Count all registered users (including those with no playthroughs)
+  const usersSnapshot = await getDocs(collection(db, 'users'))
+  const registeredCount = Math.max(usersSnapshot.size, userIds.size)
+
+  return { playthroughs, userCount: registeredCount }
 }
