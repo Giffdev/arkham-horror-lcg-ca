@@ -152,6 +152,18 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough, k
     )
   }
 
+  // Compute whether the form has enough data to save
+  const isFormValid = (() => {
+    // Campaign must be selected (unless Unknown type)
+    if (campaignType !== 'Unknown' && campaignType !== 'Fan-Made' && !campaignName) return false
+    if (campaignType === 'Fan-Made' && !customCampaignName.trim()) return false
+    // Must have at least one investigator
+    if (investigators.length === 0) return false
+    // Each investigator must have a player name
+    if (investigators.some(inv => !inv.playerName.trim())) return false
+    return true
+  })()
+
   const handleSubmit = () => {
     if (!campaignName && campaignType !== 'Unknown' && campaignType !== 'Fan-Made') {
       toast.error('Please select a campaign')
@@ -203,17 +215,21 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough, k
       ...(campaignType === 'Fan-Made' && customCampaignName ? { customCampaignName } : {}),
       ...(campaignType === 'Full Campaign' && sideStories.length > 0 ? { sideStories } : {}),
       ...(notes.trim() ? { notes: notes.trim() } : { notes: '' }),
-      investigators: investigators.map(inv => ({
-        playerName: inv.playerName,
-        investigatorName: inv.isUnknown ? 'Unknown' : inv.investigatorName,
-        archetype: inv.archetype,
-        archetypes: inv.archetypes,
-        investigatorSet: inv.investigatorSet,
-        isUnknown: inv.isUnknown,
-        isCustom: inv.isCustom,
-        ...(inv.customInvestigatorName ? { customInvestigatorName: inv.customInvestigatorName } : {}),
-        ...(inv.dreamEatersPath ? { dreamEatersPath: inv.dreamEatersPath } : {})
-      }))
+      investigators: investigators.map(inv => {
+        // Auto-set to unknown if no investigator was selected
+        const isAutoUnknown = !inv.isUnknown && !inv.investigatorName && !inv.isCustom
+        const effectiveInv = isAutoUnknown ? { ...inv, isUnknown: true, investigatorName: 'Unknown', archetype: 'Unknown' as const, archetypes: undefined } : inv
+        return {
+        playerName: effectiveInv.playerName,
+        investigatorName: effectiveInv.isUnknown ? 'Unknown' : effectiveInv.investigatorName,
+        archetype: effectiveInv.archetype,
+        archetypes: effectiveInv.archetypes,
+        investigatorSet: effectiveInv.investigatorSet,
+        isUnknown: effectiveInv.isUnknown,
+        isCustom: effectiveInv.isCustom,
+        ...(effectiveInv.customInvestigatorName ? { customInvestigatorName: effectiveInv.customInvestigatorName } : {}),
+        ...(effectiveInv.dreamEatersPath ? { dreamEatersPath: effectiveInv.dreamEatersPath } : {})
+      }})
     }
 
     onSave(playthrough as any)
@@ -415,7 +431,7 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough, k
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit}>
+          <Button onClick={handleSubmit} disabled={!isFormValid}>
             {editPlaythrough ? 'Update' : 'Save'} Playthrough
           </Button>
         </DialogFooter>
