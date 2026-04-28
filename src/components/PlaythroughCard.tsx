@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { Playthrough, Archetype } from '@/lib/types'
 import { Card } from '@/components/ui/card'
 import { ArchetypeBadge } from './ArchetypeBadge'
@@ -74,7 +75,7 @@ interface PlaythroughCardProps {
   activeArchetypeFilters?: Archetype[]
 }
 
-export function PlaythroughCard({ playthrough, onEdit, onDelete, activeArchetypeFilters = [] }: PlaythroughCardProps) {
+export const PlaythroughCard = memo(function PlaythroughCard({ playthrough, onEdit, onDelete, activeArchetypeFilters = [] }: PlaythroughCardProps) {
   const displayName = playthrough.campaignType === 'Fan-Made' 
     ? playthrough.customCampaignName || playthrough.campaignName
     : playthrough.campaignType === 'Unknown'
@@ -140,12 +141,13 @@ export function PlaythroughCard({ playthrough, onEdit, onDelete, activeArchetype
               </div>
             )}
           </div>
-          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity md:hidden">
+          <div className="flex gap-1 opacity-100 md:hidden">
             <Button
               variant="ghost"
               size="icon"
               onClick={() => onEdit(playthrough)}
               className="h-8 w-8"
+              aria-label="Edit playthrough"
             >
               <PencilSimple size={18} />
             </Button>
@@ -154,6 +156,7 @@ export function PlaythroughCard({ playthrough, onEdit, onDelete, activeArchetype
               size="icon"
               onClick={() => onDelete(playthrough.id)}
               className="h-8 w-8 text-destructive hover:text-destructive"
+              aria-label="Delete playthrough"
             >
               <Trash size={18} />
             </Button>
@@ -238,6 +241,7 @@ export function PlaythroughCard({ playthrough, onEdit, onDelete, activeArchetype
             size="icon"
             onClick={() => onEdit(playthrough)}
             className="h-8 w-8"
+            aria-label="Edit playthrough"
           >
             <PencilSimple size={18} />
           </Button>
@@ -246,6 +250,7 @@ export function PlaythroughCard({ playthrough, onEdit, onDelete, activeArchetype
             size="icon"
             onClick={() => onDelete(playthrough.id)}
             className="h-8 w-8 text-destructive hover:text-destructive"
+            aria-label="Delete playthrough"
           >
             <Trash size={18} />
           </Button>
@@ -262,4 +267,4 @@ export function PlaythroughCard({ playthrough, onEdit, onDelete, activeArchetype
         )}
     </Card>
   )
-}
+})

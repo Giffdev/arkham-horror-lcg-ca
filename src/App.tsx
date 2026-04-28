@@ -36,6 +36,7 @@ function AuthenticatedApp({ currentUser, onSignOut }: AuthenticatedAppProps) {
   const [formOpen, setFormOpen] = useState(false)
   const [editingPlaythrough, setEditingPlaythrough] = useState<Playthrough | null>(null)
   const [isSaving, setIsSaving] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [selectedArchetypes, setSelectedArchetypes] = useState<Archetype[]>([])
   const [selectedCampaignTypes, setSelectedCampaignTypes] = useState<CampaignType[]>([])
@@ -129,14 +130,37 @@ function AuthenticatedApp({ currentUser, onSignOut }: AuthenticatedAppProps) {
     }
   }, [playthroughs]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Rebuild community stats whenever playthroughs change
+  // Rebuild community stats with 60-second cooldown (per Ripley's decision)
+  const lastRebuildRef = useRef(0)
+  const rebuildTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => {
-    if (playthroughs && playthroughs.length > 0) {
+    if (!playthroughs || playthroughs.length === 0) return
+
+    const now = Date.now()
+    const elapsed = now - lastRebuildRef.current
+    const COOLDOWN_MS = 60_000
+
+    if (elapsed >= COOLDOWN_MS) {
+      lastRebuildRef.current = now
       rebuildCommunityStats(playthroughs).catch(console.error)
+    } else if (!rebuildTimeoutRef.current) {
+      rebuildTimeoutRef.current = setTimeout(() => {
+        lastRebuildRef.current = Date.now()
+        rebuildTimeoutRef.current = null
+        rebuildCommunityStats(playthroughs).catch(console.error)
+      }, COOLDOWN_MS - elapsed)
+    }
+
+    return () => {
+      if (rebuildTimeoutRef.current) {
+        clearTimeout(rebuildTimeoutRef.current)
+        rebuildTimeoutRef.current = null
+      }
     }
   }, [playthroughs])
 
-  const knownPlayerNames = useMemo(() => {
+  // Consolidated player names computation (used by both form and Players tab)
+  const allPlayers = useMemo(() => {
     if (!playthroughs) return []
     const names = new Set<string>()
     playthroughs.forEach(p => p.investigators.forEach(inv => {
@@ -195,12 +219,15 @@ function AuthenticatedApp({ currentUser, onSignOut }: AuthenticatedAppProps) {
 
   const handleDeletePlaythrough = async () => {
     if (deleteId) {
+      setIsDeleting(true)
       try {
         await playthroughActions.remove(deleteId)
         toast.success('Playthrough deleted')
       } catch (error) {
         console.error('Failed to delete playthrough:', error)
         toast.error('Failed to delete playthrough')
+      } finally {
+        setIsDeleting(false)
       }
       setDeleteId(null)
     }
@@ -248,21 +275,6 @@ function AuthenticatedApp({ currentUser, onSignOut }: AuthenticatedAppProps) {
     setSelectedCampaignTypes([])
     setSelectedCampaigns([])
   }
-
-  const allPlayers = useMemo(() => {
-    if (!playthroughs) return []
-    
-    const playerSet = new Set<string>()
-    playthroughs.forEach(playthrough => {
-      playthrough.investigators.forEach(inv => {
-        if (inv.playerName.trim()) {
-          playerSet.add(inv.playerName)
-        }
-      })
-    })
-    
-    return Array.from(playerSet).sort((a, b) => a.localeCompare(b))
-  }, [playthroughs])
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -468,7 +480,7 @@ function AuthenticatedApp({ currentUser, onSignOut }: AuthenticatedAppProps) {
         onOpenChange={setFormOpen}
         onSave={handleSavePlaythrough}
         editPlaythrough={editingPlaythrough}
-        knownPlayerNames={knownPlayerNames}
+        knownPlayerNames={allPlayers}
         isSaving={isSaving}
       />
 
@@ -481,9 +493,9 @@ function AuthenticatedApp({ currentUser, onSignOut }: AuthenticatedAppProps) {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeletePlaythrough} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Delete
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeletePlaythrough} disabled={isDeleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {isDeleting ? 'Deleting...' : 'Delete'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

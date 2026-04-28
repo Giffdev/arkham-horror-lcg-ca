@@ -88,3 +88,10 @@
 - **Gated legacy migration** with `useRef(hasMigratedRef)` — runs once per session, prevents write-loop via Firestore snapshots re-triggering the effect.
 - **Added `onError` handler to `onSnapshot`** in `subscribeToPlaythroughs`. Hook now exposes `error` state (4th tuple element). On error: clears stale data, logs, and surfaces error to consumers.
 - **`lucide-react` is NOT dead** — used by 19 shadcn/ui components. Left in place.
+
+### 2026-04-28: Performance Improvements Applied
+
+- **React.memo on PlaythroughCard** — Wrapped in `memo()` to skip re-renders when parent filter/tab state changes. Props are stable (playthrough objects from snapshot, stable callbacks via `setDeleteId`/`handleEdit`).
+- **60-second debounced community stats rebuild** — Replaced aggressive `useEffect([playthroughs])` fire-on-every-change with a `useRef`-based cooldown. Fires immediately on first change, then at most once per 60s. Implements Ripley's decision from `ripley-community-stats-strategy.md`.
+- **Delete loading state** — Added `isDeleting` state to disable AlertDialog buttons during async delete, preventing double-clicks. Matches Dallas's pattern for `isSaving`.
+- **Consolidated duplicate player computation** — Removed separate `knownPlayerNames` and `allPlayers` useMemo blocks. Single `allPlayers` useMemo now serves both the PlaythroughForm (knownPlayerNames prop) and the Players tab.

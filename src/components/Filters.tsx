@@ -271,6 +271,7 @@ export function Filters({
                   <button
                     onClick={() => onArchetypeToggle(archetype)}
                     className="ml-1 hover:bg-muted-foreground/20 rounded-full"
+                    aria-label={`Remove ${archetype} filter`}
                   >
                     <X size={12} />
                   </button>
@@ -282,6 +283,7 @@ export function Filters({
                   <button
                     onClick={() => onCampaignTypeToggle(type)}
                     className="ml-1 hover:bg-muted-foreground/20 rounded-full"
+                    aria-label={`Remove ${type} filter`}
                   >
                     <X size={12} />
                   </button>
@@ -293,6 +295,7 @@ export function Filters({
                   <button
                     onClick={() => onCampaignToggle(campaign)}
                     className="ml-1 hover:bg-muted-foreground/20 rounded-full"
+                    aria-label={`Remove ${campaign} filter`}
                   >
                     <X size={12} />
                   </button>

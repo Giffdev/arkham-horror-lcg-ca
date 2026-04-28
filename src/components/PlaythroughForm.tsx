@@ -20,12 +20,13 @@ import { toast } from 'sonner'
 interface PlaythroughFormProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSave: (playthrough: Omit<Playthrough, 'id'> | Playthrough) => void
+  onSave: (playthrough: Omit<Playthrough, 'id'> | Playthrough) => Promise<void> | void
   editPlaythrough?: Playthrough | null
   knownPlayerNames?: string[]
+  isSaving?: boolean
 }
 
-export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough, knownPlayerNames = [] }: PlaythroughFormProps) {
+export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough, knownPlayerNames = [], isSaving = false }: PlaythroughFormProps) {
   const [campaignType, setCampaignType] = useState<CampaignType>('Full Campaign')
   const [customCampaignName, setCustomCampaignName] = useState('')
   const [campaignName, setCampaignName] = useState('')
@@ -380,6 +381,7 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough, k
                             type="button"
                             onClick={() => handleToggleSideStory(story)}
                             className="ml-0.5 rounded-full hover:bg-muted-foreground/20 p-0.5"
+                            aria-label={`Remove ${story}`}
                           >
                             <X size={12} />
                           </button>
@@ -492,8 +494,8 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough, k
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={!isFormValid}>
-            {editPlaythrough ? 'Update' : 'Save'} Playthrough
+          <Button onClick={handleSubmit} disabled={!isFormValid || isSaving}>
+            {isSaving ? 'Saving…' : `${editPlaythrough ? 'Update' : 'Save'} Playthrough`}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -669,6 +671,7 @@ function InvestigatorRow({ investigator, index, isDreamEaters, onRemove, onChang
             size="icon"
             onClick={onRemove}
             className="shrink-0 mt-7"
+            aria-label={`Remove investigator ${index + 1}`}
           >
             <Trash size={16} weight="bold" />
           </Button>
