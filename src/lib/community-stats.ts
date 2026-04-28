@@ -1,5 +1,5 @@
 import { Playthrough, Archetype } from './types'
-import { getCommunityStatsFromFirestore, saveCommunityStats } from './firestore'
+import { getCommunityStatsFromFirestore, saveCommunityStats, getAllPlaythroughs } from './firestore'
 import { getCampaignSet } from './campaign-data'
 
 export interface CommunityStats {
@@ -14,9 +14,11 @@ export interface CommunityStats {
 }
 
 /**
- * Rebuild community stats from playthroughs and save to Firestore.
+ * Rebuild community stats from ALL users' playthroughs across Firestore.
+ * The local playthroughs param is ignored — we query the full collectionGroup.
  */
-export async function rebuildCommunityStats(playthroughs: Playthrough[]): Promise<void> {
+export async function rebuildCommunityStats(_localPlaythroughs?: Playthrough[]): Promise<void> {
+  const { playthroughs, userCount } = await getAllPlaythroughs()
   if (!playthroughs.length) return
 
   const campaignCounts = new Map<string, { count: number; set?: string }>()
@@ -57,7 +59,7 @@ export async function rebuildCommunityStats(playthroughs: Playthrough[]): Promis
     totalInvestigatorsPlayed: uniqueInvestigators.size,
     topSideScenarios: [],
     topStandalones: [],
-    registeredUsers: 1,
+    registeredUsers: userCount,
     lastUpdated: Date.now(),
   }
 

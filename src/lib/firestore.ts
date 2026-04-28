@@ -1,5 +1,6 @@
 import {
   collection,
+  collectionGroup,
   doc,
   addDoc,
   updateDoc,
@@ -8,6 +9,7 @@ import {
   query,
   orderBy,
   getDoc,
+  getDocs,
   setDoc,
   type Unsubscribe,
 } from 'firebase/firestore'
@@ -60,4 +62,21 @@ export async function getCommunityStatsFromFirestore(): Promise<CommunityStats |
 
 export async function saveCommunityStats(stats: CommunityStats): Promise<void> {
   await setDoc(COMMUNITY_STATS_DOC, stats)
+}
+
+/**
+ * Get ALL playthroughs across ALL users using a collectionGroup query.
+ * Also returns the count of distinct users.
+ */
+export async function getAllPlaythroughs(): Promise<{ playthroughs: Playthrough[]; userCount: number }> {
+  const q = query(collectionGroup(db, 'playthroughs'), orderBy('date', 'desc'))
+  const snapshot = await getDocs(q)
+  const userIds = new Set<string>()
+  const playthroughs = snapshot.docs.map((d) => {
+    // Path: users/{uid}/playthroughs/{id} — extract uid
+    const pathParts = d.ref.path.split('/')
+    if (pathParts.length >= 2) userIds.add(pathParts[1])
+    return { id: d.id, ...d.data() } as Playthrough
+  })
+  return { playthroughs, userCount: userIds.size }
 }
