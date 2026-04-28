@@ -57,3 +57,35 @@
 - **Fixed mobile edit/delete** — changed from `opacity-0 group-hover:opacity-100` (broken on touch) to always-visible on mobile, hover-reveal on `md:`.
 - **Added `aria-label`s** to all icon-only buttons: edit/delete in PlaythroughCard, remove investigator in PlaythroughForm, remove side story badge, and filter badge remove buttons in Filters.
 - **Added `isSaving` loading state** — `App.tsx` tracks save-in-progress, passes to `PlaythroughForm` which disables the Save button and shows "Saving…" text during async.
+
+### 2026-04-28: App.tsx Decomposition (Dallas)
+
+- **Extracted 5 hooks** from the 627-line monolith `App.tsx`:
+  - `useAuthState` — Firebase auth lifecycle + signOut
+  - `useLegacyDataMigration` — one-time campaign type & investigator metadata fixer
+  - `useCommunityStatsSync` — rebuilds community stats on playthrough changes
+  - `usePlaythroughFilters` — filter state, toggle handlers, filtered memo
+  - `usePasswordLink` — password link dialog state + handler
+- **Extracted 5 components**:
+  - `AppHeader` — header bar with title, new game button, user dropdown
+  - `GamesTab` — games tab content (filters + card list + empty state)
+  - `PlayersTab` — players tab with mobile grid + desktop sidebar + stats
+  - `MobileNav` — fixed bottom nav bar for mobile
+  - `PasswordLinkDialog` — password linking dialog
+- **App.tsx reduced from 632 lines to ~210 lines** — now a thin orchestrator shell
+- **Removed duplicate investigator validation** in PlaythroughForm.tsx (PRD allows duplicates)
+- Build passes, all 49 tests pass.
+
+### 2026-04-28: Wave 2 Completion — App.tsx Decomposition
+
+**Status:** ✅ COMPLETE
+
+**Scope Delivered:**
+- Extracted 5 custom hooks (`useAuthState`, `useLegacyDataMigration`, `useCommunityStatsSync`, `usePlaythroughFilters`, `usePasswordLink`)
+- Extracted 5 view components (`AppHeader`, `GamesTab`, `PlayersTab`, `MobileNav`, `PasswordLinkDialog`)
+- Reduced App.tsx from 632 → 210 lines (67% reduction)
+- Fixed duplicate investigator validation block in PlaythroughForm.tsx (now allows duplicates per PRD)
+
+**Quality:** `npm run build` ✓ | `npm test` 49/49 pass ✓
+
+**Impact:** Improved maintainability, isolated concerns, single responsibility per component/hook. Ready for Wave 3 (PlaythroughForm decomposition).

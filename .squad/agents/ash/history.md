@@ -95,3 +95,22 @@
 - **60-second debounced community stats rebuild** — Replaced aggressive `useEffect([playthroughs])` fire-on-every-change with a `useRef`-based cooldown. Fires immediately on first change, then at most once per 60s. Implements Ripley's decision from `ripley-community-stats-strategy.md`.
 - **Delete loading state** — Added `isDeleting` state to disable AlertDialog buttons during async delete, preventing double-clicks. Matches Dallas's pattern for `isSaving`.
 - **Consolidated duplicate player computation** — Removed separate `knownPlayerNames` and `allPlayers` useMemo blocks. Single `allPlayers` useMemo now serves both the PlaythroughForm (knownPlayerNames prop) and the Players tab.
+
+### 2026-04-28: Wave 2 Completion — React.memo + Performance Optimizations
+
+**Status:** ✅ COMPLETE
+
+**Scope Delivered:**
+- Applied `React.memo()` to `PlaythroughCard` component (eliminates unnecessary re-renders from parent filter/tab changes)
+- Implemented 60-second debounced community stats rebuild with in-memory cooldown (per Ripley's strategy decision)
+- Added `isDeleting` loading state to delete alert dialog (prevents double-click mutations)
+- Consolidated duplicate player name computation into single `allPlayers` useMemo
+
+**Perf Impact:** 
+- PlaythroughCard re-renders now guarded by prop shallowness check
+- Community stats reads reduced from "every mutation × all docs" to "once per 60s max"
+- Delete UX improved (visual feedback during async operation)
+
+**Quality:** Fully integrated with Dallas's App.tsx decomposition. All 49 tests pass.
+
+**Impact:** Significant Firestore read cost reduction + improved perceived responsiveness.

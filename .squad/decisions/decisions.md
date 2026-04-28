@@ -1,6 +1,6 @@
 # Decisions Log
 
-**Last Updated:** 2026-04-28T15:12:33Z
+**Last Updated:** 2026-04-28T22:12:33Z
 
 ---
 
@@ -121,3 +121,43 @@ However, `PlaythroughForm.tsx` (lines 193-201) blocks duplicate investigators wi
 - Current problem is excessive triggers, not lack of Cloud Functions
 - With debounce + bump: reads drop from "every mutation × all docs" to "once per session + once per 60s max"
 - Scale later (1000+ users) — add Cloud Function then
+
+---
+
+## 2026-04-28: Wave 2 Completion — App.tsx Decomposition, Performance Optimizations
+
+### Decision: App.tsx Decomposition Complete (IMPLEMENTED)
+
+**Author:** Dallas  
+**Date:** 2026-04-28  
+**Status:** Implemented
+
+## Summary
+
+Decomposed the 632-line `App.tsx` monolith into focused hooks and components per Ripley's plan.
+
+## Structure
+
+### Hooks (`src/hooks/`)
+- `useAuthState.ts` — Firebase auth lifecycle
+- `useLegacyDataMigration.ts` — one-time data migration side-effect
+- `useCommunityStatsSync.ts` — community stats rebuild trigger
+- `usePlaythroughFilters.ts` — filter state + filtered memo
+- `usePasswordLink.ts` — password linking dialog state
+
+### Components (`src/components/`)
+- `AppHeader.tsx` — header bar with actions
+- `GamesTab.tsx` — games tab content
+- `PlayersTab.tsx` — players tab content
+- `MobileNav.tsx` — mobile bottom nav
+- `PasswordLinkDialog.tsx` — password link dialog
+
+### App.tsx
+Now ~210 lines. Composes the above pieces with minimal orchestration logic (CRUD handlers, tab state, form state).
+
+## Also Fixed
+- Removed duplicate investigator validation block in `PlaythroughForm.tsx` — PRD explicitly allows duplicate investigators across players.
+
+## Verification
+- `npm run build` ✓
+- `npm test` — 49/49 tests pass ✓
