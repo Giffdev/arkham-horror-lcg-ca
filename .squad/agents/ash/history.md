@@ -123,3 +123,14 @@
 **Quality:** Fully integrated with Dallas's App.tsx decomposition. All 49 tests pass.
 
 **Impact:** Significant Firestore read cost reduction + improved perceived responsiveness.
+
+### 2026-04-28: Campaign Outcome Tracking Reverted (Stability Priority)
+
+- **Reverted `CampaignOutcome` type** and `outcome` field from Playthrough interface in `src/lib/types.ts`
+- **Removed OUTCOME_STYLES** constants from PlaythroughCard and PlayerStats
+- **Removed RadioGroup outcome selector** from PlaythroughForm (including import, state, reset logic, and save logic)
+- **Removed outcome badges** from PlaythroughCard (both mobile and desktop layouts) and PlayerStats history tab
+- **Kept date validation** (form hardening, not a feature) per Ripley's review
+- **Kept all Wave 1/Wave 2 changes** (React.memo, debounced stats, isDeleting, consolidated player computation)
+- Build passes, all 89 tests pass. No test modifications needed — feature was cleanly isolated.
+- **Lesson:** Don't ship features during a stability freeze, even high-impact ones. Outcome tracking can return when the team is ready for feature work.
