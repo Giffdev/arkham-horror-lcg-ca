@@ -169,3 +169,15 @@
   - `src/lib/investigator-data.test.ts` (37 tests) — covers getInvestigatorById, getInvestigatorByName, getInvestigatorsByArchetype, resolveInvestigator, getAllInvestigatorNames, isDualClassInvestigator, badge utilities, ArkhamDB URL generation, display names, dataset integrity
   - `src/components/DataExportImport.test.ts` (12 tests) — covers validation logic for import (valid/invalid JSON, missing fields, type checks, batch validation)
 - Strategy: test pure logic first; component tests after refactor lands
+
+### 2026-04-28: Wave 1-2 Hook/Logic Tests Added
+
+- **89 tests now passing** (up from 49), added 40 new tests across 4 files
+- New test files:
+  - `src/hooks/usePlaythroughFilters.test.ts` (18 tests) — archetype filtering (single, multiple, OR logic, dual-class archetypes array), campaign type filtering, campaign name filtering (including customCampaignName), combined AND filters across categories, clearing filters, undefined/empty input
+  - `src/hooks/useCommunityStatsSync.test.ts` (5 tests) — verifies rebuild is called with playthroughs, skipped for undefined/empty, re-invoked on reference change, graceful rejection handling
+  - `src/lib/date-utils.test.ts` (8 tests) — relative time formatting for recent dates (<7 days), absolute "MMM d, yyyy" for older dates, 7-day boundary edge case
+  - `src/lib/player-extraction.test.ts` (9 tests) — unique player extraction, empty/whitespace exclusion, case sensitivity, sorting, large dataset efficiency
+- Key finding: `useCommunityStatsSync` has NO debounce/cooldown — it calls `rebuildCommunityStats` on every playthroughs change. The planned rate-limiting was never implemented.
+- Key finding: date-only ISO strings (e.g. `2026-01-15`) are parsed as UTC midnight, causing off-by-one day display in negative-offset timezones. Tests use explicit timestamps to avoid this.
+- Player extraction logic lives inline in `App.tsx` (not yet extracted to a hook). Tested the algorithm pattern directly.

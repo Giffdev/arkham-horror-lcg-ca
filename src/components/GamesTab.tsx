@@ -1,6 +1,6 @@
 import { Playthrough, Archetype } from '@/lib/types'
-import { BookOpen } from '@phosphor-icons/react'
 import { PlaythroughCard } from '@/components/PlaythroughCard'
+import { PlaythroughCardSkeleton } from '@/components/PlaythroughCardSkeleton'
 import { EmptyState } from '@/components/EmptyState'
 import { Filters } from '@/components/Filters'
 
@@ -34,9 +34,10 @@ export function GamesTab({
 }: GamesTabProps) {
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
-        <BookOpen size={48} className="text-primary mb-4 animate-pulse" weight="duotone" />
-        <p className="text-muted-foreground">Loading playthroughs...</p>
+      <div className="space-y-3">
+        {[1, 2, 3].map((i) => (
+          <PlaythroughCardSkeleton key={i} />
+        ))}
       </div>
     )
   }
@@ -59,7 +60,7 @@ export function GamesTab({
       ) : filteredPlaythroughs.length === 0 && playthroughs && playthroughs.length > 0 ? (
         <div className="text-center py-16">
           <p className="text-muted-foreground">
-            No playthroughs match your selected filters.
+            No playthroughs match your filters.
           </p>
         </div>
       ) : playthroughs && playthroughs.length > 0 ? (

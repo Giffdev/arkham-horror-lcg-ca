@@ -1,5 +1,5 @@
 import { memo } from 'react'
-import { Playthrough, Archetype, CampaignOutcome } from '@/lib/types'
+import { Playthrough, Archetype } from '@/lib/types'
 import { Card } from '@/components/ui/card'
 import { ArchetypeBadge } from './ArchetypeBadge'
 import { Badge } from '@/components/ui/badge'
@@ -8,13 +8,6 @@ import { PencilSimple, Trash, Clock, UsersThree, Sparkle, Notepad } from '@phosp
 import { formatDate } from '@/lib/date-utils'
 import { getDisplaySetName, getArkhamDBUrl, resolveInvestigator, getChapterBadgeLabel, isChapterBadgeSpecial } from '@/lib/investigator-data'
 import type { InvestigatorAssignment } from '@/lib/types'
-
-const OUTCOME_STYLES: Record<CampaignOutcome, { label: string; className: string }> = {
-  win: { label: 'Won', className: 'bg-green-500/15 text-green-400 border-green-500/30' },
-  loss: { label: 'Lost', className: 'bg-red-500/15 text-red-400 border-red-500/30' },
-  resign: { label: 'Resigned', className: 'bg-amber-500/15 text-amber-400 border-amber-500/30' },
-  incomplete: { label: 'Incomplete', className: 'bg-gray-500/15 text-gray-400 border-gray-500/30' },
-}
 
 function InvestigatorDisplay({ inv }: { inv: InvestigatorAssignment }) {
   const resolved = resolveInvestigator(inv)
@@ -107,11 +100,6 @@ export const PlaythroughCard = memo(function PlaythroughCard({ playthrough, onEd
               <Badge variant="secondary" className="text-xs">
                 {playthrough.campaignType}
               </Badge>
-              {playthrough.outcome && (
-                <Badge variant="outline" className={`text-xs ${OUTCOME_STYLES[playthrough.outcome].className}`}>
-                  {OUTCOME_STYLES[playthrough.outcome].label}
-                </Badge>
-              )}
             </div>
             {playthrough.sideStories && playthrough.sideStories.length > 0 && (
               <div className="mt-2 md:hidden flex items-start gap-2 flex-wrap">
@@ -132,11 +120,6 @@ export const PlaythroughCard = memo(function PlaythroughCard({ playthrough, onEd
               <Badge variant="secondary" className="text-xs">
                 {playthrough.campaignType}
               </Badge>
-              {playthrough.outcome && (
-                <Badge variant="outline" className={`text-xs ${OUTCOME_STYLES[playthrough.outcome].className}`}>
-                  {OUTCOME_STYLES[playthrough.outcome].label}
-                </Badge>
-              )}
             </div>
             <div className="hidden md:flex items-center gap-1 text-sm text-muted-foreground">
               <Clock size={16} weight="duotone" />

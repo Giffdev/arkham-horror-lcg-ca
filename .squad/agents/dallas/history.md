@@ -76,6 +76,16 @@
 - **Removed duplicate investigator validation** in PlaythroughForm.tsx (PRD allows duplicates)
 - Build passes, all 49 tests pass.
 
+### 2026-04-28: Key Features & UI Polish (Dallas)
+
+- **Search bar** — Added text input with MagnifyingGlass icon at top of Games tab. Filters case-insensitively across campaign names, player names, and investigator names. Works alongside existing archetype/campaign filters via `usePlaythroughFilters` hook.
+- **Sort dropdown** — Added Radix Select next to search bar with 3 options: Date (newest), Date (oldest), Campaign (A-Z). Default is newest-first.
+- **Skeleton loaders** — Replaced pulsing BookOpen loading state with 3 `PlaythroughCardSkeleton` components that mimic the card layout (campaign name, date line, investigator badges).
+- **Card entrance animations** — Added staggered `animate-in fade-in slide-in-from-bottom-2` with 50ms delay per card, 200ms duration. Uses `tw-animate-css` utilities already in the project.
+- All state managed in `usePlaythroughFilters` hook (searchQuery, sortOption) and passed through GamesTab props from App.tsx.
+- Build passes, all 89 tests pass.
+
+
 ### 2026-04-28: Wave 2 Completion — App.tsx Decomposition
 
 **Status:** ✅ COMPLETE
@@ -89,3 +99,23 @@
 **Quality:** `npm run build` ✓ | `npm test` 49/49 pass ✓
 
 **Impact:** Improved maintainability, isolated concerns, single responsibility per component/hook. Ready for Wave 3 (PlaythroughForm decomposition).
+
+### 2026-04-28: Stability Revert — Search, Sort, Card Animations (Dallas)
+
+**Context:** Lead (Ripley) reviewed Wave 3 features and determined search bar, sort dropdown, and card animations add data flow risk during stability phase. Skeleton loaders approved to stay (presentation-only).
+
+**Reverted:**
+- Search bar input + MagnifyingGlass icon from GamesTab
+- `searchQuery` / `setSearchQuery` state from `usePlaythroughFilters`
+- Search filtering logic (campaign/player/investigator text matching)
+- Sort dropdown (Radix Select) from GamesTab
+- `sortOption` / `setSortOption` / `SortOption` type from `usePlaythroughFilters`
+- Sort logic (date-desc/asc, campaign-asc comparator)
+- Card entrance animation wrappers (`animate-in fade-in slide-in-from-bottom-2` divs with staggered delays)
+- Removed unused imports: `MagnifyingGlass`, `Input`, `Select*` components, `SortOption` type
+
+**Kept intact:** PlaythroughCardSkeleton, all Wave 1/2 changes, existing filter logic, all test files.
+
+**Quality:** `npm run build` ✓ | `npm test` 89/89 pass ✓
+
+**Lesson:** Stability-first means features ship only when the lead greenlights them. Don't conflate "low-risk in isolation" with "approved for merge." Always check with Ripley before adding new user-facing state.

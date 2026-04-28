@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Playthrough, InvestigatorAssignment, CAMPAIGN_TYPES, Archetype, CampaignType, DreamEatersCampaignPath, CampaignOutcome } from '@/lib/types'
+import { Playthrough, InvestigatorAssignment, CAMPAIGN_TYPES, Archetype, CampaignType, DreamEatersCampaignPath } from '@/lib/types'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -14,7 +14,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { FULL_CAMPAIGNS, SCENARIO_PACK_SCENARIOS, SMALL_CAMPAIGNS } from '@/lib/campaign-data'
 import { INVESTIGATORS, getInvestigatorById, getInvestigatorDisplayName, getChapterBadgeLabel, isChapterBadgeSpecial, type Investigator } from '@/lib/investigator-data'
 import { Check, CaretDown, X, Plus, Trash, Sparkle } from '@phosphor-icons/react'
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 
@@ -40,7 +40,6 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough, k
   const [sideStorySearch, setSideStorySearch] = useState('')
   const [customSideStory, setCustomSideStory] = useState('')
   const [campaignSearchOpen, setCampaignSearchOpen] = useState(false)
-  const [outcome, setOutcome] = useState<CampaignOutcome | ''>('')
   const [dateError, setDateError] = useState('')
 
   useEffect(() => {
@@ -52,7 +51,6 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough, k
       setDate(editPlaythrough.date)
       setSideStories(editPlaythrough.sideStories || [])
       setNotes(editPlaythrough.notes || '')
-      setOutcome(editPlaythrough.outcome || '')
       setDateError('')
       setInvestigators(editPlaythrough.investigators.map(inv => ({
         ...inv,
@@ -66,7 +64,6 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough, k
       setDate(new Date().toISOString().split('T')[0])
       setSideStories([])
       setNotes('')
-      setOutcome('')
       setDateError('')
       setInvestigators([{
         playerName: '', 
@@ -238,7 +235,7 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough, k
       ...(campaignType === 'Fan-Made' && customCampaignName ? { customCampaignName } : {}),
       sideStories: campaignType !== 'Unknown' ? sideStories : [],
       ...(notes.trim() ? { notes: notes.trim() } : { notes: '' }),
-      ...(outcome ? { outcome } : {}),
+
       investigators: investigators.map(inv => {
         // Auto-set to unknown if no investigator was selected
         const isAutoUnknown = !inv.isUnknown && !inv.investigatorName && !inv.isCustom
@@ -496,45 +493,6 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough, k
               ))}
             </div>
           </div>
-
-          {/* Outcome — only for Full Campaign */}
-          {campaignType === 'Full Campaign' && (
-            <div className="space-y-2">
-              <Label>Outcome <span className="text-muted-foreground font-normal">(optional)</span></Label>
-              <RadioGroup
-                value={outcome}
-                onValueChange={(value) => setOutcome(value as CampaignOutcome | '')}
-                className="flex flex-wrap gap-4"
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="win" id="outcome-win" />
-                  <Label htmlFor="outcome-win" className="text-sm font-normal cursor-pointer">Won</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="loss" id="outcome-loss" />
-                  <Label htmlFor="outcome-loss" className="text-sm font-normal cursor-pointer">Lost</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="resign" id="outcome-resign" />
-                  <Label htmlFor="outcome-resign" className="text-sm font-normal cursor-pointer">Resigned</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="incomplete" id="outcome-incomplete" />
-                  <Label htmlFor="outcome-incomplete" className="text-sm font-normal cursor-pointer">Incomplete</Label>
-                </div>
-              </RadioGroup>
-              {outcome && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 text-xs px-2"
-                  onClick={() => setOutcome('')}
-                >
-                  Clear
-                </Button>
-              )}
-            </div>
-          )}
 
           {/* Notes */}
           <div className="space-y-2 pb-2">
