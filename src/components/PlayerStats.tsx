@@ -481,7 +481,7 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
 
         <div className="space-y-4">
 
-          <div className={cn("space-y-3", filtersExpanded ? "block" : "hidden lg:block")}>
+          <div className={cn("space-y-3", filtersExpanded ? "block" : "hidden")}>
             <div className="space-y-2">
               <p className="text-sm font-medium text-foreground">Chapter</p>
               <div className="inline-flex rounded-lg border border-border overflow-hidden">

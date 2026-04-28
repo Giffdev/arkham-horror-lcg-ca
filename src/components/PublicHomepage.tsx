@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { BookOpen, SignIn, Users, ChartBar, Sparkle, Trophy, GameController } from '@phosphor-icons/react'
+import { BookOpen, SignIn, Users, ChartBar, Sparkle, Trophy, GameController, Shield } from '@phosphor-icons/react'
 import { AuthDialog } from '@/components/AuthDialog'
 import { User } from '@/lib/auth'
 import { getCommunityStats, CommunityStats } from '@/lib/community-stats'
@@ -35,7 +35,7 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background text-foreground">
       <header className="border-b bg-card/50 backdrop-blur-sm">
         <div className="container mx-auto px-6 py-4 md:py-6">
           <div className="flex items-center justify-between gap-3">
@@ -125,7 +125,7 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
                 </Card>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <Card>
                   <CardHeader>
                     <div className="flex items-center gap-2">
@@ -188,6 +188,38 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
                     </div>
                   </CardContent>
                 </Card>
+
+                {communityStats.topClasses && communityStats.topClasses.length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <div className="flex items-center gap-2">
+                        <Shield size={20} className="text-primary" weight="duotone" />
+                        <CardTitle>Class Ranking</CardTitle>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {communityStats.topClasses.map((cls, index) => {
+                          const total = communityStats.topClasses.reduce((sum, c) => sum + c.count, 0)
+                          const pct = total > 0 ? Math.round((cls.count / total) * 100) : 0
+                          return (
+                            <div key={cls.archetype} className="flex items-center justify-between">
+                              <div className="flex items-center gap-3 min-w-0 flex-1">
+                                <span className="text-2xl font-bold text-muted-foreground/40 w-6 text-right flex-shrink-0">
+                                  {index + 1}
+                                </span>
+                                <ArchetypeBadge archetype={cls.archetype} />
+                              </div>
+                              <span className="text-sm text-muted-foreground ml-2 flex-shrink-0">
+                                {cls.count} plays ({pct}%)
+                              </span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
 
                 {communityStats.topStandalones.length > 0 && (
                   <Card>

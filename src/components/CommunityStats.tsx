@@ -99,7 +99,7 @@ export function CommunityStats() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
@@ -208,7 +208,6 @@ export function CommunityStats() {
                         </span>
                         <div className="flex items-center gap-2">
                           <ArchetypeBadge archetype={cls.archetype} />
-                          <span className="font-medium text-foreground capitalize">{cls.archetype}</span>
                         </div>
                       </div>
                       <span className="text-sm text-muted-foreground ml-2 flex-shrink-0">

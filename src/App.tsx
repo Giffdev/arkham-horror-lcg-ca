@@ -256,7 +256,7 @@ function AuthenticatedApp({ currentUser, onSignOut }: AuthenticatedAppProps) {
   }, [playthroughs])
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background text-foreground">
       <Toaster position="top-center" />
       
       <header className="border-b bg-card/50 backdrop-blur-sm md:sticky md:top-0 z-10">
@@ -598,7 +598,7 @@ function App() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
         <div className="text-center">
           <BookOpen size={48} className="text-primary mx-auto mb-4" weight="duotone" />
           <p className="text-muted-foreground">Loading...</p>
