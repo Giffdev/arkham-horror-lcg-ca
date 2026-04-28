@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Playthrough, Archetype } from '@/lib/types'
+import { Playthrough, Archetype, CampaignOutcome } from '@/lib/types'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ArchetypeBadge } from './ArchetypeBadge'
@@ -10,6 +10,13 @@ import { ALL_CAMPAIGNS, getCampaignChapter } from '@/lib/campaign-data'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
+
+const OUTCOME_STYLES: Record<CampaignOutcome, { label: string; className: string }> = {
+  win: { label: 'Won', className: 'bg-green-500/15 text-green-400 border-green-500/30' },
+  loss: { label: 'Lost', className: 'bg-red-500/15 text-red-400 border-red-500/30' },
+  resign: { label: 'Resigned', className: 'bg-amber-500/15 text-amber-400 border-amber-500/30' },
+  incomplete: { label: 'Incomplete', className: 'bg-gray-500/15 text-gray-400 border-gray-500/30' },
+}
 
 interface PlayerStatsProps {
   playerName: string
@@ -38,6 +45,7 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
       type: p.campaignType,
       set: p.campaignSet,
       date: p.date,
+      outcome: p.outcome,
       investigator: p.investigators.find(inv => inv.playerName === playerName)!
     })).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 
@@ -732,6 +740,11 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
                           {campaign.set && (
                             <Badge variant="outline" className="text-xs">
                               {campaign.set}
+                            </Badge>
+                          )}
+                          {campaign.outcome && (
+                            <Badge variant="outline" className={`text-xs ${OUTCOME_STYLES[campaign.outcome].className}`}>
+                              {OUTCOME_STYLES[campaign.outcome].label}
                             </Badge>
                           )}
                         </div>

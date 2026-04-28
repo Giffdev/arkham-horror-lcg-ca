@@ -96,6 +96,15 @@
 - **Delete loading state** — Added `isDeleting` state to disable AlertDialog buttons during async delete, preventing double-clicks. Matches Dallas's pattern for `isSaving`.
 - **Consolidated duplicate player computation** — Removed separate `knownPlayerNames` and `allPlayers` useMemo blocks. Single `allPlayers` useMemo now serves both the PlaythroughForm (knownPlayerNames prop) and the Players tab.
 
+### 2026-04-28: Campaign Outcome Tracking Feature
+
+- **Added `CampaignOutcome` type** to `src/lib/types.ts`: `'win' | 'loss' | 'resign' | 'incomplete'`. Optional field on `Playthrough` interface for backward compatibility.
+- **PlaythroughForm**: Added RadioGroup-based "Outcome" section (only visible for Full Campaign type). Added date validation — rejects empty or future dates with inline error + toast.
+- **PlaythroughCard**: Shows themed outcome badge (green/red/amber/gray) next to campaign type badge in both mobile and desktop layouts. No badge shown when outcome is undefined.
+- **PlayerStats**: History tab now includes outcome badge on each campaign entry.
+- Uses existing Radix `RadioGroup` component from `src/components/ui/radio-group.tsx`.
+- `OUTCOME_STYLES` constant shared pattern between PlaythroughCard and PlayerStats (defined locally in each to avoid circular deps).
+
 ### 2026-04-28: Wave 2 Completion — React.memo + Performance Optimizations
 
 **Status:** ✅ COMPLETE

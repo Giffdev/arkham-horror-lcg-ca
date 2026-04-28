@@ -2,6 +2,8 @@ export type Archetype = 'Guardian' | 'Survivor' | 'Seeker' | 'Rogue' | 'Mystic' 
 
 export type CampaignType = 'Full Campaign' | 'Small Campaign' | 'Scenario Pack' | 'Fan-Made' | 'Unknown'
 
+export type CampaignOutcome = 'win' | 'loss' | 'resign' | 'incomplete'
+
 export type DreamEatersCampaignPath = 'A: The Dream-Quest' | 'B: The Web of Dreams'
 
 export interface InvestigatorAssignment {
@@ -28,6 +30,7 @@ export interface Playthrough {
   sideStories?: string[]
   investigators: InvestigatorAssignment[]
   notes?: string
+  outcome?: CampaignOutcome
 }
 
 export const ARCHETYPES: Archetype[] = ['Guardian', 'Survivor', 'Seeker', 'Rogue', 'Mystic', 'Neutral', 'Unknown']
