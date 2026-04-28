@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { onAuthStateChanged, type User as FirebaseUser } from 'firebase/auth'
 import { auth } from '@/lib/firebase'
 import { cn } from '@/lib/utils'
@@ -35,6 +35,7 @@ function AuthenticatedApp({ currentUser, onSignOut }: AuthenticatedAppProps) {
   const [playthroughs, playthroughActions, isLoadingPlaythroughs] = usePlaythroughs(currentUser.id)
   const [formOpen, setFormOpen] = useState(false)
   const [editingPlaythrough, setEditingPlaythrough] = useState<Playthrough | null>(null)
+  const [isSaving, setIsSaving] = useState(false)
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [selectedArchetypes, setSelectedArchetypes] = useState<Archetype[]>([])
   const [selectedCampaignTypes, setSelectedCampaignTypes] = useState<CampaignType[]>([])
@@ -81,8 +82,10 @@ function AuthenticatedApp({ currentUser, onSignOut }: AuthenticatedAppProps) {
     }
   }
 
-  // Auto-fix legacy data (campaign types, investigator metadata)
+  // Auto-fix legacy data (campaign types, investigator metadata) — once per session
+  const hasMigratedRef = useRef(false)
   useEffect(() => {
+    if (hasMigratedRef.current) return
     if (!playthroughs || playthroughs.length === 0) return
 
     const toUpdate: Playthrough[] = []
@@ -120,6 +123,7 @@ function AuthenticatedApp({ currentUser, onSignOut }: AuthenticatedAppProps) {
       }
     }
 
+    hasMigratedRef.current = true
     if (toUpdate.length > 0) {
       Promise.all(toUpdate.map(p => playthroughActions.update(p))).catch(console.error)
     }
@@ -171,6 +175,7 @@ function AuthenticatedApp({ currentUser, onSignOut }: AuthenticatedAppProps) {
   }, [playthroughs, selectedArchetypes, selectedCampaignTypes, selectedCampaigns])
 
   const handleSavePlaythrough = async (playthrough: Omit<Playthrough, 'id'> | Playthrough) => {
+    setIsSaving(true)
     try {
       if ('id' in playthrough) {
         await playthroughActions.update(playthrough)
@@ -182,9 +187,10 @@ function AuthenticatedApp({ currentUser, onSignOut }: AuthenticatedAppProps) {
     } catch (error) {
       console.error('Failed to save playthrough:', error)
       toast.error('Failed to save playthrough')
+    } finally {
+      setIsSaving(false)
     }
     setEditingPlaythrough(null)
-    setTimeout(() => rebuildCommunityStats(playthroughs || []), 500)
   }
 
   const handleDeletePlaythrough = async () => {
@@ -197,7 +203,6 @@ function AuthenticatedApp({ currentUser, onSignOut }: AuthenticatedAppProps) {
         toast.error('Failed to delete playthrough')
       }
       setDeleteId(null)
-      setTimeout(() => rebuildCommunityStats(playthroughs || []), 500)
     }
   }
 
@@ -464,6 +469,7 @@ function AuthenticatedApp({ currentUser, onSignOut }: AuthenticatedAppProps) {
         onSave={handleSavePlaythrough}
         editPlaythrough={editingPlaythrough}
         knownPlayerNames={knownPlayerNames}
+        isSaving={isSaving}
       />
 
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>

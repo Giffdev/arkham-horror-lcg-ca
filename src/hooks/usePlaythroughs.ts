@@ -17,9 +17,10 @@ interface PlaythroughActions {
 
 export function usePlaythroughs(
   uid: string | null
-): [Playthrough[], PlaythroughActions, boolean] {
+): [Playthrough[], PlaythroughActions, boolean, Error | null] {
   const [playthroughs, setPlaythroughs] = useState<Playthrough[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<Error | null>(null)
   const currentUid = useRef(uid)
   currentUid.current = uid
 
@@ -27,13 +28,24 @@ export function usePlaythroughs(
     if (!uid) {
       setPlaythroughs([])
       setLoading(false)
+      setError(null)
       return
     }
     setLoading(true)
-    const unsubscribe = subscribeToPlaythroughs(uid, (data) => {
-      setPlaythroughs(data)
-      setLoading(false)
-    })
+    setError(null)
+    const unsubscribe = subscribeToPlaythroughs(
+      uid,
+      (data) => {
+        setPlaythroughs(data)
+        setLoading(false)
+        setError(null)
+      },
+      (err) => {
+        setError(err)
+        setLoading(false)
+        setPlaythroughs([]) // clear stale data
+      }
+    )
     return () => unsubscribe()
   }, [uid])
 
@@ -73,5 +85,5 @@ export function usePlaythroughs(
     [playthroughs]
   )
 
-  return [playthroughs, { add, update, remove, setAll }, loading]
+  return [playthroughs, { add, update, remove, setAll }, loading, error]
 }

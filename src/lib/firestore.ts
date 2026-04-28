@@ -25,16 +25,24 @@ export function playthroughsCollection(uid: string) {
 
 export function subscribeToPlaythroughs(
   uid: string,
-  callback: (playthroughs: Playthrough[]) => void
+  callback: (playthroughs: Playthrough[]) => void,
+  onError?: (error: Error) => void
 ): Unsubscribe {
   const q = query(playthroughsCollection(uid), orderBy('date', 'desc'))
-  return onSnapshot(q, (snapshot) => {
-    const playthroughs = snapshot.docs.map((d) => ({
-      id: d.id,
-      ...d.data(),
-    })) as Playthrough[]
-    callback(playthroughs)
-  })
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const playthroughs = snapshot.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+      })) as Playthrough[]
+      callback(playthroughs)
+    },
+    (error) => {
+      console.error('[Firestore] onSnapshot error:', error)
+      if (onError) onError(error)
+    }
+  )
 }
 
 export async function addPlaythrough(uid: string, data: Omit<Playthrough, 'id'>): Promise<string> {
