@@ -125,36 +125,7 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
                 </Card>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <Card>
-                  <CardHeader>
-                    <div className="flex items-center gap-2">
-                      <Trophy size={20} className="text-primary" weight="duotone" />
-                      <CardTitle>Most Popular Campaigns</CardTitle>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {communityStats.topCampaigns.slice(0, 5).map((campaign, index) => (
-                        <div key={campaign.name} className="flex items-center justify-between">
-                          <div className="flex items-center gap-3 min-w-0 flex-1">
-                            <span className="text-2xl font-bold text-muted-foreground/40 w-6 text-right flex-shrink-0">
-                              {index + 1}
-                            </span>
-                            <div className="min-w-0 flex-1">
-                              <span className="font-medium text-foreground">{campaign.name}</span>
-                            </div>
-                          </div>
-                          <span className="text-sm text-muted-foreground ml-2 flex-shrink-0">
-                            {campaign.count} {campaign.count === 1 ? 'play' : 'plays'}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
+                            <Card>
                   <CardHeader>
                     <div className="flex items-center gap-2">
                       <Users size={20} className="text-primary" weight="duotone" />
@@ -189,7 +160,36 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
                   </CardContent>
                 </Card>
 
-                {communityStats.topClasses && communityStats.topClasses.length > 0 && (
+<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center gap-2">
+                      <Trophy size={20} className="text-primary" weight="duotone" />
+                      <CardTitle>Most Popular Campaigns</CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {communityStats.topCampaigns.slice(0, 5).map((campaign, index) => (
+                        <div key={campaign.name} className="flex items-center justify-between">
+                          <div className="flex items-center gap-3 min-w-0 flex-1">
+                            <span className="text-2xl font-bold text-muted-foreground/40 w-6 text-right flex-shrink-0">
+                              {index + 1}
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <span className="font-medium text-foreground">{campaign.name}</span>
+                            </div>
+                          </div>
+                          <span className="text-sm text-muted-foreground ml-2 flex-shrink-0">
+                            {campaign.count} {campaign.count === 1 ? 'play' : 'plays'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+{communityStats.topClasses && communityStats.topClasses.length > 0 && (
                   <Card>
                     <CardHeader>
                       <div className="flex items-center gap-2">
