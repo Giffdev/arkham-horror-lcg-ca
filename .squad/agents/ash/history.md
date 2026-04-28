@@ -155,3 +155,23 @@
 - With ~27 playthroughs and ~3 investigators each: ~81 pair computations max. Trivial.
 - At 500 playthroughs × 4 investigators = ~3000 pairs. Still sub-millisecond with Map-based counting.
 - useMemo ensures no recomputation unless playthrough array reference changes.
+
+### 2026-04-28: Investigator Heatmap Data Layer (Co-occurrence Matrix)
+
+**Status:** ✅ COMPLETE
+
+**Scope Delivered:**
+- `useInvestigatorHeatmap` hook (`src/hooks/useInvestigatorHeatmap.ts`) — computes a full co-occurrence matrix from playthroughs. Returns `HeatmapData { investigators, matrix, maxCount }`.
+- `buildHeatmapFromPairings()` utility — converts flat pair lists (personal or community) into the symmetric matrix format. Reusable by both personal and community data paths.
+- Updated `community-stats.ts` — `topPairings` now stores ALL pairs (removed `.slice(0, 10)`). Client reconstructs heatmap matrix from the full pair list using `buildHeatmapFromPairings`.
+- Existing `useInvestigatorPairings` hook untouched — backward compatible, `InvestigatorPairings` component continues to work.
+- Full test coverage: 13 tests for heatmap hook + utility (empty input, 2x2, accumulation, symmetry, maxCount, filtering, 4x4).
+
+**Design Decisions:**
+- Chose Option B for community storage: store all pairs in sparse format (`CommunityPairing[]`), reconstruct matrix client-side. More storage-efficient and backward-compatible vs storing full NxN matrix.
+- Separate hook (`useInvestigatorHeatmap`) rather than bolting onto existing hook — cleaner separation of concerns, no risk to existing consumers.
+- `buildHeatmapFromPairings` is a pure function (not a hook) so Dallas can use it in community heatmap without needing raw playthroughs.
+
+**Performance Notes:**
+- ~60 investigators max → ~1800 non-zero pairs worst case → ~3600-cell matrix. Trivial computation.
+- Single `useMemo` keyed on playthroughs array reference. No recomputation on re-renders.

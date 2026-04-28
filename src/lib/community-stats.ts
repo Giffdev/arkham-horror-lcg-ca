@@ -121,7 +121,6 @@ export async function rebuildCommunityStats(_localPlaythroughs?: Playthrough[]):
       return { investigator1: a, investigator2: b, count }
     })
     .sort((a, b) => b.count - a.count || a.investigator1.localeCompare(b.investigator1))
-    .slice(0, 10)
 
   const stats: CommunityStats = {
     totalGames: playthroughs.length,
