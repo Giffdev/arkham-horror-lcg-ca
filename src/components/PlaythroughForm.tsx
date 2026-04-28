@@ -406,7 +406,7 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough, k
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={3}
-              className="resize-none"
+              className="resize-none text-foreground"
             />
           </div>
         </div>

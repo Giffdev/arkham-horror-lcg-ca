@@ -230,12 +230,7 @@ export function PlaythroughCard({ playthrough, onEdit, onDelete, activeArchetype
           )}
         </div>
 
-        {playthrough.notes && (
-          <div className="mt-2 flex items-start gap-2 text-sm text-muted-foreground">
-            <Notepad size={16} weight="duotone" className="mt-0.5 flex-shrink-0" />
-            <p className="whitespace-pre-wrap break-words min-w-0">{playthrough.notes}</p>
-          </div>
-        )}
+
 
         <div className="hidden md:flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
           <Button
@@ -256,6 +251,15 @@ export function PlaythroughCard({ playthrough, onEdit, onDelete, activeArchetype
           </Button>
         </div>
       </div>
+
+        {playthrough.notes && (
+          <div className="mt-3 pt-3 border-t border-border/50">
+            <div className="flex items-start gap-2 text-sm">
+              <Notepad size={16} weight="duotone" className="mt-0.5 flex-shrink-0 text-muted-foreground" />
+              <p className="whitespace-pre-wrap break-words text-muted-foreground leading-relaxed max-w-full overflow-hidden">{playthrough.notes}</p>
+            </div>
+          </div>
+        )}
     </Card>
   )
 }
