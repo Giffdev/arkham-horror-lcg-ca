@@ -69,7 +69,7 @@ export async function saveCommunityStats(stats: CommunityStats): Promise<void> {
  * Also returns the count of distinct users.
  */
 export async function getAllPlaythroughs(): Promise<{ playthroughs: Playthrough[]; userCount: number }> {
-  const q = query(collectionGroup(db, 'playthroughs'), orderBy('date', 'desc'))
+  const q = collectionGroup(db, 'playthroughs')
   const snapshot = await getDocs(q)
   const userIds = new Set<string>()
   const playthroughs = snapshot.docs.map((d) => {

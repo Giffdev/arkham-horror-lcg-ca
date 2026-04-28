@@ -18,8 +18,10 @@ export interface CommunityStats {
  * The local playthroughs param is ignored — we query the full collectionGroup.
  */
 export async function rebuildCommunityStats(_localPlaythroughs?: Playthrough[]): Promise<void> {
-  const { playthroughs, userCount } = await getAllPlaythroughs()
-  if (!playthroughs.length) return
+  try {
+    const { playthroughs, userCount } = await getAllPlaythroughs()
+    console.log(`[CommunityStats] Found ${playthroughs.length} playthroughs from ${userCount} users`)
+    if (!playthroughs.length) return
 
   const campaignCounts = new Map<string, { count: number; set?: string }>()
   const investigatorCounts = new Map<string, { count: number; archetypes: Archetype[]; chapter?: 1 | 2 }>()
@@ -63,7 +65,10 @@ export async function rebuildCommunityStats(_localPlaythroughs?: Playthrough[]):
     lastUpdated: Date.now(),
   }
 
-  await saveCommunityStats(stats)
+    await saveCommunityStats(stats)
+  } catch (err) {
+    console.error('[CommunityStats] Failed to rebuild:', err)
+  }
 }
 
 /**
