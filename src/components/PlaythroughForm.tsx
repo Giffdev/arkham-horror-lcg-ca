@@ -36,6 +36,7 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough, k
   const [notes, setNotes] = useState('')
   const [sideStoriesOpen, setSideStoriesOpen] = useState(false)
   const [sideStorySearch, setSideStorySearch] = useState('')
+  const [customSideStory, setCustomSideStory] = useState('')
   const [campaignSearchOpen, setCampaignSearchOpen] = useState(false)
 
   useEffect(() => {
@@ -153,6 +154,14 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough, k
     )
   }
 
+  const handleAddCustomSideStory = () => {
+    const name = customSideStory.trim()
+    if (name && !sideStories.includes(name)) {
+      setSideStories(current => [...current, name])
+      setCustomSideStory('')
+    }
+  }
+
   // Compute whether the form has enough data to save
   const isFormValid = (() => {
     // Campaign must be selected (unless Unknown type)
@@ -214,7 +223,7 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough, k
       campaignType,
       ...(campaignSet ? { campaignSet } : {}),
       ...(campaignType === 'Fan-Made' && customCampaignName ? { customCampaignName } : {}),
-      sideStories: campaignType === 'Full Campaign' ? sideStories : [],
+      sideStories: campaignType !== 'Unknown' ? sideStories : [],
       ...(notes.trim() ? { notes: notes.trim() } : { notes: '' }),
       investigators: investigators.map(inv => {
         // Auto-set to unknown if no investigator was selected
@@ -340,7 +349,7 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough, k
             </div>
           )}
 
-          {campaignType === 'Full Campaign' && campaignName && (
+          {campaignType !== 'Unknown' && (
             <div className="space-y-2">
               <Button
                 type="button"
@@ -358,35 +367,78 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough, k
               {sideStoriesOpen && (
                 <div className="border rounded-md p-4 space-y-3">
                   <div className="text-sm text-muted-foreground">
-                    Select any standalone scenarios played during this campaign
+                    Select official scenarios or add your own custom side stories
                   </div>
-                  <Input
-                    placeholder="Search side stories..."
-                    value={sideStorySearch}
-                    onChange={(e) => setSideStorySearch(e.target.value)}
-                    className="h-8 text-sm"
-                  />
-                  <ScrollArea className="h-48">
-                    <div className="space-y-2">
-                      {SCENARIO_PACK_SCENARIOS
-                        .filter((scenario) => scenario.name.toLowerCase().includes(sideStorySearch.toLowerCase()))
-                        .map((scenario) => (
-                        <div key={scenario.name} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`side-${scenario.name}`}
-                            checked={sideStories.includes(scenario.name)}
-                            onCheckedChange={() => handleToggleSideStory(scenario.name)}
-                          />
-                          <Label
-                            htmlFor={`side-${scenario.name}`}
-                            className="text-sm font-normal cursor-pointer"
+
+                  {/* Selected side stories shown as removable badges */}
+                  {sideStories.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {sideStories.map((story) => (
+                        <Badge key={story} variant="secondary" className="gap-1 pr-1">
+                          {story}
+                          <button
+                            type="button"
+                            onClick={() => handleToggleSideStory(story)}
+                            className="ml-0.5 rounded-full hover:bg-muted-foreground/20 p-0.5"
                           >
-                            {scenario.name}
-                          </Label>
-                        </div>
+                            <X size={12} />
+                          </button>
+                        </Badge>
                       ))}
                     </div>
-                  </ScrollArea>
+                  )}
+
+                  {/* Add custom side story */}
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Add custom side story..."
+                      value={customSideStory}
+                      onChange={(e) => setCustomSideStory(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddCustomSideStory() } }}
+                      className="h-8 text-sm flex-1"
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-8 px-2"
+                      onClick={handleAddCustomSideStory}
+                      disabled={!customSideStory.trim()}
+                    >
+                      <Plus size={14} />
+                    </Button>
+                  </div>
+
+                  {/* Official scenarios list with search */}
+                  <div className="space-y-2">
+                    <Input
+                      placeholder="Search official scenarios..."
+                      value={sideStorySearch}
+                      onChange={(e) => setSideStorySearch(e.target.value)}
+                      className="h-8 text-sm"
+                    />
+                    <ScrollArea className="h-48">
+                      <div className="space-y-2">
+                        {SCENARIO_PACK_SCENARIOS
+                          .filter((scenario) => scenario.name.toLowerCase().includes(sideStorySearch.toLowerCase()))
+                          .map((scenario) => (
+                          <div key={scenario.name} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`side-${scenario.name}`}
+                              checked={sideStories.includes(scenario.name)}
+                              onCheckedChange={() => handleToggleSideStory(scenario.name)}
+                            />
+                            <Label
+                              htmlFor={`side-${scenario.name}`}
+                              className="text-sm font-normal cursor-pointer"
+                            >
+                              {scenario.name}
+                            </Label>
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  </div>
                 </div>
               )}
             </div>
