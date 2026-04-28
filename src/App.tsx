@@ -41,6 +41,10 @@ function AuthenticatedApp({ currentUser, onSignOut }: AuthenticatedAppProps) {
   const [selectedCampaigns, setSelectedCampaigns] = useState<string[]>([])
   const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState("games")
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab)
+    window.scrollTo(0, 0)
+  }
   const [linkPasswordOpen, setLinkPasswordOpen] = useState(false)
   const [linkPassword, setLinkPassword] = useState('')
   const [linkPasswordConfirm, setLinkPasswordConfirm] = useState('')
@@ -312,7 +316,7 @@ function AuthenticatedApp({ currentUser, onSignOut }: AuthenticatedAppProps) {
       </header>
 
       <main className="container mx-auto px-6 py-8 md:pb-8 pb-24">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
           <TabsList className="hidden md:grid w-full max-w-2xl mx-auto grid-cols-3">
             <TabsTrigger value="games" className="gap-2">
               <BookOpen size={18} weight="duotone" />
@@ -524,7 +528,7 @@ function AuthenticatedApp({ currentUser, onSignOut }: AuthenticatedAppProps) {
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-sm border-t border-border pb-safe z-50">
         <div className="grid grid-cols-3 gap-0 px-2 py-2 pb-3">
           <button
-            onClick={() => setActiveTab("games")}
+            onClick={() => handleTabChange("games")}
             className={`flex flex-col items-center justify-center gap-1 py-2 px-3 rounded-lg transition-colors ${
               activeTab === "games"
                 ? "text-primary bg-primary/10"
@@ -535,7 +539,7 @@ function AuthenticatedApp({ currentUser, onSignOut }: AuthenticatedAppProps) {
             <span className="text-xs font-medium">All Games</span>
           </button>
           <button
-            onClick={() => setActiveTab("players")}
+            onClick={() => handleTabChange("players")}
             className={`flex flex-col items-center justify-center gap-1 py-2 px-3 rounded-lg transition-colors ${
               activeTab === "players"
                 ? "text-primary bg-primary/10"
@@ -546,7 +550,7 @@ function AuthenticatedApp({ currentUser, onSignOut }: AuthenticatedAppProps) {
             <span className="text-xs font-medium">Players</span>
           </button>
           <button
-            onClick={() => setActiveTab("community")}
+            onClick={() => handleTabChange("community")}
             className={`flex flex-col items-center justify-center gap-1 py-2 px-3 rounded-lg transition-colors ${
               activeTab === "community"
                 ? "text-primary bg-primary/10"
