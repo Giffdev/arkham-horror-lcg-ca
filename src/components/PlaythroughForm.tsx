@@ -35,6 +35,7 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough, k
   const [sideStories, setSideStories] = useState<string[]>([])
   const [notes, setNotes] = useState('')
   const [sideStoriesOpen, setSideStoriesOpen] = useState(false)
+  const [sideStorySearch, setSideStorySearch] = useState('')
   const [campaignSearchOpen, setCampaignSearchOpen] = useState(false)
 
   useEffect(() => {
@@ -359,9 +360,17 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough, k
                   <div className="text-sm text-muted-foreground">
                     Select any standalone scenarios played during this campaign
                   </div>
+                  <Input
+                    placeholder="Search side stories..."
+                    value={sideStorySearch}
+                    onChange={(e) => setSideStorySearch(e.target.value)}
+                    className="h-8 text-sm"
+                  />
                   <ScrollArea className="h-48">
                     <div className="space-y-2">
-                      {SCENARIO_PACK_SCENARIOS.map((scenario) => (
+                      {SCENARIO_PACK_SCENARIOS
+                        .filter((scenario) => scenario.name.toLowerCase().includes(sideStorySearch.toLowerCase()))
+                        .map((scenario) => (
                         <div key={scenario.name} className="flex items-center space-x-2">
                           <Checkbox
                             id={`side-${scenario.name}`}
