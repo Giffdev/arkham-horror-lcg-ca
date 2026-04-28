@@ -27,6 +27,7 @@ export interface Playthrough {
   customCampaignName?: string
   sideStories?: string[]
   investigators: InvestigatorAssignment[]
+  notes?: string
 }
 
 export const ARCHETYPES: Archetype[] = ['Guardian', 'Survivor', 'Seeker', 'Rogue', 'Mystic', 'Neutral', 'Unknown']

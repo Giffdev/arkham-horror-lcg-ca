@@ -3,7 +3,7 @@ import { Card } from '@/components/ui/card'
 import { ArchetypeBadge } from './ArchetypeBadge'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { PencilSimple, Trash, Clock, UsersThree, Sparkle } from '@phosphor-icons/react'
+import { PencilSimple, Trash, Clock, UsersThree, Sparkle, Notepad } from '@phosphor-icons/react'
 import { formatDate } from '@/lib/date-utils'
 import { getDisplaySetName, getArkhamDBUrl, resolveInvestigator, getChapterBadgeLabel, isChapterBadgeSpecial } from '@/lib/investigator-data'
 import type { InvestigatorAssignment } from '@/lib/types'
@@ -229,6 +229,13 @@ export function PlaythroughCard({ playthrough, onEdit, onDelete, activeArchetype
             </>
           )}
         </div>
+
+        {playthrough.notes && (
+          <div className="mt-2 flex items-start gap-2 text-sm text-muted-foreground">
+            <Notepad size={16} weight="duotone" className="mt-0.5 flex-shrink-0" />
+            <p className="whitespace-pre-wrap">{playthrough.notes}</p>
+          </div>
+        )}
 
         <div className="hidden md:flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
           <Button

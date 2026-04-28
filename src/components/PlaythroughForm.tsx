@@ -7,6 +7,7 @@ import { Playthrough, InvestigatorAssignment, CAMPAIGN_TYPES, Archetype, Campaig
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
@@ -32,6 +33,7 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough, k
   const [date, setDate] = useState(new Date().toISOString().split('T')[0])
   const [investigators, setInvestigators] = useState<InvestigatorAssignment[]>([])
   const [sideStories, setSideStories] = useState<string[]>([])
+  const [notes, setNotes] = useState('')
   const [sideStoriesOpen, setSideStoriesOpen] = useState(false)
   const [campaignSearchOpen, setCampaignSearchOpen] = useState(false)
 
@@ -43,6 +45,7 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough, k
       setCustomCampaignName(editPlaythrough.customCampaignName || '')
       setDate(editPlaythrough.date)
       setSideStories(editPlaythrough.sideStories || [])
+      setNotes(editPlaythrough.notes || '')
       setInvestigators(editPlaythrough.investigators.map(inv => ({
         ...inv,
         archetypes: inv.archetypes || [inv.archetype]
@@ -54,7 +57,8 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough, k
       setCustomCampaignName('')
       setDate(new Date().toISOString().split('T')[0])
       setSideStories([])
-      setInvestigators([{ 
+      setNotes('')
+      setInvestigators([{
         playerName: '', 
         investigatorName: '', 
         archetype: 'Unknown',
@@ -198,6 +202,7 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough, k
       ...(campaignSet ? { campaignSet } : {}),
       ...(campaignType === 'Fan-Made' && customCampaignName ? { customCampaignName } : {}),
       ...(campaignType === 'Full Campaign' && sideStories.length > 0 ? { sideStories } : {}),
+      ...(notes.trim() ? { notes: notes.trim() } : {}),
       investigators: investigators.map(inv => ({
         playerName: inv.playerName,
         investigatorName: inv.isUnknown ? 'Unknown' : inv.investigatorName,
@@ -391,6 +396,18 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough, k
                 />
               ))}
             </div>
+          </div>
+
+          {/* Notes */}
+          <div className="space-y-2 pb-2">
+            <Label>Notes <span className="text-muted-foreground font-normal">(optional)</span></Label>
+            <Textarea
+              placeholder="Any memorable moments, house rules, or session notes..."
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={3}
+              className="resize-none"
+            />
           </div>
         </div>
 
