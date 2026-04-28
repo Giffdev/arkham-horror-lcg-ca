@@ -130,19 +130,19 @@ export function PlayersOverview({ playthroughs }: PlayersOverviewProps) {
     <div className="space-y-6">
       <div className="space-y-4">
         <button
-          className="flex items-center gap-2 w-full"
+          className="flex items-center gap-2 w-full rounded-md border border-border bg-card/50 px-3 py-2"
           onClick={() => setFiltersExpanded(!filtersExpanded)}
         >
           <Funnel size={16} className="text-muted-foreground" />
-          <span className="text-sm text-muted-foreground">
+          <span className="text-sm font-medium">
             Filters
-            {(selectedArchetypes.length > 0 || selectedSets.length > 0 || selectedChapter !== 'all') && (
-              <Badge variant="secondary" className="ml-2 text-xs">
-                {(selectedChapter !== 'all' ? 1 : 0) + (selectedArchetypes.length > 0 ? 1 : 0) + (selectedSets.length > 0 ? 1 : 0)} active
-              </Badge>
-            )}
           </span>
-          <span className="lg:hidden ml-auto">
+          {(selectedArchetypes.length > 0 || selectedSets.length > 0 || selectedChapter !== 'all') && (
+            <Badge variant="secondary" className="text-xs">
+              {(selectedChapter !== 'all' ? 1 : 0) + (selectedArchetypes.length > 0 ? 1 : 0) + (selectedSets.length > 0 ? 1 : 0)} active
+            </Badge>
+          )}
+          <span className="ml-auto">
             {filtersExpanded ? <CaretUp size={14} className="text-muted-foreground" /> : <CaretDown size={14} className="text-muted-foreground" />}
           </span>
         </button>

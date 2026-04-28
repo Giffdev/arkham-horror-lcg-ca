@@ -388,26 +388,25 @@ function AuthenticatedApp({ currentUser, onSignOut }: AuthenticatedAppProps) {
               </Card>
             ) : playthroughs && playthroughs.length > 0 ? (
               <div>
-                {/* Mobile: horizontal scrollable player pills */}
+                {/* Mobile: 2-column player grid */}
                 <div className="lg:hidden mb-4">
-                  <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-thin">
+                  <div className="grid grid-cols-2 gap-2">
                     <Button
                       variant={selectedPlayer === null ? 'default' : 'outline'}
-                      size="sm"
-                      className={cn("shrink-0", selectedPlayer === null && "text-white")}
+                      className={cn("h-11 gap-2", selectedPlayer === null && "text-white")}
                       onClick={() => setSelectedPlayer(null)}
                     >
-                      All
+                      <UsersThree size={18} weight={selectedPlayer === null ? 'fill' : 'regular'} />
+                      All Players
                     </Button>
                     {allPlayers.map((player) => (
                       <Button
                         key={player}
                         variant={selectedPlayer === player ? 'default' : 'outline'}
-                        size="sm"
-                        className={cn("shrink-0 gap-1.5", selectedPlayer === player && "text-white")}
+                        className={cn("h-11 gap-2", selectedPlayer === player && "text-white")}
                         onClick={() => setSelectedPlayer(selectedPlayer === player ? null : player)}
                       >
-                        <User size={14} weight={selectedPlayer === player ? 'fill' : 'regular'} />
+                        <User size={18} weight={selectedPlayer === player ? 'fill' : 'regular'} />
                         {player}
                       </Button>
                     ))}

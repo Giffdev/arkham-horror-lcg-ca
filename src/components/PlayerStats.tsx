@@ -443,40 +443,43 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
         setActiveTab(v)
         setSelectedSets([])
       }}>
-        <TabsList className="sticky top-0 z-10 bg-card grid w-full max-w-md grid-cols-3">
-          <TabsTrigger value="played" className="gap-2">
-            <Check size={16} weight="bold" />
-            Played
-          </TabsTrigger>
-          <TabsTrigger value="unplayed" className="gap-2">
-            <X size={16} weight="bold" />
-            Unplayed
-          </TabsTrigger>
-          <TabsTrigger value="history" className="gap-2">
-            <ClockCounterClockwise size={16} weight="bold" />
-            History
-          </TabsTrigger>
-        </TabsList>
+        {/* Sticky tabs + filter bar */}
+        <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b pb-3 -mx-1 px-1 space-y-3">
+          <TabsList className="grid w-full max-w-md grid-cols-3">
+            <TabsTrigger value="played" className="gap-2">
+              <Check size={16} weight="bold" />
+              Played
+            </TabsTrigger>
+            <TabsTrigger value="unplayed" className="gap-2">
+              <X size={16} weight="bold" />
+              Unplayed
+            </TabsTrigger>
+            <TabsTrigger value="history" className="gap-2">
+              <ClockCounterClockwise size={16} weight="bold" />
+              History
+            </TabsTrigger>
+          </TabsList>
 
-        <div className="space-y-4">
-          {/* Filter toggle - collapsible on mobile */}
           <button
-            className="flex items-center gap-2 w-full"
+            className="flex items-center gap-2 w-full rounded-md border border-border bg-card/50 px-3 py-2"
             onClick={() => setFiltersExpanded(!filtersExpanded)}
           >
             <Funnel size={16} className="text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">
+            <span className="text-sm font-medium">
               Filters
-              {(selectedArchetypes.length > 0 || selectedSets.length > 0 || selectedChapter !== 'all') && (
-                <Badge variant="secondary" className="ml-2 text-xs">
-                  {(selectedChapter !== 'all' ? 1 : 0) + (selectedArchetypes.length > 0 ? 1 : 0) + (selectedSets.length > 0 ? 1 : 0)} active
-                </Badge>
-              )}
             </span>
-            <span className="lg:hidden ml-auto">
+            {(selectedArchetypes.length > 0 || selectedSets.length > 0 || selectedChapter !== 'all') && (
+              <Badge variant="secondary" className="text-xs">
+                {(selectedChapter !== 'all' ? 1 : 0) + (selectedArchetypes.length > 0 ? 1 : 0) + (selectedSets.length > 0 ? 1 : 0)} active
+              </Badge>
+            )}
+            <span className="ml-auto">
               {filtersExpanded ? <CaretUp size={14} className="text-muted-foreground" /> : <CaretDown size={14} className="text-muted-foreground" />}
             </span>
           </button>
+        </div>
+
+        <div className="space-y-4">
 
           <div className={cn("space-y-3", filtersExpanded ? "block" : "hidden lg:block")}>
             <div className="space-y-2">
