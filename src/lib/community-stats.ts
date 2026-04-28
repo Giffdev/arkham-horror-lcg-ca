@@ -6,6 +6,7 @@ export interface CommunityStats {
   totalGames: number
   topCampaigns: { name: string; count: number; set?: string }[]
   topInvestigators: { name: string; count: number; archetypes: Archetype[]; chapter?: 1 | 2 }[]
+  topClasses: { archetype: Archetype; count: number }[]
   totalInvestigatorsPlayed: number
   topSideScenarios: { name: string; count: number }[]
   topStandalones: { name: string; count: number; set?: string }[]
@@ -25,6 +26,7 @@ export async function rebuildCommunityStats(_localPlaythroughs?: Playthrough[]):
 
   const campaignCounts = new Map<string, { count: number; set?: string }>()
   const investigatorCounts = new Map<string, { count: number; archetypes: Archetype[]; chapter?: 1 | 2 }>()
+  const classCounts = new Map<Archetype, number>()
   const uniqueInvestigators = new Set<string>()
 
   for (const p of playthroughs) {
@@ -33,7 +35,7 @@ export async function rebuildCommunityStats(_localPlaythroughs?: Playthrough[]):
     existing.count++
     campaignCounts.set(p.campaignName, existing)
 
-    // Count investigators
+    // Count investigators and classes
     for (const inv of p.investigators) {
       if (inv.isUnknown || !inv.investigatorName || inv.investigatorName === 'Unknown') continue
       const name = inv.investigatorName
@@ -41,6 +43,14 @@ export async function rebuildCommunityStats(_localPlaythroughs?: Playthrough[]):
       const invEntry = investigatorCounts.get(name) || { count: 0, archetypes: inv.archetypes || [inv.archetype], chapter: inv.chapter as 1 | 2 | undefined }
       invEntry.count++
       investigatorCounts.set(name, invEntry)
+
+      // Count classes
+      const archetypes = inv.archetypes || (inv.archetype ? [inv.archetype] : [])
+      for (const arch of archetypes) {
+        if (arch && arch !== 'neutral') {
+          classCounts.set(arch, (classCounts.get(arch) || 0) + 1)
+        }
+      }
     }
   }
 
@@ -64,10 +74,15 @@ export async function rebuildCommunityStats(_localPlaythroughs?: Playthrough[]):
     .sort((a, b) => b.count - a.count)
     .slice(0, 10)
 
+  const topClasses = Array.from(classCounts.entries())
+    .map(([archetype, count]) => ({ archetype, count }))
+    .sort((a, b) => b.count - a.count)
+
   const stats: CommunityStats = {
     totalGames: playthroughs.length,
     topCampaigns,
     topInvestigators,
+    topClasses,
     totalInvestigatorsPlayed: uniqueInvestigators.size,
     topSideScenarios: [],
     topStandalones: [],

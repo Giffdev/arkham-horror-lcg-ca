@@ -3,7 +3,7 @@ import { Playthrough, Archetype } from '@/lib/types'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ArchetypeBadge } from './ArchetypeBadge'
-import { User, UsersThree, Check, X, Funnel, Book, ClockCounterClockwise } from '@phosphor-icons/react'
+import { User, UsersThree, Check, X, Funnel, Book, ClockCounterClockwise, CaretDown, CaretUp } from '@phosphor-icons/react'
 import { formatDate } from '@/lib/date-utils'
 import { getDisplaySetName, INVESTIGATORS, getArkhamDBUrl, resolveInvestigator, getInvestigatorDisplayName, getArkhamDBUrlById, getChapterBadgeLabel } from '@/lib/investigator-data'
 import { ALL_CAMPAIGNS, getCampaignChapter } from '@/lib/campaign-data'
@@ -21,6 +21,8 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
   const [selectedSets, setSelectedSets] = useState<string[]>([])
   const [selectedChapter, setSelectedChapter] = useState<'all' | 1 | 2>('all')
   const [activeTab, setActiveTab] = useState<string>('played')
+  const [filtersExpanded, setFiltersExpanded] = useState(false)
+  const [statsExpanded, setStatsExpanded] = useState(false)
 
   const playerData = useMemo(() => {
     const playerGames = playthroughs.filter(p =>
@@ -305,7 +307,18 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Stats section - collapsible on mobile */}
+      <div className="lg:block">
+        <button
+          className="lg:hidden flex items-center gap-2 text-sm text-muted-foreground mb-2 w-full"
+          onClick={() => setStatsExpanded(!statsExpanded)}
+        >
+          <Book size={16} />
+          <span>Player Stats</span>
+          {statsExpanded ? <CaretUp size={14} /> : <CaretDown size={14} />}
+        </button>
+        <div className={cn("lg:block", statsExpanded ? "block" : "hidden lg:block")}>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="p-4">
           <div className="flex items-center gap-3 mb-3">
             <Book size={20} weight="duotone" className="text-primary" />
@@ -422,13 +435,15 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
               ))}
           </div>
         </Card>
+          </div>
+        </div>
       </div>
 
       <Tabs defaultValue="played" className="space-y-4" onValueChange={(v) => {
         setActiveTab(v)
         setSelectedSets([])
       }}>
-        <TabsList className="grid w-full max-w-md grid-cols-3">
+        <TabsList className="sticky top-0 z-10 bg-card grid w-full max-w-md grid-cols-3">
           <TabsTrigger value="played" className="gap-2">
             <Check size={16} weight="bold" />
             Played
@@ -444,12 +459,26 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
         </TabsList>
 
         <div className="space-y-4">
-          <div className="flex items-center gap-2">
+          {/* Filter toggle - collapsible on mobile */}
+          <button
+            className="flex items-center gap-2 w-full"
+            onClick={() => setFiltersExpanded(!filtersExpanded)}
+          >
             <Funnel size={16} className="text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">Filter by:</span>
-          </div>
+            <span className="text-sm text-muted-foreground">
+              Filters
+              {(selectedArchetypes.length > 0 || selectedSets.length > 0 || selectedChapter !== 'all') && (
+                <Badge variant="secondary" className="ml-2 text-xs">
+                  {(selectedChapter !== 'all' ? 1 : 0) + (selectedArchetypes.length > 0 ? 1 : 0) + (selectedSets.length > 0 ? 1 : 0)} active
+                </Badge>
+              )}
+            </span>
+            <span className="lg:hidden ml-auto">
+              {filtersExpanded ? <CaretUp size={14} className="text-muted-foreground" /> : <CaretDown size={14} className="text-muted-foreground" />}
+            </span>
+          </button>
 
-          <div className="space-y-3">
+          <div className={cn("space-y-3", filtersExpanded ? "block" : "hidden lg:block")}>
             <div className="space-y-2">
               <p className="text-sm font-medium text-foreground">Chapter</p>
               <div className="inline-flex rounded-lg border border-border overflow-hidden">

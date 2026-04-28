@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { MapTrifold, Users, Scroll, Sparkle, Trophy, BookOpen, UserFocus, Detective } from '@phosphor-icons/react'
+import { MapTrifold, Users, Scroll, Sparkle, Trophy, BookOpen, UserFocus, Detective, Shield } from '@phosphor-icons/react'
 import { getCommunityStats, CommunityStats as CommunityStatsType } from '@/lib/community-stats'
 import { ArchetypeBadge } from '@/components/ArchetypeBadge'
 import { getArkhamDBUrl, getChapterBadgeLabel, isChapterBadgeSpecial, resolveInvestigator } from '@/lib/investigator-data'
@@ -186,6 +186,41 @@ export function CommunityStats() {
             </div>
           </CardContent>
         </Card>
+
+        {communityStats.topClasses && communityStats.topClasses.length > 0 && (
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Shield size={20} className="text-primary" weight="duotone" />
+                <CardTitle>Class Popularity</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {communityStats.topClasses.map((cls, index) => {
+                  const total = communityStats.topClasses!.reduce((sum, c) => sum + c.count, 0)
+                  const pct = total > 0 ? Math.round((cls.count / total) * 100) : 0
+                  return (
+                    <div key={cls.archetype} className="flex items-center justify-between">
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <span className="text-2xl font-bold text-muted-foreground/40 w-6 text-right flex-shrink-0">
+                          {index + 1}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <ArchetypeBadge archetype={cls.archetype} />
+                          <span className="font-medium text-foreground capitalize">{cls.archetype}</span>
+                        </div>
+                      </div>
+                      <span className="text-sm text-muted-foreground ml-2 flex-shrink-0">
+                        {cls.count} plays ({pct}%)
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {communityStats.topStandalones.length > 0 && (
           <Card>

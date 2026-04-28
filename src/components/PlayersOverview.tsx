@@ -2,10 +2,12 @@ import { useMemo, useState } from 'react'
 import { Playthrough, Archetype } from '@/lib/types'
 import { Card } from '@/components/ui/card'
 import { INVESTIGATORS, Investigator, getArkhamDBUrl, INVESTIGATOR_SETS, getInvestigatorById, resolveInvestigator, getInvestigatorDisplayName, getArkhamDBUrlById, getChapterBadgeLabel } from '@/lib/investigator-data'
-import { Check, ArrowSquareOut, Funnel } from '@phosphor-icons/react'
+import { Check, ArrowSquareOut, Funnel, CaretDown, CaretUp } from '@phosphor-icons/react'
 import { ArchetypeBadge } from '@/components/ArchetypeBadge'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+
+import { Badge } from '@/components/ui/badge'
 
 interface PlayersOverviewProps {
   playthroughs: Playthrough[]
@@ -15,6 +17,7 @@ export function PlayersOverview({ playthroughs }: PlayersOverviewProps) {
   const [selectedArchetypes, setSelectedArchetypes] = useState<Archetype[]>([])
   const [selectedSets, setSelectedSets] = useState<string[]>([])
   const [selectedChapter, setSelectedChapter] = useState<'all' | 1 | 2>('all')
+  const [filtersExpanded, setFiltersExpanded] = useState(false)
 
   const { investigatorsPlayed, investigatorsNeverPlayed } = useMemo(() => {
     const investigatorPlayCount = new Map<string, {
@@ -126,12 +129,25 @@ export function PlayersOverview({ playthroughs }: PlayersOverviewProps) {
   return (
     <div className="space-y-6">
       <div className="space-y-4">
-        <div className="flex items-center gap-2">
+        <button
+          className="flex items-center gap-2 w-full"
+          onClick={() => setFiltersExpanded(!filtersExpanded)}
+        >
           <Funnel size={16} className="text-muted-foreground" />
-          <span className="text-sm text-muted-foreground">Filter by:</span>
-        </div>
+          <span className="text-sm text-muted-foreground">
+            Filters
+            {(selectedArchetypes.length > 0 || selectedSets.length > 0 || selectedChapter !== 'all') && (
+              <Badge variant="secondary" className="ml-2 text-xs">
+                {(selectedChapter !== 'all' ? 1 : 0) + (selectedArchetypes.length > 0 ? 1 : 0) + (selectedSets.length > 0 ? 1 : 0)} active
+              </Badge>
+            )}
+          </span>
+          <span className="lg:hidden ml-auto">
+            {filtersExpanded ? <CaretUp size={14} className="text-muted-foreground" /> : <CaretDown size={14} className="text-muted-foreground" />}
+          </span>
+        </button>
 
-        <div className="space-y-3">
+        <div className={cn("space-y-3", filtersExpanded ? "block" : "hidden lg:block")}>
           <div className="space-y-2">
             <p className="text-sm font-medium text-foreground">Chapter</p>
             <div className="inline-flex rounded-lg border border-border overflow-hidden">

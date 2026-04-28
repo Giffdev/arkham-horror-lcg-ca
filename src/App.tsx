@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { onAuthStateChanged, type User as FirebaseUser } from 'firebase/auth'
 import { auth } from '@/lib/firebase'
+import { cn } from '@/lib/utils'
 import { usePlaythroughs } from '@/hooks/usePlaythroughs'
 import { Playthrough, Archetype, CampaignType } from '@/lib/types'
 import { Button } from '@/components/ui/button'
@@ -386,34 +387,63 @@ function AuthenticatedApp({ currentUser, onSignOut }: AuthenticatedAppProps) {
                 </p>
               </Card>
             ) : playthroughs && playthroughs.length > 0 ? (
-              <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                <div className="lg:col-span-1">
-                  <Card className="p-4">
-                    <h3 className="font-semibold mb-4">Players ({allPlayers.length})</h3>
-                    <div className="space-y-2">
-                      {allPlayers.map((player) => (
-                        <Button
-                          key={player}
-                          variant={selectedPlayer === player ? 'default' : 'ghost'}
-                          className="w-full justify-start gap-2"
-                          onClick={() => {
-                            setSelectedPlayer(selectedPlayer === player ? null : player)
-                          }}
-                        >
-                          <User size={16} weight={selectedPlayer === player ? 'fill' : 'regular'} />
-                          {player}
-                        </Button>
-                      ))}
-                    </div>
-                  </Card>
+              <div>
+                {/* Mobile: horizontal scrollable player pills */}
+                <div className="lg:hidden mb-4">
+                  <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-thin">
+                    <Button
+                      variant={selectedPlayer === null ? 'default' : 'outline'}
+                      size="sm"
+                      className={cn("shrink-0", selectedPlayer === null && "text-white")}
+                      onClick={() => setSelectedPlayer(null)}
+                    >
+                      All
+                    </Button>
+                    {allPlayers.map((player) => (
+                      <Button
+                        key={player}
+                        variant={selectedPlayer === player ? 'default' : 'outline'}
+                        size="sm"
+                        className={cn("shrink-0 gap-1.5", selectedPlayer === player && "text-white")}
+                        onClick={() => setSelectedPlayer(selectedPlayer === player ? null : player)}
+                      >
+                        <User size={14} weight={selectedPlayer === player ? 'fill' : 'regular'} />
+                        {player}
+                      </Button>
+                    ))}
+                  </div>
                 </div>
 
-                <div className="lg:col-span-3">
-                  {selectedPlayer ? (
-                    <PlayerStats playerName={selectedPlayer} playthroughs={playthroughs} />
-                  ) : (
-                    <PlayersOverview playthroughs={playthroughs} />
-                  )}
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                  {/* Desktop: sidebar player list */}
+                  <div className="hidden lg:block lg:col-span-1">
+                    <Card className="p-4">
+                      <h3 className="font-semibold mb-4">Players ({allPlayers.length})</h3>
+                      <div className="space-y-2">
+                        {allPlayers.map((player) => (
+                          <Button
+                            key={player}
+                            variant={selectedPlayer === player ? 'default' : 'ghost'}
+                            className={cn("w-full justify-start gap-2", selectedPlayer === player && "text-white")}
+                            onClick={() => {
+                              setSelectedPlayer(selectedPlayer === player ? null : player)
+                            }}
+                          >
+                            <User size={16} weight={selectedPlayer === player ? 'fill' : 'regular'} />
+                            {player}
+                          </Button>
+                        ))}
+                      </div>
+                    </Card>
+                  </div>
+
+                  <div className="lg:col-span-3">
+                    {selectedPlayer ? (
+                      <PlayerStats playerName={selectedPlayer} playthroughs={playthroughs} />
+                    ) : (
+                      <PlayersOverview playthroughs={playthroughs} />
+                    )}
+                  </div>
                 </div>
               </div>
             ) : null}
