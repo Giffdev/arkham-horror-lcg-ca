@@ -134,3 +134,24 @@
 - **Kept all Wave 1/Wave 2 changes** (React.memo, debounced stats, isDeleting, consolidated player computation)
 - Build passes, all 89 tests pass. No test modifications needed — feature was cleanly isolated.
 - **Lesson:** Don't ship features during a stability freeze, even high-impact ones. Outcome tracking can return when the team is ready for feature work.
+
+### 2026-04-28: Data Computation Hooks (Completion Stats + Investigator Pairings)
+
+**Status:** ✅ COMPLETE
+
+**Scope Delivered:**
+- `useCompletionStats` hook — counts total playthroughs and breaks down by CampaignType (Full Campaign, Small Campaign, Scenario Pack, Fan-Made). Supports both personal and community playthrough arrays.
+- `useInvestigatorPairings` hook — computes C(N,2) pairings from each playthrough's investigators array. Returns top-N pairs sorted by frequency. Supports personal + community data.
+
+**Design Decisions:**
+- Pure computation hooks — no Firestore reads, no schema changes. Consumers pass playthrough arrays in.
+- `useMemo` on both personal and community computations, keyed on playthrough array reference.
+- Pair key uses alphabetical ordering (`a|||b`) for stable deduplication.
+- Filters out `isUnknown` and empty investigator names (matches community-stats.ts pattern).
+- `topN` parameter defaults to 10, configurable by consumer.
+- All types exported for Dallas to use in UI components.
+
+**Performance Notes:**
+- With ~27 playthroughs and ~3 investigators each: ~81 pair computations max. Trivial.
+- At 500 playthroughs × 4 investigators = ~3000 pairs. Still sub-millisecond with Map-based counting.
+- useMemo ensures no recomputation unless playthrough array reference changes.

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { usePlaythroughs } from '@/hooks/usePlaythroughs'
 import { useAuthState } from '@/hooks/useAuthState'
 import { usePlaythroughFilters } from '@/hooks/usePlaythroughFilters'
@@ -10,6 +10,8 @@ import { User as AuthUser } from '@/lib/auth'
 
 import { PlaythroughForm } from '@/components/PlaythroughForm'
 import { CommunityStats } from '@/components/CommunityStats'
+import { CompletionStatsPanel } from '@/components/CompletionStats'
+import { InvestigatorPairingsPanel } from '@/components/InvestigatorPairings'
 import { AppHeader } from '@/components/AppHeader'
 import { GamesTab } from '@/components/GamesTab'
 import { PlayersTab } from '@/components/PlayersTab'
@@ -21,7 +23,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { Toaster, toast } from 'sonner'
 import { PublicHomepage } from '@/components/PublicHomepage'
-import { rebuildCommunityStats } from '@/lib/community-stats'
+import { rebuildCommunityStats, getCommunityStats, CommunityStats as CommunityStatsType } from '@/lib/community-stats'
 
 interface AuthenticatedAppProps {
   currentUser: AuthUser
@@ -41,6 +43,11 @@ function AuthenticatedApp({ currentUser, onSignOut }: AuthenticatedAppProps) {
   const passwordLink = usePasswordLink(currentUser)
   useLegacyDataMigration(playthroughs, playthroughActions.update)
   useCommunityStatsSync(playthroughs)
+
+  const [communityStats, setCommunityStats] = useState<CommunityStatsType | null>(null)
+  useEffect(() => {
+    getCommunityStats().then(setCommunityStats).catch(() => {})
+  }, [])
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab)
@@ -165,6 +172,15 @@ function AuthenticatedApp({ currentUser, onSignOut }: AuthenticatedAppProps) {
 
           <TabsContent value="community" className="space-y-6">
             <CommunityStats />
+            <CompletionStatsPanel
+              playthroughs={playthroughs}
+              communityBreakdown={communityStats?.completionBreakdown}
+              communityTotal={communityStats?.totalGames}
+            />
+            <InvestigatorPairingsPanel
+              playthroughs={playthroughs}
+              communityPairings={communityStats?.topPairings}
+            />
           </TabsContent>
         </Tabs>
       </main>

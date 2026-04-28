@@ -2,6 +2,19 @@ import { Playthrough, Archetype } from './types'
 import { getCommunityStatsFromFirestore, saveCommunityStats, getAllPlaythroughs } from './firestore'
 import { getCampaignSet } from './campaign-data'
 
+export interface CompletionBreakdown {
+  fullCampaigns: number
+  smallCampaigns: number
+  scenarioPacks: number
+  fanMade: number
+}
+
+export interface CommunityPairing {
+  investigator1: string
+  investigator2: string
+  count: number
+}
+
 export interface CommunityStats {
   totalGames: number
   topCampaigns: { name: string; count: number; set?: string }[]
@@ -10,6 +23,8 @@ export interface CommunityStats {
   totalInvestigatorsPlayed: number
   topSideScenarios: { name: string; count: number }[]
   topStandalones: { name: string; count: number; set?: string }[]
+  completionBreakdown?: CompletionBreakdown
+  topPairings?: CommunityPairing[]
   registeredUsers: number
   lastUpdated: number
 }
@@ -28,6 +43,8 @@ export async function rebuildCommunityStats(_localPlaythroughs?: Playthrough[]):
   const investigatorCounts = new Map<string, { count: number; archetypes: Archetype[]; chapter?: 1 | 2 }>()
   const classCounts = new Map<Archetype, number>()
   const uniqueInvestigators = new Set<string>()
+  const completionBreakdown: CompletionBreakdown = { fullCampaigns: 0, smallCampaigns: 0, scenarioPacks: 0, fanMade: 0 }
+  const pairCounts = new Map<string, number>()
 
   for (const p of playthroughs) {
     // Count campaigns
@@ -35,11 +52,21 @@ export async function rebuildCommunityStats(_localPlaythroughs?: Playthrough[]):
     existing.count++
     campaignCounts.set(p.campaignName, existing)
 
-    // Count investigators and classes
+    // Count completion breakdown by type
+    switch (p.campaignType) {
+      case 'Full Campaign': completionBreakdown.fullCampaigns++; break
+      case 'Small Campaign': completionBreakdown.smallCampaigns++; break
+      case 'Scenario Pack': completionBreakdown.scenarioPacks++; break
+      case 'Fan-Made': completionBreakdown.fanMade++; break
+    }
+
+    // Count investigators, classes, and pairings
+    const validNames: string[] = []
     for (const inv of p.investigators) {
       if (inv.isUnknown || !inv.investigatorName || inv.investigatorName === 'Unknown') continue
       const name = inv.investigatorName
       uniqueInvestigators.add(name)
+      if (!validNames.includes(name)) validNames.push(name)
       const invEntry = investigatorCounts.get(name) || { count: 0, archetypes: inv.archetypes || [inv.archetype], chapter: inv.chapter as 1 | 2 | undefined }
       invEntry.count++
       investigatorCounts.set(name, invEntry)
@@ -50,6 +77,16 @@ export async function rebuildCommunityStats(_localPlaythroughs?: Playthrough[]):
         if (arch && arch !== 'neutral') {
           classCounts.set(arch, (classCounts.get(arch) || 0) + 1)
         }
+      }
+    }
+
+    // Generate all C(N,2) investigator pairs for this playthrough
+    for (let i = 0; i < validNames.length; i++) {
+      for (let j = i + 1; j < validNames.length; j++) {
+        const key = validNames[i] < validNames[j]
+          ? `${validNames[i]}|||${validNames[j]}`
+          : `${validNames[j]}|||${validNames[i]}`
+        pairCounts.set(key, (pairCounts.get(key) || 0) + 1)
       }
     }
   }
@@ -78,6 +115,14 @@ export async function rebuildCommunityStats(_localPlaythroughs?: Playthrough[]):
     .map(([archetype, count]) => ({ archetype, count }))
     .sort((a, b) => b.count - a.count)
 
+  const topPairings = Array.from(pairCounts.entries())
+    .map(([key, count]) => {
+      const [a, b] = key.split('|||')
+      return { investigator1: a, investigator2: b, count }
+    })
+    .sort((a, b) => b.count - a.count || a.investigator1.localeCompare(b.investigator1))
+    .slice(0, 10)
+
   const stats: CommunityStats = {
     totalGames: playthroughs.length,
     topCampaigns,
@@ -86,6 +131,8 @@ export async function rebuildCommunityStats(_localPlaythroughs?: Playthrough[]):
     totalInvestigatorsPlayed: uniqueInvestigators.size,
     topSideScenarios: [],
     topStandalones: [],
+    completionBreakdown,
+    topPairings,
     registeredUsers: userCount,
     lastUpdated: Date.now(),
   }

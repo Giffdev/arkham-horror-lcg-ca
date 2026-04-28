@@ -57,3 +57,31 @@
 - **ripley-1:** Decisions + decomposition plans finalized (duplicate investigator decision, stats strategy, app/form extraction plans)
 
 **Ready for Wave 2:** All extraction plans documented, priority ranking established, Dallas has clear implementation path for App.tsx + PlaythroughForm refactoring.
+
+### 2026-04-28: Stats Features Architecture Plan
+
+**Task:** Architecture review + risk assessment for two new read-only analytics features (Completion Stats, Investigator Pairing Analysis).
+
+**Key decisions:**
+- Both features are pure `useMemo` computations over already-subscribed playthrough data — zero new Firestore queries for personal stats.
+- Community stats extensions are optional fields added to existing `CommunityStats` interface — backward compatible with cached docs.
+- No schema changes needed. `campaignType`, `campaignName`, and `investigators[]` fields already contain all necessary data.
+- Pairing analysis uses combinatorial pair generation (sort-dedup pattern) — O(n*k²) is trivial for expected data sizes.
+- Risk is LOW across the board. Features are additive, read-only, and can't corrupt data.
+
+**Plan delivered to:** `.squad/decisions/inbox/ripley-stats-architecture.md`
+
+### 2026-04-28: Arkham Horror LCG Deep Dive — Feature Brainstorm
+
+**Game knowledge acquired:**
+- AHLCG campaigns are 8-scenario narratives with branching resolutions, XP-driven deck upgrades, and persistent trauma between scenarios.
+- Five investigator classes (Guardian/Seeker/Rogue/Mystic/Survivor) plus Neutral, each with distinct playstyles and deckbuilding rules.
+- Each campaign has unique mechanics: Forgotten Age has supplies, Dream-Eaters splits into two parallel campaigns, Scarlet Keys has freeform map travel, Edge of the Earth has partner allies with their own trauma system.
+- Community tools (ArkhamCards, Arkham.build) track: scenario results, XP, trauma, chaos bag, story assets, supplies, investigator elimination, campaign log entries.
+- Our app currently tracks only: date, campaign, investigators (name + class + player), side stories, notes. No outcomes, no XP, no trauma, no difficulty, no scenario-level data.
+
+**Brainstorm delivered:**
+- 16 feature ideas across 4 tiers, each with data implications and complexity estimates.
+- Key insight: 3 features are buildable TODAY with zero new fields (completion tracker, popularity rankings, group patterns). 6 simple fields unlock the entire Tier 2 analytics layer.
+- Campaign outcome (1.3) was previously reverted — flagged for careful re-approach.
+- Written to `.squad/decisions/inbox/ripley-arkham-deep-dive.md`.

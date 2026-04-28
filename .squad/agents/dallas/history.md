@@ -119,3 +119,12 @@
 **Quality:** `npm run build` ✓ | `npm test` 89/89 pass ✓
 
 **Lesson:** Stability-first means features ship only when the lead greenlights them. Don't conflate "low-risk in isolation" with "approved for merge." Always check with Ripley before adding new user-facing state.
+
+### 2026-04-28: Stats UI Components — CompletionStats & InvestigatorPairings (Dallas)
+
+- **Created `CompletionStatsPanel`** (`src/components/CompletionStats.tsx`) — Displays personal + community campaign completion breakdown (full campaigns, small campaigns, scenario packs, fan-made). Uses Card layout matching existing CommunityStats pattern. Responsive 2-col grid on desktop, stacked on mobile.
+- **Created `InvestigatorPairingsPanel`** (`src/components/InvestigatorPairings.tsx`) — Shows top 7 investigator pairs ranked by frequency. Personal + community side-by-side. Uses existing ranked-list pattern (numbered rows with count labels) from CommunityStats.
+- **Integrated into Community tab** in App.tsx below existing CommunityStats component. Both panels accept `playthroughs` prop and gracefully hide when no data.
+- **Consumed Ash's hooks** (`useCompletionStats`, `useInvestigatorPairings`) which were already built. Hooks are pure `useMemo` compute — no async, no loading state needed. Components render `null` when playthroughs are empty.
+- **No new state introduced** — both panels are read-only computed views driven by existing playthrough data. Stability-safe.
+- Build passes ✓
