@@ -12,6 +12,7 @@ import {
 } from 'firebase/auth'
 import { doc, setDoc, getDoc } from 'firebase/firestore'
 import { auth, db } from './firebase'
+import { incrementRegisteredUsers } from './firestore'
 
 export interface User {
   id: string
@@ -49,6 +50,8 @@ async function ensureUserDoc(user: User): Promise<void> {
       authProvider: user.authProvider,
       displayName: user.displayName || null,
     })
+    // Track total registered users in community-stats (no users collection read needed)
+    await incrementRegisteredUsers()
   }
 }
 

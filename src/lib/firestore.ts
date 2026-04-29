@@ -75,6 +75,9 @@ export async function saveCommunityStats(stats: CommunityStats): Promise<void> {
 /**
  * Get ALL playthroughs across ALL users using a collectionGroup query.
  * Also returns the count of distinct users.
+ *
+ * User count is derived from playthrough parent paths (users with at least one game)
+ * combined with the persisted registeredUsers counter (includes users with zero games).
  */
 export async function getAllPlaythroughs(): Promise<{ playthroughs: Playthrough[]; userCount: number }> {
   const q = collectionGroup(db, 'playthroughs')
@@ -87,9 +90,28 @@ export async function getAllPlaythroughs(): Promise<{ playthroughs: Playthrough[
     return { id: d.id, ...d.data() } as Playthrough
   })
 
-  // Count all registered users (including those with no playthroughs)
-  const usersSnapshot = await getDocs(collection(db, 'users'))
-  const registeredCount = Math.max(usersSnapshot.size, userIds.size)
+  // Use the persisted registeredUsers from community-stats (incremented at signup)
+  // as the floor, since some users may have zero playthroughs.
+  const existingStats = await getDoc(COMMUNITY_STATS_DOC)
+  const persistedUserCount = existingStats.exists()
+    ? (existingStats.data() as { registeredUsers?: number }).registeredUsers || 0
+    : 0
 
-  return { playthroughs, userCount: registeredCount }
+  return { playthroughs, userCount: Math.max(persistedUserCount, userIds.size) }
+}
+
+/**
+ * Increment the registeredUsers counter in community-stats/global.
+ * Called once per new user registration (from ensureUserDoc).
+ */
+export async function incrementRegisteredUsers(): Promise<void> {
+  try {
+    const snap = await getDoc(COMMUNITY_STATS_DOC)
+    const current = snap.exists()
+      ? (snap.data() as { registeredUsers?: number }).registeredUsers || 0
+      : 0
+    await setDoc(COMMUNITY_STATS_DOC, { registeredUsers: current + 1, lastUpdated: Date.now() }, { merge: true })
+  } catch (err) {
+    console.error('[Firestore] Failed to increment registeredUsers:', err)
+  }
 }
