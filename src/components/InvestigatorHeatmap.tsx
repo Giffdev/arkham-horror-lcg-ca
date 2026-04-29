@@ -34,6 +34,7 @@ interface DesktopHeatmapProps {
 
 function DesktopHeatmap({ data }: DesktopHeatmapProps) {
   const [hoveredCell, setHoveredCell] = useState<{ row: number; col: number } | null>(null)
+  const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
   const [highlightedInvestigator, setHighlightedInvestigator] = useState<number | null>(null)
 
   const { investigators, matrix, maxCount } = data
@@ -106,7 +107,15 @@ function DesktopHeatmap({ data }: DesktopHeatmapProps) {
                   style={{
                     backgroundColor: isDiagonal ? undefined : getCellColor(value, maxCount),
                   }}
-                  onMouseEnter={() => !isDiagonal && value > 0 && setHoveredCell({ row: rowIdx, col: colIdx })}
+                  onMouseEnter={(e) => {
+                    if (!isDiagonal && value > 0) {
+                      setHoveredCell({ row: rowIdx, col: colIdx })
+                      setTooltipPos({ x: e.clientX, y: e.clientY })
+                    }
+                  }}
+                  onMouseMove={(e) => {
+                    if (hoveredCell) setTooltipPos({ x: e.clientX, y: e.clientY })
+                  }}
                   onMouseLeave={() => setHoveredCell(null)}
                   aria-label={
                     isDiagonal
@@ -129,9 +138,9 @@ function DesktopHeatmap({ data }: DesktopHeatmapProps) {
       {hoveredCell && (
         <div className="fixed pointer-events-none z-50 px-3 py-2 rounded-lg bg-popover text-popover-foreground shadow-lg border text-sm"
           style={{
-            left: 'var(--mouse-x, 50%)',
-            top: 'var(--mouse-y, 50%)',
-            transform: 'translate(12px, -50%)',
+            left: tooltipPos.x + 12,
+            top: tooltipPos.y,
+            transform: 'translateY(-50%)',
           }}
         >
           <TooltipContent
