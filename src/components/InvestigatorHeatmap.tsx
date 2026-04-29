@@ -48,91 +48,96 @@ function DesktopHeatmap({ data }: DesktopHeatmapProps) {
     return false
   }
 
-  const cellSize = investigators.length > 30 ? 'w-6 h-6 text-[9px]' : 'w-8 h-8 text-xs'
-  const labelSize = investigators.length > 30 ? 'text-[9px]' : 'text-[11px]'
+  const count = investigators.length
+  // When fewer than 25 investigators, cells expand to fill width; otherwise use fixed min size with scroll
+  const useFluid = count < 25
+  const labelSize = count > 30 ? 'text-[9px]' : 'text-[11px]'
+  const cellFontSize = count > 30 ? 'text-[9px]' : 'text-xs'
+
+  const gridStyle: React.CSSProperties = useFluid
+    ? { display: 'grid', gridTemplateColumns: `6rem repeat(${count}, 1fr)`, width: '100%' }
+    : { display: 'grid', gridTemplateColumns: `6rem repeat(${count}, minmax(1.5rem, 2rem))`, width: 'max-content' }
 
   return (
     <div className="w-full overflow-auto">
-      <div className="inline-block min-w-max">
-        {/* Top header row */}
-        <div className="flex">
-          <div className="w-24 flex-shrink-0" /> {/* Corner spacer */}
-          {investigators.map((name, colIdx) => (
-            <div
-              key={`col-${colIdx}`}
-              className={`${cellSize} flex-shrink-0 flex items-end justify-center pb-0.5 cursor-pointer select-none`}
-              onMouseEnter={() => setHighlightedInvestigator(colIdx)}
-              onMouseLeave={() => setHighlightedInvestigator(null)}
-              title={name}
-            >
-              <span
-                className={`${labelSize} text-muted-foreground truncate origin-bottom-left rotate-[-55deg] translate-x-1 block max-w-[60px] ${
-                  highlightedInvestigator === colIdx ? 'text-primary font-bold' : ''
-                }`}
-              >
-                {name.length > 8 ? name.slice(0, 7) + '…' : name}
-              </span>
-            </div>
-          ))}
-        </div>
-
-        {/* Matrix rows */}
-        {investigators.map((rowName, rowIdx) => (
-          <div key={`row-${rowIdx}`} className="flex items-center">
-            {/* Row label */}
-            <div
-              className={`w-24 flex-shrink-0 pr-2 text-right ${labelSize} text-muted-foreground truncate cursor-pointer select-none ${
-                highlightedInvestigator === rowIdx ? 'text-primary font-bold' : ''
+      {/* Header row */}
+      <div style={gridStyle}>
+        <div /> {/* Corner spacer */}
+        {investigators.map((name, colIdx) => (
+          <div
+            key={`col-${colIdx}`}
+            className="flex items-end justify-center pb-0.5 cursor-pointer select-none aspect-square"
+            onMouseEnter={() => setHighlightedInvestigator(colIdx)}
+            onMouseLeave={() => setHighlightedInvestigator(null)}
+            title={name}
+          >
+            <span
+              className={`${labelSize} text-muted-foreground truncate origin-bottom-left rotate-[-55deg] translate-x-1 block max-w-[60px] ${
+                highlightedInvestigator === colIdx ? 'text-primary font-bold' : ''
               }`}
-              onMouseEnter={() => setHighlightedInvestigator(rowIdx)}
-              onMouseLeave={() => setHighlightedInvestigator(null)}
-              title={rowName}
             >
-              {rowName.length > 12 ? rowName.slice(0, 11) + '…' : rowName}
-            </div>
-
-            {/* Cells */}
-            {matrix[rowIdx].map((value, colIdx) => {
-              const isDiagonal = rowIdx === colIdx
-              const highlighted = isHighlighted(rowIdx, colIdx)
-
-              return (
-                <div
-                  key={`cell-${rowIdx}-${colIdx}`}
-                  className={`${cellSize} flex-shrink-0 flex items-center justify-center border border-border/30 relative transition-all duration-100 ${
-                    isDiagonal ? 'bg-muted/30' : ''
-                  } ${highlighted ? 'ring-1 ring-primary/60' : ''} ${
-                    value > 0 && !isDiagonal ? 'cursor-pointer' : ''
-                  } ${getCellTextColor(value, maxCount)}`}
-                  style={{
-                    backgroundColor: isDiagonal ? undefined : getCellColor(value, maxCount),
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isDiagonal && value > 0) {
-                      setHoveredCell({ row: rowIdx, col: colIdx })
-                      setTooltipPos({ x: e.clientX, y: e.clientY })
-                    }
-                  }}
-                  onMouseMove={(e) => {
-                    if (hoveredCell) setTooltipPos({ x: e.clientX, y: e.clientY })
-                  }}
-                  onMouseLeave={() => setHoveredCell(null)}
-                  aria-label={
-                    isDiagonal
-                      ? `${rowName} (self)`
-                      : `${rowName} & ${investigators[colIdx]}: ${value} games`
-                  }
-                  role="gridcell"
-                >
-                  {value > 0 && !isDiagonal && (
-                    <span className="font-medium">{value}</span>
-                  )}
-                </div>
-              )
-            })}
+              {name.length > 8 ? name.slice(0, 7) + '…' : name}
+            </span>
           </div>
         ))}
       </div>
+
+      {/* Matrix rows */}
+      {investigators.map((rowName, rowIdx) => (
+        <div key={`row-${rowIdx}`} style={gridStyle}>
+          {/* Row label */}
+          <div
+            className={`pr-2 text-right ${labelSize} text-muted-foreground truncate cursor-pointer select-none flex items-center justify-end ${
+              highlightedInvestigator === rowIdx ? 'text-primary font-bold' : ''
+            }`}
+            onMouseEnter={() => setHighlightedInvestigator(rowIdx)}
+            onMouseLeave={() => setHighlightedInvestigator(null)}
+            title={rowName}
+          >
+            {rowName.length > 12 ? rowName.slice(0, 11) + '…' : rowName}
+          </div>
+
+          {/* Cells */}
+          {matrix[rowIdx].map((value, colIdx) => {
+            const isDiagonal = rowIdx === colIdx
+            const highlighted = isHighlighted(rowIdx, colIdx)
+
+            return (
+              <div
+                key={`cell-${rowIdx}-${colIdx}`}
+                className={`aspect-square flex items-center justify-center border border-border/30 relative transition-all duration-100 ${cellFontSize} ${
+                  isDiagonal ? 'bg-muted/30' : ''
+                } ${highlighted ? 'ring-1 ring-primary/60' : ''} ${
+                  value > 0 && !isDiagonal ? 'cursor-pointer' : ''
+                } ${getCellTextColor(value, maxCount)}`}
+                style={{
+                  backgroundColor: isDiagonal ? undefined : getCellColor(value, maxCount),
+                }}
+                onMouseEnter={(e) => {
+                  if (!isDiagonal && value > 0) {
+                    setHoveredCell({ row: rowIdx, col: colIdx })
+                    setTooltipPos({ x: e.clientX, y: e.clientY })
+                  }
+                }}
+                onMouseMove={(e) => {
+                  if (hoveredCell) setTooltipPos({ x: e.clientX, y: e.clientY })
+                }}
+                onMouseLeave={() => setHoveredCell(null)}
+                aria-label={
+                  isDiagonal
+                    ? `${rowName} (self)`
+                    : `${rowName} & ${investigators[colIdx]}: ${value} games`
+                }
+                role="gridcell"
+              >
+                {value > 0 && !isDiagonal && (
+                  <span className="font-medium">{value}</span>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      ))}
 
       {/* Tooltip */}
       {hoveredCell && (
