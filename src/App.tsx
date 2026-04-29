@@ -11,7 +11,7 @@ import { User as AuthUser } from '@/lib/auth'
 import { PlaythroughForm } from '@/components/PlaythroughForm'
 import { CommunityStats } from '@/components/CommunityStats'
 import { CompletionStatsPanel } from '@/components/CompletionStats'
-import { InvestigatorPairingsPanel } from '@/components/InvestigatorPairings'
+import { InvestigatorHeatmap } from '@/components/InvestigatorHeatmap'
 import { AppHeader } from '@/components/AppHeader'
 import { GamesTab } from '@/components/GamesTab'
 import { PlayersTab } from '@/components/PlayersTab'
@@ -177,7 +177,7 @@ function AuthenticatedApp({ currentUser, onSignOut }: AuthenticatedAppProps) {
               communityBreakdown={communityStats?.completionBreakdown}
               communityTotal={communityStats?.totalGames}
             />
-            <InvestigatorPairingsPanel
+            <InvestigatorHeatmap
               playthroughs={playthroughs}
               communityPairings={communityStats?.topPairings}
             />

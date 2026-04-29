@@ -128,3 +128,15 @@
 - **Consumed Ash's hooks** (`useCompletionStats`, `useInvestigatorPairings`) which were already built. Hooks are pure `useMemo` compute — no async, no loading state needed. Components render `null` when playthroughs are empty.
 - **No new state introduced** — both panels are read-only computed views driven by existing playthrough data. Stability-safe.
 - Build passes ✓
+
+### 2026-04-28: Investigator Heatmap — Full Redesign (Dallas)
+
+- **Replaced `InvestigatorPairingsPanel`** with new `InvestigatorHeatmap` component — a full co-occurrence matrix visualization.
+- **Desktop (md+):** Interactive NxN grid heatmap. Cells colored on oklch purple intensity scale. Hover highlights row/column, displays tooltip with pair name + count. Sticky investigator labels on both axes. Scrollable for large matrices (50+).
+- **Mobile (<md):** Searchable investigator picker. Select a character → see ranked list of partners with color indicators and counts. "← Back" to pick another. No shrunken grid — purpose-built mobile UX.
+- **Community-first toggle:** Defaults to community data (all users). "Your Games" secondary. Empty states for both modes.
+- **Consumed Ash's data layer:** `useInvestigatorHeatmap` hook for personal, `buildHeatmapFromPairings` for community `CommunityPairing[]` conversion.
+- **No external charting libs.** Pure React + Tailwind + ARIA roles. Bundle-safe.
+- **Color legend** (5-step gradient) shows scale context.
+- Build passes ✓ | No TS errors ✓
+- `InvestigatorPairings.tsx` now unused (can be removed in cleanup).
