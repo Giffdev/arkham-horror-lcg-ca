@@ -1,9 +1,15 @@
 import { useState, useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { UsersThree, MagnifyingGlass } from '@phosphor-icons/react'
+import { UsersThree, MagnifyingGlass, ArrowSquareOut } from '@phosphor-icons/react'
 import { Playthrough } from '@/lib/types'
 import { CommunityPairing } from '@/lib/community-stats'
 import { HeatmapData, buildHeatmapFromPairings, useInvestigatorHeatmap } from '@/hooks/useInvestigatorHeatmap'
+import { getArkhamDBUrl } from '@/lib/investigator-data'
+
+/** Get ArkhamDB link for an investigator, falling back to search URL */
+function getInvestigatorLink(name: string): string {
+  return getArkhamDBUrl(name) ?? `https://arkhamdb.com/find?q=${encodeURIComponent(name)}`
+}
 
 interface InvestigatorHeatmapProps {
   playthroughs: Playthrough[] | undefined
@@ -71,13 +77,17 @@ function DesktopHeatmap({ data }: DesktopHeatmapProps) {
             onMouseLeave={() => setHighlightedInvestigator(null)}
             title={name}
           >
-            <span
-              className={`${labelSize} text-muted-foreground truncate origin-bottom-left rotate-[-55deg] translate-x-1 block max-w-[60px] ${
+            <a
+              href={getInvestigatorLink(name)}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className={`${labelSize} text-muted-foreground truncate origin-bottom-left rotate-[-55deg] translate-x-1 block max-w-[60px] hover:underline hover:text-primary/80 transition-colors ${
                 highlightedInvestigator === colIdx ? 'text-primary font-bold' : ''
               }`}
             >
               {name.length > 8 ? name.slice(0, 7) + '…' : name}
-            </span>
+            </a>
           </div>
         ))}
       </div>
@@ -94,7 +104,15 @@ function DesktopHeatmap({ data }: DesktopHeatmapProps) {
             onMouseLeave={() => setHighlightedInvestigator(null)}
             title={rowName}
           >
-            {rowName.length > 12 ? rowName.slice(0, 11) + '…' : rowName}
+            <a
+              href={getInvestigatorLink(rowName)}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="hover:underline hover:text-primary/80 transition-colors"
+            >
+              {rowName.length > 12 ? rowName.slice(0, 11) + '…' : rowName}
+            </a>
           </div>
 
           {/* Cells */}
@@ -233,15 +251,26 @@ function MobileHeatmap({ data }: MobileHeatmapProps) {
               const idx = investigators.indexOf(name)
               const totalPairings = matrix[idx].reduce((sum, v, j) => j !== idx ? sum + v : sum, 0)
               return (
-                <button
-                  key={name}
-                  onClick={() => { setSelectedInvestigator(name); setSearchQuery('') }}
-                  className="w-full text-left px-3 py-2 rounded-md hover:bg-primary/10 transition-colors flex items-center justify-between"
-                  aria-label={`Select ${name}`}
-                >
-                  <span className="text-sm font-medium text-foreground">{name}</span>
-                  <span className="text-xs text-muted-foreground">{totalPairings} co-plays</span>
-                </button>
+                <div key={name} className="flex items-center">
+                  <button
+                    onClick={() => { setSelectedInvestigator(name); setSearchQuery('') }}
+                    className="flex-1 text-left px-3 py-2 rounded-md hover:bg-primary/10 transition-colors flex items-center justify-between"
+                    aria-label={`Select ${name}`}
+                  >
+                    <span className="text-sm font-medium text-foreground">{name}</span>
+                    <span className="text-xs text-muted-foreground">{totalPairings} co-plays</span>
+                  </button>
+                  <a
+                    href={getInvestigatorLink(name)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="p-2 text-muted-foreground hover:text-primary transition-colors flex-shrink-0"
+                    aria-label={`View ${name} on ArkhamDB`}
+                  >
+                    <ArrowSquareOut size={14} />
+                  </a>
+                </div>
               )
             })
           )}
@@ -251,7 +280,14 @@ function MobileHeatmap({ data }: MobileHeatmapProps) {
           {/* Selected investigator header */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-bold text-primary">{selectedInvestigator}</span>
+              <a
+                href={getInvestigatorLink(selectedInvestigator)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm font-bold text-primary hover:underline transition-colors"
+              >
+                {selectedInvestigator}
+              </a>
               <span className="text-xs text-muted-foreground">paired with</span>
             </div>
             <button
