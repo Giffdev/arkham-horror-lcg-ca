@@ -175,3 +175,15 @@
 **Performance Notes:**
 - ~60 investigators max → ~1800 non-zero pairs worst case → ~3600-cell matrix. Trivial computation.
 - Single `useMemo` keyed on playthroughs array reference. No recomputation on re-renders.
+
+---
+
+## 2026-04-28: Heatmap Feature Sprint — Data Layer Finalized
+
+**Status:** ✅ SHIPPED
+
+Heatmap data layer complete and integrated with Dallas's UI component. Full co-occurrence matrix support for both personal and community views. All tests passing (13). Feature deployed to Vercel by Coordinator.
+
+**Cross-team delivery:**
+- Dallas: InvestigatorHeatmap component (desktop grid + mobile picker)
+- Coordinator: Tooltip positioning fix, Vercel deployment

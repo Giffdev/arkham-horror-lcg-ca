@@ -140,3 +140,11 @@
 - **Color legend** (5-step gradient) shows scale context.
 - Build passes ✓ | No TS errors ✓
 - `InvestigatorPairings.tsx` now unused (can be removed in cleanup).
+
+---
+
+## 2026-04-28: Heatmap Feature Sprint — UI Shipped
+
+**Status:** ✅ DEPLOYED
+
+Full heatmap UI complete with dual-layout responsive design. Desktop grid with interactive hover states. Mobile picker with pair rankings. Community-first default. All accessibility requirements met (keyboard nav, aria labels). Integrated with Ash's data layer. Feature deployed to Vercel.
