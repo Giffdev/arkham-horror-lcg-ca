@@ -23,8 +23,7 @@ How this project connects to GitHub, Firebase, and Vercel.
 - **Security rules:** Managed via Firebase Console (not CLI-deployed)
   - Users can only read/write their own `users/{uid}` doc and `playthroughs` subcollection
   - Any authenticated user can read all playthroughs (collectionGroup query for community stats)
-  - Any authenticated user can read/write `community-stats/global`
-  - No unauthenticated access
+  - `community-stats/global` is publicly readable (no auth required) and writable by any authenticated user
 - **Firebase CLI:** `firebase-tools` v15.15.0 installed globally but NOT authenticated (auth was done via Console instead)
 
 ## Vercel

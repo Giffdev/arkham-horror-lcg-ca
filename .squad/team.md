@@ -23,5 +23,5 @@
 
 - **Owner:** Devin Sinha
 - **Project:** Arkham Horror LCG campaign playthrough tracker — React/Vite/TailwindCSS 4/Radix UI app for logging gaming sessions with friends
-- **Stack:** React, Vite, TailwindCSS 4, Radix UI, TypeScript, Phosphor Icons, KV storage via Spark runtime
+- **Stack:** React 18, Vite, TailwindCSS 4, Radix UI, TypeScript, Phosphor Icons, Firebase Auth (Google Sign-In), Firestore, Vercel hosting
 - **Created:** 2026-04-28
