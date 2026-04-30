@@ -85,3 +85,25 @@
 - Key insight: 3 features are buildable TODAY with zero new fields (completion tracker, popularity rankings, group patterns). 6 simple fields unlock the entire Tier 2 analytics layer.
 - Campaign outcome (1.3) was previously reverted — flagged for careful re-approach.
 - Written to `.squad/decisions/inbox/ripley-arkham-deep-dive.md`.
+
+### 2026-04-30: PRD Rewrite — Aligned to Current Codebase
+
+**Task:** Complete rewrite of PRD.md which was severely outdated (referenced Spark runtime, KV storage, 2-tab layout).
+
+**Key corrections made:**
+- Removed all Spark/KV references. Documented actual stack: Firebase Auth + Firestore + Vercel.
+- Updated from 2-tab (Games/Players) to 3-tab layout (Games/Players/Community).
+- Added entirely missing features: Public Homepage, Community Stats, Completion Stats, Investigator Heatmap, Data Export/Import, Password Linking, Community Stats Sync.
+- Documented actual campaign types: Full Campaign, Small Campaign, Scenario Pack (not "Standalone"), Fan-Made, Unknown.
+- Added Data Architecture section documenting Firestore structure.
+- Added Authentication section documenting dual-provider auth (Google + Email/Password).
+- Removed Font Selection section (Birmingham font no longer in use — Tailwind defaults).
+- Updated component list to reflect actual Radix primitives in use (Sheet, DropdownMenu, Toast via sonner, Skeleton states).
+- Documented mobile bottom nav (MobileNav component) and responsive heatmap behavior.
+
+**Architecture insights confirmed:**
+- No routing library — single-page with tab-based navigation managed by state.
+- Community stats are rebuilt client-side via `collectionGroup` query with 60s debounce — no Cloud Functions.
+- Heatmap stores ALL pairings (not sliced) and reconstructs NxN matrix client-side.
+- Real-time data via `onSnapshot` subscriptions.
+- `useLegacyDataMigration` hook still present for backward compat.

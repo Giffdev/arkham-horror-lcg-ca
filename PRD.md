@@ -1,175 +1,183 @@
-# Planning Guide
+# Product Requirements Document
 
-A campaign playthrough tracker for Arkham Horror: The Card Game that allows players to log and review their gaming sessions with friends, tracking investigators, campaigns, and player archetypes.
+A campaign playthrough tracker for Arkham Horror: The Card Game that allows players to log and review their gaming sessions with friends, tracking investigators, campaigns, player archetypes, and community-wide statistics.
+
+**Live URL**: Deployed on Vercel (production)
 
 **Experience Qualities**:
 1. **Nostalgic** - Evoke fond memories of past gaming sessions with a warm, inviting interface that celebrates shared experiences
 2. **Organized** - Present complex gaming data (players, investigators, campaigns) in a clear, scannable format that makes patterns easy to spot
 3. **Accommodating** - Gracefully handle incomplete information, acknowledging that memories fade and not every detail needs to be recorded
 
-**Complexity Level**: Light Application (multiple features with basic state)
-- The app uses the built-in spark.user() API for automatic user authentication in published environments. Each user has their own isolated KV storage where all playthrough data persists privately.
+**Complexity Level**: Full Application (multi-user with authentication, real-time data, community analytics)
+
+## Tech Stack
+
+- **Framework**: React 19 + TypeScript + Vite
+- **Styling**: TailwindCSS 4, class-variance-authority, tailwind-merge
+- **UI Components**: Radix UI primitives (Dialog, Tabs, Select, Popover, AlertDialog, DropdownMenu, Toast, etc.)
+- **Icons**: Phosphor Icons (`@phosphor-icons/react`)
+- **Authentication**: Firebase Auth (Google OAuth + Email/Password)
+- **Database**: Cloud Firestore (real-time subscriptions via `onSnapshot`)
+- **Hosting**: Vercel
+- **Testing**: Vitest + React Testing Library + Playwright
+- **Other**: cmdk (searchable combobox), date-fns, sonner (toasts), react-error-boundary
+
+## Data Architecture
+
+- **Per-user data**: Each authenticated user's playthroughs are stored in `users/{uid}/playthroughs` subcollection in Firestore
+- **Community stats**: Aggregated stats document rebuilt client-side from a `collectionGroup` query across all users' playthroughs
+- **User document**: Created on first sign-in at `users/{uid}` with email, createdAt, authProvider, displayName
+- **Real-time sync**: Playthrough list uses Firestore `onSnapshot` for live updates
+
+## Authentication
+
+- **Providers**: Google OAuth (popup-based) and Email/Password
+- **Account creation**: Email signup or Google sign-in; user document created on first auth
+- **Password linking**: Google users can optionally add a password via "Set Password" in profile menu
+- **Password reset**: Email-based reset flow
+- **Public access**: Unauthenticated visitors see a public homepage with community stats (no sign-in required to view community data)
+- **Session management**: Firebase Auth handles session persistence automatically
 
 ## Essential Features
 
+### Public Homepage (Unauthenticated)
+- **Functionality**: Landing page for visitors who are not signed in, showcasing community statistics and inviting sign-up
+- **Purpose**: Demonstrate the app's value and community activity before requiring authentication
+- **Trigger**: Visiting the app without being signed in
+- **Progression**: Page loads → Shows app title, description, and call-to-action → Displays live community stats (total games, registered users, popular campaigns/investigators) → Sign In button opens auth dialog
+- **Success criteria**: Community stats load from Firestore without authentication, auth dialog supports both Google and email sign-in/sign-up
+
 ### Log a Playthrough
-- **Functionality**: Create a new campaign playthrough record with campaign selection from a comprehensive list of full campaigns, standalone scenarios, custom fan-made campaigns, or unknown campaigns when details are forgotten, optional side story scenarios for full campaigns, players, and investigator assignments with automatic class detection
+- **Functionality**: Create a new campaign playthrough record with campaign selection from a comprehensive list of full campaigns, small campaigns, scenario packs, custom fan-made campaigns, or unknown campaigns when details are forgotten, optional side story scenarios for full campaigns, players, and investigator assignments with automatic class detection
 - **Purpose**: Capture gaming memories quickly with accurate campaign and investigator information from the official product catalog, while gracefully accommodating incomplete memories and recording side stories played during campaigns
-- **Trigger**: User clicks "Log New Game" button
-- **Progression**: Click "Log New Game" → Modal/form appears → Select campaign type (Full Campaign/Standalone/Fan-Made/Unknown) → If Full Campaign: Select campaign from dropdown (set is automatically associated) → Optionally expand "Side Stories" section and select standalone scenarios that were played during this campaign → If Standalone: Select standalone scenario from dropdown → If Fan-Made: Enter custom campaign name → If Unknown: No campaign selection needed (automatically logged as "Unknown Campaign") → Add investigators by selecting from searchable dropdown (class is automatically set for single-class investigators, dual-class investigators like Agatha Crane require manual selection) → Can mark individual investigators as unknown via checkbox → Optionally add player names → Save → Returns to log list with new entry visible
-- **Success criteria**: Record persists in user's private KV storage, displays in the main list with accurate campaign and set information, side stories display as badges on the playthrough card, investigator classes are automatically assigned except for dual-class characters, fan-made campaigns allow free-text entry, standalone scenarios are separated from full campaigns, unknown campaigns and investigators are gracefully handled
+- **Trigger**: User clicks "Log New Game" button in the app header
+- **Progression**: Click "Log New Game" → Dialog form appears → Select campaign type (Full Campaign/Small Campaign/Scenario Pack/Fan-Made/Unknown) → Select campaign from searchable dropdown (set is automatically associated) → Optionally expand "Side Stories" section and select standalone scenarios played during this campaign → Add investigators by selecting from searchable command palette (class is automatically set for single-class investigators, dual-class investigators require manual selection) → Can mark individual investigators as unknown via checkbox → Optionally add player names (with autocomplete from previously used names) → Save → Returns to log list with new entry visible
+- **Success criteria**: Record persists in user's Firestore subcollection, displays in the main list with accurate campaign and set information, side stories display as badges on the playthrough card, investigator classes are automatically assigned except for dual-class characters, fan-made campaigns allow free-text entry, unknown campaigns and investigators are gracefully handled
 
-### View Playthrough History
-- **Functionality**: Display all logged playthroughs in a scannable card format showing campaign name, set (for official campaigns), campaign type, side stories (if any), date, players, and investigators
-- **Purpose**: Allow users to reminisce and see their gaming history at a glance with complete campaign context including which side stories were experienced
-- **Trigger**: Default view when app loads
-- **Progression**: App loads → Displays list of playthroughs sorted by date (newest first) → Each entry shows campaign name, set badge (if official), campaign type, side story badges (if any), players, and investigators with archetypes
-- **Success criteria**: All logged games appear with proper campaign metadata, side stories display as small badges, dates are human-readable, set badges display for official campaigns
+### View Playthrough History (Games Tab)
+- **Functionality**: Display all logged playthroughs in a scannable card format showing campaign name, set (for official campaigns), campaign type, side stories (if any), date, players, and investigators with ArkhamDB links
+- **Purpose**: Allow users to reminisce and see their gaming history at a glance with complete campaign context
+- **Trigger**: Default view when authenticated user loads app (Games tab)
+- **Progression**: App loads → Real-time Firestore subscription populates list → Displays playthroughs sorted by date (newest first) → Each card shows campaign name, set badge, campaign type, side story badges, players, investigators with archetype badges
+- **Success criteria**: All logged games appear with proper campaign metadata, real-time updates when data changes, skeleton loading states during initial fetch
 
-### Filter by Archetype
-- **Functionality**: Filter playthrough list to show only games where specific archetypes (Guardian, Survivor, Seeker, Rogue, Mystic, Neutral) were played
-- **Purpose**: Help users track which character types they've explored and which they've neglected
-- **Trigger**: User selects archetype filter chips/buttons
-- **Progression**: View playthrough list → Click archetype filter → List updates to show only matching playthroughs → Multiple filters show games with any selected archetype → Clear filters to return to full list
-- **Success criteria**: Filtering is instant, multiple selections work as OR logic, empty states show helpful message
-
-### Filter by Campaign Type
-- **Functionality**: Filter to show full campaigns, standalone scenarios, fan-made content, or unknown campaigns separately
-- **Purpose**: Distinguish between full campaigns, quick standalone games, community content, and games where campaign details weren't remembered
-- **Trigger**: User selects campaign type filter
-- **Progression**: View playthrough list → Select type filter (Full Campaign/Standalone/Fan-Made/Unknown) → List updates → Can combine with archetype filters
-- **Success criteria**: Filters work together, clear indication of active filters
+### Filter Playthroughs
+- **Functionality**: Filter playthrough list by archetype (Guardian, Survivor, Seeker, Rogue, Mystic, Neutral), campaign type (Full Campaign, Small Campaign, Scenario Pack, Fan-Made, Unknown), and specific campaign name
+- **Purpose**: Help users find specific games and track patterns in their gaming history
+- **Trigger**: User interacts with filter UI (desktop: inline panel; mobile: sheet/drawer)
+- **Progression**: Open filters → Select archetypes, campaign types, or specific campaigns → List updates instantly → Multiple selections use OR logic within category → Clear all filters to reset
+- **Success criteria**: Filtering is instant (client-side), multiple filter categories combine, active filter count displayed, mobile uses bottom sheet for filter UI
 
 ### Edit/Delete Playthroughs
 - **Functionality**: Modify existing playthrough records or remove them entirely
 - **Purpose**: Correct mistakes or remove duplicate/test entries
-- **Trigger**: User clicks edit/delete icon on a playthrough entry
-- **Progression**: Click edit → Same form as creation pre-filled with existing data → Modify → Save / Click delete → Confirm → Entry removed
-- **Success criteria**: Changes persist, deletion requires confirmation, UI updates immediately
+- **Trigger**: User clicks edit/delete icon on a playthrough card
+- **Progression**: Click edit → Same form as creation pre-filled with existing data → Modify → Save (with loading state) / Click delete → Confirmation dialog → Entry removed
+- **Success criteria**: Changes persist to Firestore, deletion requires confirmation via AlertDialog, optimistic UI updates, toast notifications on success/failure, save button shows loading state to prevent double-submit
 
-### View Player Statistics
-- **Functionality**: Browse all players who have been logged in playthroughs and view detailed statistics for each player including campaigns played, investigators used, and favorite classes
-- **Purpose**: Allow users to see their own and their gaming group's history, tracking which campaigns they've experienced and characters they've played
+### Players Tab
+- **Functionality**: Browse all players who have been logged in playthroughs. Two sub-views: individual player statistics and an "Investigators Overview" showing all investigators played/not-yet-played across the user's collection
+- **Purpose**: Track gaming group history, see who plays what, and identify investigator coverage gaps
 - **Trigger**: User switches to the "Players" tab
-- **Progression**: Click "Players" tab → View list of all unique players from logged games → Select a player → View player statistics dashboard showing: total games played, number of unique investigators used, favorite class (most played archetype), complete list of investigators they've played, chronological campaign history with investigator and archetype details for each game
-- **Success criteria**: All players with logged names appear in the list, statistics accurately reflect playthrough data, campaign history is sorted chronologically (newest first), empty states guide users when no player data exists
+- **Sub-features**:
+  - **Player List**: All unique player names extracted from playthroughs, selectable
+  - **Player Stats**: For a selected player — total games, unique investigators, favorite class, chronological campaign history with investigators and archetypes, filterable by archetype/set/chapter
+  - **Investigators Overview** ("All Investigators" view): Shows which investigators from the full game catalog have been played and which haven't, with ArkhamDB links, filterable by archetype, set, and campaign chapter
+- **Success criteria**: All players with logged names appear, statistics accurately reflect data, ArkhamDB links work, filters apply correctly
+
+### Community Tab
+- **Functionality**: Three analytics sections visible to authenticated users showing aggregated data across ALL users of the app
+- **Sections**:
+  1. **Community Stats**: Total games logged, registered users, top campaigns, top investigators (with ArkhamDB links and chapter badges), top classes, top side scenarios, top standalones
+  2. **Campaign Completion Stats**: Breakdown of all logged playthroughs by type (Full Campaign, Small Campaign, Scenario Pack, Fan-Made) — both personal and community-wide
+  3. **Investigator Pairing Heatmap**: Interactive NxN matrix showing how often investigators are paired together across games. Supports community and personal view modes. Desktop shows full grid with hover tooltips and row/column highlighting. Mobile shows a searchable investigator picker with ranked pairings. Investigators link to ArkhamDB. oklch-based dynamic color scale with 5-step legend.
+- **Success criteria**: Community data loads from shared Firestore document, heatmap renders responsively, personal/community toggle works, investigator names link to ArkhamDB
+
+### Community Stats Sync
+- **Functionality**: When an authenticated user's playthroughs change, community stats are rebuilt client-side with a debounced 60-second cooldown to avoid excessive writes
+- **Purpose**: Keep community statistics up-to-date without requiring Cloud Functions infrastructure
+- **Implementation**: `useCommunityStatsSync` hook watches playthrough changes, queries all users' playthroughs via `collectionGroup`, aggregates stats, and writes to shared community-stats document
+- **Success criteria**: Stats stay reasonably fresh, no infinite rebuild loops, errors are caught silently
+
+### Data Export/Import
+- **Functionality**: Export all playthroughs as JSON file download; import playthroughs from a JSON file with validation
+- **Purpose**: Allow users to back up their data or migrate between accounts
+- **Trigger**: Available in app settings/profile area
+- **Success criteria**: Export produces valid JSON, import validates structure before saving, toast notifications for success/failure
 
 ## Edge Case Handling
 
 - **First time user**: Show empty state with "Log Your First Game" call-to-action when no playthroughs exist
-- **Data isolation**: Each user has their own isolated KV storage automatically provided by the Spark runtime
+- **Data isolation**: Each user's playthroughs are in their own Firestore subcollection (`users/{uid}/playthroughs`)
 - **Missing player names**: Players without names are excluded from the player statistics view; playthroughs still appear in main log
 - **Fan-made campaigns**: Allow free-text entry for campaign names when Fan-Made type is selected
 - **Unknown campaigns**: Allow logging playthroughs where campaign name isn't remembered by selecting Unknown campaign type
 - **Unknown investigators**: Individual investigators can be marked as unknown via checkbox, automatically setting class to Unknown
-- **Dual-class investigators**: Investigators like Agatha Crane who can be either Seeker or Mystic show a class selector; single-class investigators auto-assign their class
-- **Full campaign vs. standalone**: Separate dropdowns for full campaigns and standalone scenarios for better organization and findability
-- **Official campaign/scenario selection**: Dropdowns list campaigns or scenarios based on selected type; set information is automatically associated
+- **Dual-class investigators**: Investigators with multiple possible classes show a class selector; single-class investigators auto-assign their class
+- **Campaign types**: Full Campaign, Small Campaign, Scenario Pack categories with separate campaign lists per type
 - **Side stories**: Only available when Full Campaign type is selected; displayed in a collapsible section; can add multiple side stories via checkbox list; side stories display as badges on the playthrough card
-- **No side stories**: Side stories section is optional and only shows when expanded; playthroughs without side stories don't show the section on the card
+- **Dream-Eaters paths**: Investigators can be assigned to Dream-Eaters campaign path A or B
 - **Duplicate investigators**: Multiple players can select the same investigator (helpful for tracking different builds or repeated favorites)
 - **Very long campaign or player names**: Truncate with ellipsis, show full name on hover
-- **No playthroughs yet**: Show welcoming empty state with prominent "Log Your First Game" call-to-action
 - **No players logged**: Show helpful message explaining that player names need to be added when logging games
-- **Many playthroughs (100+)**: Virtual scrolling or pagination to maintain performance
-- **Browser back button**: Standard navigation, no special handling needed for this SPA
+- **Firestore errors**: `onSnapshot` has error callback; network/permission errors are logged to console
+- **Legacy data migration**: `useLegacyDataMigration` hook auto-fixes old data formats on load (guarded against loops)
+- **Password linking for Google users**: Google-authenticated users can add email/password as an additional sign-in method
+- **Auth state persistence**: Firebase Auth manages session state; app shows loading spinner while checking auth status
 
 ## Design Direction
 
-The design should evoke the spooky, atmospheric Lovecraftian horror of Arkham Horror - dark, mysterious, and moody with deep purples and shadowy backgrounds reminiscent of the ArkhamCards app. The interface should feel like investigating cosmic mysteries by candlelight, maintaining modern usability while creating an immersive, eerie atmosphere.
+The design evokes the spooky, atmospheric Lovecraftian horror of Arkham Horror — dark, mysterious, and moody with deep purples and shadowy backgrounds reminiscent of the ArkhamCards app. The interface feels like investigating cosmic mysteries by candlelight, maintaining modern usability while creating an immersive, eerie atmosphere.
 
 ## Color Selection
 
 Dark atmospheric palette inspired by the ArkhamCards app and Lovecraftian cosmic horror with deep purples, shadowy backgrounds, and mysterious tones.
 
-- **Primary Color**: Deep purple (oklch(0.45 0.12 280)) - Evokes the cosmic horror and mysterious supernatural forces of Arkham Horror
-- **Secondary Colors**: Dark slate (oklch(0.28 0.04 280)) for supporting elements, creating depth and shadow; darker purple (oklch(0.25 0.02 280)) for muted backgrounds
-- **Accent Color**: Vibrant purple (oklch(0.50 0.14 280)) for CTAs and important interactions, creating focal points in the darkness
-- **Foreground/Background Pairings**:
-  - Background (Deep dark purple oklch(0.15 0.025 280)): Light grey text (oklch(0.88 0.01 280)) - Ratio 10.5:1 ✓
-  - Card (Dark purple oklch(0.20 0.03 280)): Light grey text (oklch(0.88 0.01 280)) - Ratio 9.8:1 ✓
-  - Primary (Purple oklch(0.45 0.12 280)): Very light text (oklch(0.95 0.01 280)) - Ratio 6.2:1 ✓
-  - Secondary (Dark slate oklch(0.28 0.04 280)): Light grey (oklch(0.88 0.01 280)) - Ratio 8.5:1 ✓
-  - Accent (Vibrant purple oklch(0.50 0.14 280)): Very light text (oklch(0.95 0.01 280)) - Ratio 5.8:1 ✓
-  - Muted (Dark muted oklch(0.25 0.02 280)): Medium grey text (oklch(0.58 0.01 280)) - Ratio 4.7:1 ✓
-
-## Font Selection
-
-Typography should balance readability with a touch of thematic character. Birmingham (a display serif) is used for headings to evoke the vintage 1920s aesthetic of Arkham Horror, while Inter provides clean, modern readability for body text.
-
-- **Typographic Hierarchy**:
-  - H1 (Page Title): Birmingham / 32px / normal letter-spacing
-  - H2 (Section Headers): Birmingham / 24px / normal letter-spacing
-  - H3 (Card Titles): Birmingham / 18px / -0.01em letter-spacing
-  - Body (Content): Inter Regular / 15px / 1.6 line-height
-  - Labels: Inter Medium / 13px / 0.01em letter-spacing / uppercase
-  - Caption (Dates, metadata): Inter Regular / 13px / muted color
-
-## Animations
-
-Animations should feel like turning pages in a journal or placing cards on a table - deliberate, tactile, and satisfying without being showy.
-
-- **Purposeful Meaning**: Gentle fades and slides communicate state changes; subtle hover effects on cards suggest interactivity; modal entries feel like opening a logbook
-- **Hierarchy of Movement**: New playthrough entries should have a brief fade-in; filters apply with a quick fade transition; modals slide up gently; card hovers have subtle lift with shadow change
+- **Primary Color**: Deep purple (oklch-based) — Evokes the cosmic horror and mysterious supernatural forces of Arkham Horror
+- **Archetype Colors**: Each investigator class has a distinct color scheme (Guardian: blue, Seeker: orange, Rogue: green, Mystic: purple, Survivor: red, Neutral: grey) with dedicated bg/text/border tokens
+- **High contrast**: All foreground/background pairings meet WCAG AA standards
+- **Heatmap colors**: oklch-based dynamic purple scale for the investigator pairing heatmap
 
 ## Component Selection
 
 - **Components**: 
-  - Tabs for switching between "All Games" and "Players" views
+  - Tabs for switching between "All Games", "Players", and "Community" views (3 tabs)
   - Dialog for add/edit playthrough forms with form fields for all optional inputs
-  - Command (searchable combobox) for investigator selection with autocomplete
+  - Command (cmdk searchable combobox) for investigator selection with autocomplete
   - Select dropdown for campaign selection from comprehensive list
   - Collapsible for side stories section with smooth expand/collapse animation
   - Checkbox list within collapsible for selecting multiple side story scenarios
-  - Card components for each playthrough entry with subtle hover states (border color shift, shadow increase)
-  - Card components for player statistics showing key metrics (total games, investigators used, favorite class)
-  - Badge components for archetype tags with archetype-specific colors (Guardian: blue, Seeker: orange, Rogue: green, Mystic: purple, Survivor: red, Neutral: grey)
-  - Badge components for side story scenario names (outline variant) with remove button
-  - Button with primary variant for "Log New Game", ghost variants for filters and player list
-  - Select dropdowns for dual-class investigator class selection and campaign types
-  - Input fields for player names and custom campaign names
-  - Separator for visual organization between sections
-  - Scroll-area for long lists of playthroughs, dropdown contents, and side story checkboxes
-  - Label components for form fields
+  - Card components for each playthrough entry with hover states
+  - Card components for player statistics and community stats metrics
+  - Badge components for archetype tags with archetype-specific colors
+  - Badge components for side story scenario names and campaign set names
+  - Button with primary variant for "Log New Game", ghost variants for filters
+  - DropdownMenu for user profile actions (Set Password, Sign Out)
+  - Toast notifications (sonner) for action feedback
   - Alert-dialog for delete confirmation
-  - Popover for command palette positioning
+  - Sheet for mobile filter UI
+  - Skeleton loading states for playthrough cards
+  - Error boundary (react-error-boundary) for graceful error handling
 
-- **Customizations**:
-  - Custom archetype badge colors using class-variance-authority
-  - Custom empty state illustration or message component
-  - Date display helper component for human-readable dates
-
-- **States**:
-  - Buttons: Default has subtle shadow, hover increases brightness and glow, active slightly scales down
-  - Cards: Default has subtle border, hover shows accent purple border and subtle glow, selected/active state for editing
-  - Filters: Ghost style when inactive, filled style with purple glow when active
-  - Form inputs: Dark background, focused state with purple ring, error state with red tint
-
-- **Icon Selection**: 
-  - Plus icon for "Log New Game"
-  - Pencil/PencilSimple for edit actions
+- **Icon Selection** (Phosphor Icons): 
+  - Plus for "Log New Game"
+  - Pencil for edit actions
   - Trash for delete actions  
-  - Funnel/FunnelSimple for filter toggle
+  - Funnel for filter toggle
   - X for clear filters
-  - Calendar or Clock for dates
-  - Users or UsersThree for players/investigators count
-  - User for individual player
-  - BookOpen or Notebook for campaigns
-  - Sparkle for side stories section (adds thematic flavor)
-  - CaretUpDown for collapsible trigger
-  - Briefcase for total games metric
-
-- **Spacing**: 
-  - Page padding: p-6 (24px)
-  - Card padding: p-6 (24px)
-  - Card gaps in grid: gap-4 (16px)
-  - Form field spacing: space-y-4 (16px between fields)
-  - Section spacing: space-y-8 (32px between major sections)
-  - Badge gaps: gap-2 (8px)
+  - BookOpen for campaigns/app logo
+  - User/UsersThree for players
+  - SignIn/SignOut for auth actions
+  - GoogleLogo for Google sign-in
+  - Lock for password linking
+  - Download/Upload for data export/import
+  - MagnifyingGlass for heatmap search
+  - ArrowSquareOut for external ArkhamDB links
+  - ChartBar/Trophy/GameController/Shield for community stat cards
 
 - **Mobile**: 
-  - Desktop: Two-column card grid for playthroughs, filters in horizontal row, player list as sidebar with stats panel
-  - Tablet: Single column cards, filters remain horizontal but may wrap, player list stacks above stats
-  - Mobile: Full-width stacked cards, filters convert to scrollable horizontal chips, dialog forms become full-screen sheets, tabs for switching between games and players
+  - Desktop: Sticky header, 3-tab layout, inline filters, sidebar player list with stats panel
+  - Mobile: Full-width stacked cards, bottom navigation bar (MobileNav), filters in bottom sheet, dialog forms as full-width dialogs
   - Touch targets: Minimum 44x44px for all interactive elements
-  - Bottom sheet for add/edit on mobile instead of centered dialog
+  - Responsive heatmap: Desktop shows full NxN grid; mobile shows searchable investigator picker with ranked pairings list
