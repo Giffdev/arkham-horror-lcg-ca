@@ -46,11 +46,17 @@ export function subscribeToPlaythroughs(
 }
 
 export async function addPlaythrough(uid: string, data: Omit<Playthrough, 'id'>): Promise<string> {
+  if (!data.campaignName || !data.campaignName.trim()) {
+    throw new Error('Campaign name is required')
+  }
   const ref = await addDoc(playthroughsCollection(uid), data)
   return ref.id
 }
 
 export async function updatePlaythrough(uid: string, playthrough: Playthrough): Promise<void> {
+  if (!playthrough.campaignName || !playthrough.campaignName.trim()) {
+    throw new Error('Campaign name is required')
+  }
   const { id, ...data } = playthrough
   await updateDoc(doc(db, 'users', uid, 'playthroughs', id), data as Record<string, any>)
 }

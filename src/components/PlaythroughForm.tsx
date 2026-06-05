@@ -229,7 +229,7 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough, k
     const playthrough: Omit<Playthrough, 'id'> | Playthrough = {
       ...(editPlaythrough ? { id: editPlaythrough.id } : {}),
       date,
-      campaignName: campaignType === 'Unknown' ? 'Unknown Campaign' : campaignName,
+      campaignName: campaignType === 'Unknown' ? 'Unknown Campaign' : campaignType === 'Fan-Made' ? customCampaignName.trim() : campaignName,
       campaignType,
       ...(campaignSet ? { campaignSet } : {}),
       ...(campaignType === 'Fan-Made' && customCampaignName ? { customCampaignName } : {}),

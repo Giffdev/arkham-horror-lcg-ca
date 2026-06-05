@@ -47,10 +47,12 @@ export async function rebuildCommunityStats(_localPlaythroughs?: Playthrough[]):
   const pairCounts = new Map<string, number>()
 
   for (const p of playthroughs) {
-    // Count campaigns
-    const existing = campaignCounts.get(p.campaignName) || { count: 0, set: getCampaignSet(p.campaignName) }
-    existing.count++
-    campaignCounts.set(p.campaignName, existing)
+    // Count campaigns (skip entries with empty/missing campaign names)
+    if (p.campaignName && p.campaignName.trim()) {
+      const existing = campaignCounts.get(p.campaignName) || { count: 0, set: getCampaignSet(p.campaignName) }
+      existing.count++
+      campaignCounts.set(p.campaignName, existing)
+    }
 
     // Count completion breakdown by type
     switch (p.campaignType) {
@@ -92,6 +94,7 @@ export async function rebuildCommunityStats(_localPlaythroughs?: Playthrough[]):
   }
 
   const topCampaigns = Array.from(campaignCounts.entries())
+    .filter(([name]) => name && name.trim())
     .map(([name, data]) => {
       const entry: { name: string; count: number; set?: string } = { name, count: data.count }
       if (data.set) entry.set = data.set
@@ -162,7 +165,12 @@ export async function bumpCommunityStats(delta: {
 
 export async function getCommunityStats(): Promise<CommunityStats | null> {
   try {
-    return await getCommunityStatsFromFirestore()
+    const stats = await getCommunityStatsFromFirestore()
+    if (stats) {
+      // Filter out any blank campaign names that may have been stored previously
+      stats.topCampaigns = stats.topCampaigns.filter(c => c.name && c.name.trim())
+    }
+    return stats
   } catch (error) {
     console.error('Failed to get community stats:', error)
     return null
