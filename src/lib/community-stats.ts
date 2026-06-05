@@ -47,11 +47,16 @@ export async function rebuildCommunityStats(_localPlaythroughs?: Playthrough[]):
   const pairCounts = new Map<string, number>()
 
   for (const p of playthroughs) {
-    // Count campaigns (skip entries with empty/missing campaign names)
-    if (p.campaignName && p.campaignName.trim()) {
-      const existing = campaignCounts.get(p.campaignName) || { count: 0, set: getCampaignSet(p.campaignName) }
+    // Count campaigns - use customCampaignName as fallback for legacy Fan-Made entries
+    const effectiveName = (p.campaignName && p.campaignName.trim()) 
+      ? p.campaignName.trim()
+      : (p.customCampaignName && p.customCampaignName.trim()) 
+        ? p.customCampaignName.trim() 
+        : null
+    if (effectiveName) {
+      const existing = campaignCounts.get(effectiveName) || { count: 0, set: getCampaignSet(effectiveName) }
       existing.count++
-      campaignCounts.set(p.campaignName, existing)
+      campaignCounts.set(effectiveName, existing)
     }
 
     // Count completion breakdown by type
