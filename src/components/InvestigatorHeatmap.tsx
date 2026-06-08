@@ -4,7 +4,7 @@ import { UsersThree, MagnifyingGlass, ArrowSquareOut } from '@phosphor-icons/rea
 import { Playthrough } from '@/lib/types'
 import { CommunityPairing } from '@/lib/community-stats'
 import { HeatmapData, buildHeatmapFromPairings, useInvestigatorHeatmap } from '@/hooks/useInvestigatorHeatmap'
-import { getArkhamDBUrl } from '@/lib/investigator-data'
+import { getArkhamDBUrl, getAllInvestigatorNames } from '@/lib/investigator-data'
 
 /** Get ArkhamDB link for an investigator, falling back to search URL */
 function getInvestigatorLink(name: string): string {
@@ -148,6 +148,9 @@ function DesktopHeatmap({ data }: DesktopHeatmapProps) {
                 }
                 role="gridcell"
               >
+                {isDiagonal && (
+                  <span className="text-muted-foreground/60 font-bold">✕</span>
+                )}
                 {value > 0 && !isDiagonal && (
                   <span className="font-medium">{value}</span>
                 )}
@@ -376,8 +379,14 @@ export function InvestigatorHeatmap({ playthroughs, communityPairings }: Investi
     if (!communityPairings || communityPairings.length === 0) {
       return { investigators: [], matrix: [], maxCount: 0 }
     }
+    // Only include official Arkham Horror investigators in the community heatmap
+    // Custom investigator names may be real people's identities and should not be shown publicly
+    const officialNames = new Set(getAllInvestigatorNames())
+    const filteredPairings = communityPairings.filter(
+      p => officialNames.has(p.investigator1) && officialNames.has(p.investigator2)
+    )
     return buildHeatmapFromPairings(
-      communityPairings.map(p => ({ name1: p.investigator1, name2: p.investigator2, count: p.count }))
+      filteredPairings.map(p => ({ name1: p.investigator1, name2: p.investigator2, count: p.count }))
     )
   }, [communityPairings])
 
