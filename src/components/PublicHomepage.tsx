@@ -80,7 +80,7 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
                   <CardHeader className="pb-3">
                     <div className="flex items-center gap-2">
                       <GameController size={20} className="text-primary" weight="duotone" />
-                      <CardTitle className="text-sm text-muted-foreground">Total Games Logged</CardTitle>
+                      <CardTitle className="text-sm text-muted-foreground">Total Campaigns Logged</CardTitle>
                     </div>
                   </CardHeader>
                   <CardContent>
