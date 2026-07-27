@@ -34,7 +34,7 @@ export interface CommunityStats {
  * Rebuild community stats from ALL users' playthroughs across Firestore.
  * The local playthroughs param is ignored — we query the full collectionGroup.
  */
-export async function rebuildCommunityStats(_localPlaythroughs?: Playthrough[]): Promise<void> {
+export async function rebuildCommunityStats(_localPlaythroughs?: Playthrough[]): Promise<CommunityStats | void> {
   try {
     const { playthroughs, userCount } = await getAllPlaythroughs()
     console.log(`[CommunityStats] Found ${playthroughs.length} playthroughs from ${userCount} users`)
@@ -159,6 +159,7 @@ export async function rebuildCommunityStats(_localPlaythroughs?: Playthrough[]):
   }
 
     await saveCommunityStats(stats)
+    return stats
   } catch (err) {
     console.error('[CommunityStats] Failed to rebuild:', err)
   }

@@ -42,9 +42,9 @@ function AuthenticatedApp({ currentUser, onSignOut }: AuthenticatedAppProps) {
   const { filters, handlers: filterHandlers, filteredPlaythroughs } = usePlaythroughFilters(playthroughs)
   const passwordLink = usePasswordLink(currentUser)
   useLegacyDataMigration(playthroughs, playthroughActions.update)
-  useCommunityStatsSync(playthroughs)
 
   const [communityStats, setCommunityStats] = useState<CommunityStatsType | null>(null)
+  useCommunityStatsSync(playthroughs, setCommunityStats)
   useEffect(() => {
     getCommunityStats().then(setCommunityStats).catch(() => {})
   }, [])
