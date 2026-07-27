@@ -100,6 +100,49 @@ describe('investigator-data', () => {
       expect(result!.name).toBe('Agnes Baker')
     })
 
+    it('self-heals stale dual-chapter id when investigatorSet points to Ch.2', () => {
+      const result = resolveInvestigator({
+        investigatorId: 'daniela-reyes',
+        investigatorName: 'Daniela Reyes',
+        investigatorSet: 'Core 2026',
+      })
+      expect(result).toBeDefined()
+      expect(result!.id).toBe('daniela-reyes-ch2')
+      expect(result!.chapter).toBe(2)
+    })
+
+    it('keeps clean Ch.1 dual-chapter records on Ch.1', () => {
+      const result = resolveInvestigator({
+        investigatorId: 'daniela-reyes',
+        investigatorName: 'Daniela Reyes',
+        investigatorSet: 'Edge of the Earth',
+      })
+      expect(result).toBeDefined()
+      expect(result!.id).toBe('daniela-reyes')
+      expect(result!.chapter).toBe(1)
+    })
+
+    it('keeps clean Ch.2 dual-chapter records on Ch.2', () => {
+      const result = resolveInvestigator({
+        investigatorId: 'daniela-reyes-ch2',
+        investigatorName: 'Daniela Reyes',
+        investigatorSet: 'Core 2026',
+      })
+      expect(result).toBeDefined()
+      expect(result!.id).toBe('daniela-reyes-ch2')
+      expect(result!.chapter).toBe(2)
+    })
+
+    it('returns byId unchanged when investigatorSet is absent', () => {
+      const result = resolveInvestigator({
+        investigatorId: 'daniela-reyes',
+        investigatorName: 'Daniela Reyes',
+      })
+      expect(result).toBeDefined()
+      expect(result!.id).toBe('daniela-reyes')
+      expect(result!.chapter).toBe(1)
+    })
+
     it('falls back to name + chapter when no id', () => {
       const result = resolveInvestigator({
         investigatorName: 'Joe Diamond',

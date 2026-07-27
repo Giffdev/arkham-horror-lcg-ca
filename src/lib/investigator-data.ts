@@ -203,7 +203,18 @@ export function getInvestigatorByName(name: string, chapter?: 1 | 2): Investigat
 export function resolveInvestigator(assignment: { investigatorId?: string; investigatorName: string; chapter?: 1 | 2; investigatorSet?: string }): Investigator | undefined {
   if (assignment.investigatorId) {
     const byId = getInvestigatorById(assignment.investigatorId)
-    if (byId) return byId
+    if (byId) {
+      // Self-heal stale id-remap: if the record also carries an investigatorSet
+      // that points to a DIFFERENT same-named entry (dual-chapter collision),
+      // the set is the more specific signal and wins.
+      if (assignment.investigatorSet && byId.set !== assignment.investigatorSet) {
+        const bySet = INVESTIGATORS.find(
+          inv => inv.name === assignment.investigatorName && inv.set === assignment.investigatorSet
+        )
+        if (bySet) return bySet
+      }
+      return byId
+    }
   }
   if (assignment.investigatorSet) {
     const bySet = INVESTIGATORS.find(
