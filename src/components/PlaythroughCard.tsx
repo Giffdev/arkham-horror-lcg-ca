@@ -6,15 +6,16 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { PencilSimple, Trash, Clock, UsersThree, Sparkle, Notepad } from '@phosphor-icons/react'
 import { formatDate } from '@/lib/date-utils'
-import { getDisplaySetName, getArkhamDBUrl, resolveInvestigator, getChapterBadgeLabel, isChapterBadgeSpecial } from '@/lib/investigator-data'
+import { getDisplaySetName, getArkhamDBUrl, getArkhamDBUrlById, resolveInvestigator, getChapterBadgeLabel, isChapterBadgeSpecial } from '@/lib/investigator-data'
 import type { InvestigatorAssignment } from '@/lib/types'
 
 function InvestigatorDisplay({ inv }: { inv: InvestigatorAssignment }) {
   const resolved = resolveInvestigator(inv)
   const chosenArchetype = inv.archetype
-  const defaultUrl = inv.investigatorId
-    ? (resolved?.arkhamDbCode === null ? null : getArkhamDBUrl(inv.investigatorName, chosenArchetype, inv.chapter))
-    : getArkhamDBUrl(inv.investigatorName, chosenArchetype)
+  const displayChapter = resolved?.chapter ?? inv.chapter ?? 1
+  const defaultUrl = resolved
+    ? getArkhamDBUrlById(resolved.id, chosenArchetype)
+    : getArkhamDBUrl(inv.investigatorName, chosenArchetype, displayChapter)
   const showChapterBadge = !inv.isUnknown && inv.investigatorName !== 'Unknown'
 
   return (
@@ -23,9 +24,10 @@ function InvestigatorDisplay({ inv }: { inv: InvestigatorAssignment }) {
         <div className="flex items-center gap-2">
           <ArchetypeBadge 
             archetype={chosenArchetype}
-            investigatorId={inv.investigatorId}
+            investigatorId={resolved?.id ?? inv.investigatorId}
             investigatorName={inv.investigatorName}
-            chapter={inv.chapter}
+            investigatorSet={resolved?.set ?? inv.investigatorSet}
+            chapter={resolved?.chapter ?? inv.chapter}
           />
           {defaultUrl && !inv.isUnknown && inv.investigatorName !== 'Unknown' ? (
             <a 
@@ -43,11 +45,11 @@ function InvestigatorDisplay({ inv }: { inv: InvestigatorAssignment }) {
           )}
           {showChapterBadge && (
             <span className={`text-xs font-medium ${
-              isChapterBadgeSpecial({ set: resolved?.set, chapter: inv.chapter || 1 })
+              isChapterBadgeSpecial({ set: resolved?.set, chapter: displayChapter })
                 ? 'text-violet-400'
                 : 'text-muted-foreground opacity-60'
             }`}>
-              · {getChapterBadgeLabel({ set: resolved?.set, chapter: inv.chapter || 1 })}
+              · {getChapterBadgeLabel({ set: resolved?.set, chapter: displayChapter })}
             </span>
           )}
         </div>

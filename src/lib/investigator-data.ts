@@ -200,11 +200,18 @@ export function getInvestigatorByName(name: string, chapter?: 1 | 2): Investigat
 }
 
 /** Resolve an InvestigatorAssignment to its canonical Investigator, handling legacy data */
-export function resolveInvestigator(assignment: { investigatorId?: string; investigatorName: string; chapter?: 1 | 2 }): Investigator | undefined {
+export function resolveInvestigator(assignment: { investigatorId?: string; investigatorName: string; chapter?: 1 | 2; investigatorSet?: string }): Investigator | undefined {
   if (assignment.investigatorId) {
-    return getInvestigatorById(assignment.investigatorId)
+    const byId = getInvestigatorById(assignment.investigatorId)
+    if (byId) return byId
   }
-  return getInvestigatorByName(assignment.investigatorName, assignment.chapter || 1)
+  if (assignment.investigatorSet) {
+    const bySet = INVESTIGATORS.find(
+      inv => inv.name === assignment.investigatorName && inv.set === assignment.investigatorSet
+    )
+    if (bySet) return bySet
+  }
+  return getInvestigatorByName(assignment.investigatorName, assignment.chapter)
 }
 
 export function getAllInvestigatorNames(): string[] {

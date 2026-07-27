@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { MapTrifold, Users, Scroll, Sparkle, Trophy, BookOpen, UserFocus, Detective, Shield } from '@phosphor-icons/react'
 import { getCommunityStats, CommunityStats as CommunityStatsType } from '@/lib/community-stats'
 import { ArchetypeBadge } from '@/components/ArchetypeBadge'
-import { getArkhamDBUrl, getChapterBadgeLabel, isChapterBadgeSpecial, resolveInvestigator } from '@/lib/investigator-data'
+import { getArkhamDBUrl, getArkhamDBUrlById, getChapterBadgeLabel, isChapterBadgeSpecial, resolveInvestigator } from '@/lib/investigator-data'
 
 export function CommunityStats() {
   const [communityStats, setCommunityStats] = useState<CommunityStatsType | null>(null)
@@ -138,8 +138,15 @@ export function CommunityStats() {
           <CardContent>
             <div className="space-y-3">
               {communityStats.topInvestigators.slice(0, 5).map((investigator, index) => {
-                const resolved = resolveInvestigator({ investigatorName: investigator.name, chapter: investigator.chapter })
-                const arkhamDBUrl = getArkhamDBUrl(investigator.name, investigator.archetypes[0], investigator.chapter)
+                const resolved = resolveInvestigator({
+                  investigatorId: investigator.investigatorId,
+                  investigatorName: investigator.name,
+                  chapter: investigator.chapter,
+                  investigatorSet: investigator.investigatorSet,
+                })
+                const arkhamDBUrl = resolved
+                  ? getArkhamDBUrlById(resolved.id, investigator.archetypes[0])
+                  : getArkhamDBUrl(investigator.name, investigator.archetypes[0], investigator.chapter)
                 const chapterInfo = resolved || { set: undefined, chapter: investigator.chapter || 1 }
                 
                 return (

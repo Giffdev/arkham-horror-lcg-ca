@@ -220,6 +220,24 @@ describe('useInvestigatorHeatmap', () => {
     ])
   })
 
+  it('uses investigatorSet to derive chapter for legacy dual-chapter records without id or chapter', () => {
+    const playthroughs = [makePlaythrough({
+      investigators: [
+        makeInvestigator('Daniela Reyes', { investigatorSet: 'Core 2026' }),
+        makeInvestigator('Roland Banks'),
+        makeInvestigator('Daisy Walker'),
+      ],
+    })]
+    const { result } = renderHook(() => useInvestigatorHeatmap(playthroughs))
+    expect(result.current.investigators).toEqual(['Daisy Walker', 'Daniela Reyes (Ch. 2)', 'Roland Banks'])
+    expect(result.current.investigators).not.toContain('Daniela Reyes (Ch. 1)')
+    const danielaIndex = result.current.investigators.indexOf('Daniela Reyes (Ch. 2)')
+    const rolandIndex = result.current.investigators.indexOf('Roland Banks')
+    const daisyIndex = result.current.investigators.indexOf('Daisy Walker')
+    expect(result.current.matrix[danielaIndex][rolandIndex]).toBe(1)
+    expect(result.current.matrix[danielaIndex][daisyIndex]).toBe(1)
+  })
+
   it('keeps single-chapter investigator labels unsuffixed', () => {
     const playthroughs = [makePlaythrough({
       investigators: [

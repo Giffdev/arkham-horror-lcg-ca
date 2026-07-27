@@ -714,7 +714,7 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
                   : inv.investigatorName
                 const investigatorArchetypes = inv.archetypes || [inv.archetype]
                 const resolved = !inv.isUnknown && !inv.isCustom && investigatorName !== 'Unknown'
-                  ? resolveInvestigator({ investigatorId: inv.investigatorId, investigatorName: inv.investigatorName, chapter: inv.chapter })
+                  ? resolveInvestigator(inv)
                   : null
                 const arkhamDBUrl = resolved ? getArkhamDBUrlById(resolved.id) : null
                 const chapterLabel = resolved ? getChapterBadgeLabel(resolved) : null

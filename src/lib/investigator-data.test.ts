@@ -109,6 +109,26 @@ describe('investigator-data', () => {
       expect(result!.chapter).toBe(2)
     })
 
+    it('falls back to name + set for legacy dual-chapter records without id or chapter', () => {
+      const result = resolveInvestigator({
+        investigatorName: 'Daniela Reyes',
+        investigatorSet: 'Core 2026',
+      })
+      expect(result).toBeDefined()
+      expect(result!.id).toBe('daniela-reyes-ch2')
+      expect(result!.chapter).toBe(2)
+    })
+
+    it('uses set to resolve chapter 2-only investigators without id', () => {
+      const result = resolveInvestigator({
+        investigatorName: 'André Patel',
+        investigatorSet: 'Evergreen Starters (Ch. 2)',
+      })
+      expect(result).toBeDefined()
+      expect(result!.id).toBe('andre-patel')
+      expect(result!.chapter).toBe(2)
+    })
+
     it('defaults to Ch.1 when no chapter specified', () => {
       const result = resolveInvestigator({
         investigatorName: 'Trish Scarborough',

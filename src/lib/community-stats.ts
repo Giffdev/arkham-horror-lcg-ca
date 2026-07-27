@@ -19,7 +19,7 @@ export interface CommunityPairing {
 export interface CommunityStats {
   totalGames: number
   topCampaigns: { name: string; count: number; set?: string }[]
-  topInvestigators: { name: string; count: number; archetypes: Archetype[]; chapter?: 1 | 2 }[]
+  topInvestigators: { name: string; count: number; archetypes: Archetype[]; chapter?: 1 | 2; investigatorId?: string; investigatorSet?: string }[]
   topClasses: { archetype: Archetype; count: number }[]
   totalInvestigatorsPlayed: number
   topSideScenarios: { name: string; count: number }[]
@@ -41,7 +41,7 @@ export async function rebuildCommunityStats(_localPlaythroughs?: Playthrough[]):
     if (!playthroughs.length) return
 
   const campaignCounts = new Map<string, { count: number; set?: string }>()
-  const investigatorCounts = new Map<string, { name: string; count: number; archetypes: Archetype[]; chapter?: 1 | 2 }>()
+  const investigatorCounts = new Map<string, { name: string; count: number; archetypes: Archetype[]; chapter?: 1 | 2; investigatorId?: string; investigatorSet?: string }>()
   const classCounts = new Map<Archetype, number>()
   const uniqueInvestigators = new Set<string>()
   const completionBreakdown: CompletionBreakdown = { fullCampaigns: 0, smallCampaigns: 0, scenarioPacks: 0, fanMade: 0 }
@@ -73,7 +73,8 @@ export async function rebuildCommunityStats(_localPlaythroughs?: Playthrough[]):
     for (const inv of p.investigators) {
       if (inv.isUnknown || !inv.investigatorName || inv.investigatorName === 'Unknown') continue
       const name = inv.investigatorName
-      const resolvedChapter = resolveInvestigator(inv)?.chapter ?? inv.chapter
+      const resolved = resolveInvestigator(inv)
+      const resolvedChapter = resolved?.chapter ?? inv.chapter
       const pairingName = getInvestigatorPairKey({ investigatorName: name, chapter: resolvedChapter })
       uniqueInvestigators.add(pairingName)
       if (!validNames.includes(pairingName)) validNames.push(pairingName)
@@ -83,6 +84,8 @@ export async function rebuildCommunityStats(_localPlaythroughs?: Playthrough[]):
         count: 0,
         archetypes: inv.archetypes || [inv.archetype],
         chapter: chapter as 1 | 2 | undefined,
+        investigatorId: resolved?.id ?? inv.investigatorId,
+        investigatorSet: resolved?.set ?? inv.investigatorSet,
       }
       invEntry.count++
       investigatorCounts.set(pairingName, invEntry)
@@ -119,10 +122,12 @@ export async function rebuildCommunityStats(_localPlaythroughs?: Playthrough[]):
 
   const topInvestigators = Array.from(investigatorCounts.entries())
     .map(([, data]) => {
-      const entry: { name: string; count: number; archetypes: Archetype[]; chapter?: 1 | 2 } = {
+      const entry: { name: string; count: number; archetypes: Archetype[]; chapter?: 1 | 2; investigatorId?: string; investigatorSet?: string } = {
         name: data.name, count: data.count, archetypes: data.archetypes || []
       }
       if (data.chapter) entry.chapter = data.chapter
+      if (data.investigatorId) entry.investigatorId = data.investigatorId
+      if (data.investigatorSet) entry.investigatorSet = data.investigatorSet
       return entry
     })
     .sort((a, b) => b.count - a.count)
