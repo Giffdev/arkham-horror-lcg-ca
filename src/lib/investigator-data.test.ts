@@ -14,6 +14,8 @@ import {
   getArkhamDBUrl,
   getArkhamDBUrlById,
   getInvestigatorDisplayName,
+  getInvestigatorPairKey,
+  getAllInvestigatorPairKeys,
   getDisplaySetName,
 } from './investigator-data'
 
@@ -223,6 +225,27 @@ describe('investigator-data', () => {
     it('returns plain name for unique investigators', () => {
       const roland = getInvestigatorById('roland-banks')!
       expect(getInvestigatorDisplayName(roland)).toBe('Roland Banks')
+    })
+  })
+
+  describe('getInvestigatorPairKey', () => {
+    it('adds a default chapter suffix for dual-chapter investigator assignments', () => {
+      expect(getInvestigatorPairKey({ investigatorName: 'Daniela Reyes' })).toBe('Daniela Reyes (Ch. 1)')
+      expect(getInvestigatorPairKey({ investigatorName: 'Daniela Reyes', chapter: 2 })).toBe('Daniela Reyes (Ch. 2)')
+    })
+
+    it('leaves single-chapter investigator assignments plain', () => {
+      expect(getInvestigatorPairKey({ investigatorName: 'Roland Banks' })).toBe('Roland Banks')
+    })
+  })
+
+  describe('getAllInvestigatorPairKeys', () => {
+    it('includes chapter-aware labels for dual-chapter investigators and plain labels for unique investigators', () => {
+      expect(getAllInvestigatorPairKeys()).toEqual(expect.arrayContaining([
+        'Daniela Reyes (Ch. 1)',
+        'Daniela Reyes (Ch. 2)',
+        'Roland Banks',
+      ]))
     })
   })
 

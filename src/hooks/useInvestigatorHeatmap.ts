@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { Playthrough } from '@/lib/types'
+import { getInvestigatorPairKey, resolveInvestigator } from '@/lib/investigator-data'
 
 export interface HeatmapData {
   investigators: string[]   // sorted list of all unique investigator names
@@ -60,8 +61,10 @@ function extractPairings(playthroughs: Playthrough[]): { name1: string; name2: s
     const names: string[] = []
     for (const inv of p.investigators) {
       if (inv.isUnknown || !inv.investigatorName || inv.investigatorName === 'Unknown') continue
-      if (!names.includes(inv.investigatorName)) {
-        names.push(inv.investigatorName)
+      const chapter = resolveInvestigator(inv)?.chapter ?? inv.chapter
+      const name = getInvestigatorPairKey({ investigatorName: inv.investigatorName, chapter })
+      if (!names.includes(name)) {
+        names.push(name)
       }
     }
 

@@ -4,11 +4,14 @@ import { UsersThree, MagnifyingGlass, ArrowSquareOut } from '@phosphor-icons/rea
 import { Playthrough } from '@/lib/types'
 import { CommunityPairing } from '@/lib/community-stats'
 import { HeatmapData, buildHeatmapFromPairings, useInvestigatorHeatmap } from '@/hooks/useInvestigatorHeatmap'
-import { getArkhamDBUrl, getAllInvestigatorNames } from '@/lib/investigator-data'
+import { getArkhamDBUrl, getAllInvestigatorPairKeys } from '@/lib/investigator-data'
 
 /** Get ArkhamDB link for an investigator, falling back to search URL */
 function getInvestigatorLink(name: string): string {
-  return getArkhamDBUrl(name) ?? `https://arkhamdb.com/find?q=${encodeURIComponent(name)}`
+  const chapterMatch = name.match(/^(.*) \(Ch\. ([12])\)$/)
+  const baseName = chapterMatch?.[1] ?? name
+  const chapter = chapterMatch ? Number(chapterMatch[2]) as 1 | 2 : undefined
+  return getArkhamDBUrl(baseName, undefined, chapter) ?? `https://arkhamdb.com/find?q=${encodeURIComponent(baseName)}`
 }
 
 interface InvestigatorHeatmapProps {
@@ -381,7 +384,7 @@ export function InvestigatorHeatmap({ playthroughs, communityPairings }: Investi
     }
     // Only include official Arkham Horror investigators in the community heatmap
     // Custom investigator names may be real people's identities and should not be shown publicly
-    const officialNames = new Set(getAllInvestigatorNames())
+    const officialNames = new Set(getAllInvestigatorPairKeys())
     const filteredPairings = communityPairings.filter(
       p => officialNames.has(p.investigator1) && officialNames.has(p.investigator2)
     )

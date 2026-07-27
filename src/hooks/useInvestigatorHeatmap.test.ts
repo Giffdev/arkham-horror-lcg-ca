@@ -185,6 +185,53 @@ describe('useInvestigatorHeatmap', () => {
     ])
   })
 
+  it('keeps dual-chapter investigators as distinct heatmap entries', () => {
+    const playthroughs = [makePlaythrough({
+      investigators: [
+        makeInvestigator('Daniela Reyes', { chapter: 1 }),
+        makeInvestigator('Daniela Reyes', { chapter: 2 }),
+        makeInvestigator('Roland Banks'),
+      ],
+    })]
+    const { result } = renderHook(() => useInvestigatorHeatmap(playthroughs))
+    expect(result.current.investigators).toEqual([
+      'Daniela Reyes (Ch. 1)',
+      'Daniela Reyes (Ch. 2)',
+      'Roland Banks',
+    ])
+    expect(result.current.matrix[0][1]).toBe(1)
+    expect(result.current.matrix[0][2]).toBe(1)
+    expect(result.current.matrix[1][2]).toBe(1)
+  })
+
+  it('uses investigatorId to derive chapter for migrated dual-chapter records', () => {
+    const playthroughs = [makePlaythrough({
+      investigators: [
+        makeInvestigator('Daniela Reyes', { investigatorId: 'daniela-reyes-ch2' }),
+        makeInvestigator('Roland Banks'),
+      ],
+    })]
+    const { result } = renderHook(() => useInvestigatorHeatmap(playthroughs))
+    expect(result.current.investigators).toEqual(['Daniela Reyes (Ch. 2)', 'Roland Banks'])
+    expect(result.current.investigators).not.toContain('Daniela Reyes (Ch. 1)')
+    expect(result.current.matrix).toEqual([
+      [0, 1],
+      [1, 0],
+    ])
+  })
+
+  it('keeps single-chapter investigator labels unsuffixed', () => {
+    const playthroughs = [makePlaythrough({
+      investigators: [
+        makeInvestigator('Roland Banks'),
+        makeInvestigator('Daisy Walker'),
+      ],
+    })]
+    const { result } = renderHook(() => useInvestigatorHeatmap(playthroughs))
+    expect(result.current.investigators).toEqual(['Daisy Walker', 'Roland Banks'])
+    expect(result.current.investigators.some(name => name.includes('(Ch.'))).toBe(false)
+  })
+
   it('handles 4-player game producing a 4x4 matrix', () => {
     const playthroughs = [makePlaythrough({
       investigators: [

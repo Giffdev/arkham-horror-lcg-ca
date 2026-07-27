@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { Playthrough } from '@/lib/types'
+import { getInvestigatorPairKey, resolveInvestigator } from '@/lib/investigator-data'
 
 export interface InvestigatorPairing {
   investigators: [string, string]
@@ -24,8 +25,10 @@ function computePairings(playthroughs: Playthrough[], topN: number): Investigato
     const names: string[] = []
     for (const inv of p.investigators) {
       if (inv.isUnknown || !inv.investigatorName || inv.investigatorName === 'Unknown') continue
-      if (!names.includes(inv.investigatorName)) {
-        names.push(inv.investigatorName)
+      const chapter = resolveInvestigator(inv)?.chapter ?? inv.chapter
+      const name = getInvestigatorPairKey({ investigatorName: inv.investigatorName, chapter })
+      if (!names.includes(name)) {
+        names.push(name)
       }
     }
 

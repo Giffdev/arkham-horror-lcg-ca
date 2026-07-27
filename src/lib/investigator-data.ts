@@ -211,6 +211,17 @@ export function getAllInvestigatorNames(): string[] {
   return [...new Set(INVESTIGATORS.map(inv => inv.name))].sort()
 }
 
+export function getInvestigatorPairKey(inv: { investigatorName: string; chapter?: 1 | 2 }): string {
+  if (DUAL_CHAPTER_NAMES.has(inv.investigatorName)) {
+    return `${inv.investigatorName} (Ch. ${inv.chapter ?? 1})`
+  }
+  return inv.investigatorName
+}
+
+export function getAllInvestigatorPairKeys(): string[] {
+  return [...new Set(INVESTIGATORS.map(inv => getInvestigatorDisplayName(inv)))].sort()
+}
+
 export function isDualClassInvestigator(name: string): boolean {
   const investigator = getInvestigatorByName(name)
   return investigator ? investigator.archetypes.length > 1 : false

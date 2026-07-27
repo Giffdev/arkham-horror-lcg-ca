@@ -175,6 +175,35 @@ describe('useInvestigatorPairings', () => {
     expect(result.current.personal).toHaveLength(2)
   })
 
+  it('keeps dual-chapter investigators distinct in personal pairings', () => {
+    const playthroughs = [makePlaythrough({
+      investigators: [
+        makeInvestigator('Daniela Reyes', { chapter: 1 }),
+        makeInvestigator('Daniela Reyes', { chapter: 2 }),
+        makeInvestigator('Roland Banks'),
+      ],
+    })]
+    const { result } = renderHook(() => useInvestigatorPairings(playthroughs))
+    expect(result.current.personal).toEqual(expect.arrayContaining([
+      { investigators: ['Daniela Reyes (Ch. 1)', 'Daniela Reyes (Ch. 2)'], count: 1 },
+      { investigators: ['Daniela Reyes (Ch. 1)', 'Roland Banks'], count: 1 },
+      { investigators: ['Daniela Reyes (Ch. 2)', 'Roland Banks'], count: 1 },
+    ]))
+  })
+
+  it('uses investigatorId to derive chapter for migrated dual-chapter pairings', () => {
+    const playthroughs = [makePlaythrough({
+      investigators: [
+        makeInvestigator('Daniela Reyes', { investigatorId: 'daniela-reyes-ch2' }),
+        makeInvestigator('Roland Banks'),
+      ],
+    })]
+    const { result } = renderHook(() => useInvestigatorPairings(playthroughs))
+    expect(result.current.personal).toEqual([
+      { investigators: ['Daniela Reyes (Ch. 2)', 'Roland Banks'], count: 1 },
+    ])
+  })
+
   it('multiple playthroughs accumulate pair counts', () => {
     const playthroughs = [
       makePlaythrough({ id: '1', investigators: [
