@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Playthrough, InvestigatorAssignment, CAMPAIGN_TYPES, Archetype, CampaignType, DreamEatersCampaignPath } from '@/lib/types'
 import { Badge } from '@/components/ui/badge'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -13,6 +13,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
 import { FULL_CAMPAIGNS, SCENARIO_PACK_SCENARIOS, SMALL_CAMPAIGNS } from '@/lib/campaign-data'
 import { INVESTIGATORS, getInvestigatorById, getInvestigatorDisplayName, getChapterBadgeLabel, isChapterBadgeSpecial, type Investigator } from '@/lib/investigator-data'
+import { MAX_PLAYERS_PER_PLAYTHROUGH, getPlayerLimitError } from '@/lib/playthrough-validation'
+import { matchesSearchText } from '@/lib/search'
 import { Check, CaretDown, X, Plus, Trash, Sparkle } from '@phosphor-icons/react'
 
 import { cn } from '@/lib/utils'
@@ -86,15 +88,19 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough, k
   }
 
   const handleAddInvestigator = () => {
-    const isDreamEaters = campaignName === 'The Dream-Eaters'
-    setInvestigators([...investigators, { 
-      playerName: '', 
-      investigatorName: '', 
-      archetype: 'Unknown',
-      isUnknown: false, 
-      investigatorSet: undefined,
-      ...(isDreamEaters ? { dreamEatersPath: undefined } : {})
-    }])
+    setInvestigators(current => {
+      if (current.length >= MAX_PLAYERS_PER_PLAYTHROUGH) return current
+
+      const isDreamEaters = campaignName === 'The Dream-Eaters'
+      return [...current, {
+        playerName: '',
+        investigatorName: '',
+        archetype: 'Unknown',
+        isUnknown: false,
+        investigatorSet: undefined,
+        ...(isDreamEaters ? { dreamEatersPath: undefined } : {})
+      }]
+    })
   }
 
   const handleRemoveInvestigator = (index: number) => {
@@ -174,6 +180,7 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough, k
     if (campaignType === 'Fan-Made' && !customCampaignName.trim()) return false
     // Must have at least one investigator
     if (investigators.length === 0) return false
+    if (investigators.length > MAX_PLAYERS_PER_PLAYTHROUGH) return false
     // Each investigator must have a player name
     if (investigators.some(inv => !inv.playerName.trim())) return false
     return true
@@ -211,6 +218,12 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough, k
       return
     }
 
+    const playerLimitError = getPlayerLimitError({ investigators })
+    if (playerLimitError) {
+      toast.error(playerLimitError)
+      return
+    }
+
     if (campaignName === 'The Dream-Eaters') {
       const pathA = investigators.filter(inv => inv.dreamEatersPath === 'A: The Dream-Quest')
       const pathB = investigators.filter(inv => inv.dreamEatersPath === 'B: The Web of Dreams')
@@ -226,8 +239,7 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough, k
       }
     }
 
-    const playthrough: Omit<Playthrough, 'id'> | Playthrough = {
-      ...(editPlaythrough ? { id: editPlaythrough.id } : {}),
+    const playthrough: Omit<Playthrough, 'id'> = {
       date,
       campaignName: campaignType === 'Unknown' ? 'Unknown Campaign' : campaignType === 'Fan-Made' ? customCampaignName.trim() : campaignName,
       campaignType,
@@ -253,7 +265,7 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough, k
       }})
     }
 
-    onSave(playthrough as any)
+    onSave(editPlaythrough ? { ...playthrough, id: editPlaythrough.id } : playthrough)
     onOpenChange(false)
   }
 
@@ -267,6 +279,9 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough, k
       <DialogContent className="max-w-3xl max-h-[90dvh] flex flex-col overflow-hidden">
         <DialogHeader className="flex-shrink-0">
           <DialogTitle>{editPlaythrough ? 'Edit Playthrough' : 'Log New Playthrough'}</DialogTitle>
+          <DialogDescription className="sr-only">
+            Enter the campaign details and add up to four players and investigators.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6 py-4 overflow-y-auto flex-1 min-h-0 pr-1">
@@ -465,18 +480,26 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough, k
 
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <Label>Investigators</Label>
+              <Label>
+                Investigators ({investigators.length}/{MAX_PLAYERS_PER_PLAYTHROUGH})
+              </Label>
               <Button
                 type="button"
                 size="sm"
                 variant="outline"
                 onClick={handleAddInvestigator}
-                disabled={campaignName === 'The Dream-Eaters' && investigators.length >= 8}
+                disabled={investigators.length >= MAX_PLAYERS_PER_PLAYTHROUGH}
+                aria-describedby="player-limit-help"
               >
                 <Plus size={16} weight="bold" />
                 <span className="ml-2">Add Investigator</span>
               </Button>
             </div>
+            <p id="player-limit-help" className="text-xs text-muted-foreground" role="status">
+              {investigators.length >= MAX_PLAYERS_PER_PLAYTHROUGH
+                ? `Player limit reached (${MAX_PLAYERS_PER_PLAYTHROUGH} maximum).`
+                : `Up to ${MAX_PLAYERS_PER_PLAYTHROUGH} players per playthrough.`}
+            </p>
 
             <div className="space-y-3">
               {investigators.map((inv, index) => (
@@ -566,7 +589,7 @@ function InvestigatorRow({ investigator, index, isDreamEaters, onRemove, onChang
               <PopoverContent className="w-[250px] p-0" align="start">
                 <Command filter={(value, search) => {
                   if (!search) return 1
-                  return value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0
+                  return matchesSearchText(value, search) ? 1 : 0
                 }}>
                   <CommandInput
                     placeholder="Search or type new..."
@@ -588,7 +611,7 @@ function InvestigatorRow({ investigator, index, isDreamEaters, onRemove, onChang
                     </CommandEmpty>
                     <CommandGroup>
                       {knownPlayerNames
-                        .filter(name => name.toLowerCase().includes((investigator.playerName || '').toLowerCase()))
+                        .filter(name => matchesSearchText(name, investigator.playerName || ''))
                         .map(name => (
                           <CommandItem
                             key={name}
@@ -626,7 +649,7 @@ function InvestigatorRow({ investigator, index, isDreamEaters, onRemove, onChang
               <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
                 <Command filter={(value, search) => {
                   if (!search) return 1
-                  return value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0
+                  return matchesSearchText(value, search) ? 1 : 0
                 }}>
                   <CommandInput placeholder="Search investigators..." />
                   <div className="flex gap-1 px-2 py-1.5 border-b">
@@ -684,10 +707,11 @@ function InvestigatorRow({ investigator, index, isDreamEaters, onRemove, onChang
 
         {canRemove && (
           <Button
+            type="button"
             variant="ghost"
             size="icon"
             onClick={onRemove}
-            className="shrink-0 mt-7"
+            className="shrink-0 mt-7 border border-destructive/40 bg-destructive/10 text-destructive hover:bg-destructive/20 hover:text-destructive focus-visible:border-destructive focus-visible:ring-destructive/50"
             aria-label={`Remove investigator ${index + 1}`}
           >
             <Trash size={16} weight="bold" />

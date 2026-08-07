@@ -5,6 +5,7 @@ import { Playthrough } from '@/lib/types'
 import { CommunityPairing } from '@/lib/community-stats'
 import { HeatmapData, buildHeatmapFromPairings, useInvestigatorHeatmap } from '@/hooks/useInvestigatorHeatmap'
 import { getArkhamDBUrl, getAllInvestigatorPairKeys } from '@/lib/investigator-data'
+import { matchesSearchText } from '@/lib/search'
 
 /** Get ArkhamDB link for an investigator, falling back to search URL */
 function getInvestigatorLink(name: string): string {
@@ -208,8 +209,7 @@ function MobileHeatmap({ data }: MobileHeatmapProps) {
   // Filter investigators based on search
   const filteredInvestigators = useMemo(() => {
     if (!searchQuery.trim()) return investigators
-    const q = searchQuery.toLowerCase()
-    return investigators.filter(name => name.toLowerCase().includes(q))
+    return investigators.filter(name => matchesSearchText(name, searchQuery))
   }, [investigators, searchQuery])
 
   // Get pairings for selected investigator, sorted by count descending

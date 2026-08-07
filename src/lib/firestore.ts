@@ -16,6 +16,7 @@ import {
 import { db } from './firebase'
 import { Playthrough } from './types'
 import { CommunityStats } from './community-stats'
+import { assertPlayerLimit } from './playthrough-validation'
 
 // --- Playthroughs ---
 
@@ -49,6 +50,7 @@ export async function addPlaythrough(uid: string, data: Omit<Playthrough, 'id'>)
   if (!data.campaignName || !data.campaignName.trim()) {
     throw new Error('Campaign name is required')
   }
+  assertPlayerLimit(data)
   const ref = await addDoc(playthroughsCollection(uid), data)
   return ref.id
 }
@@ -57,6 +59,7 @@ export async function updatePlaythrough(uid: string, playthrough: Playthrough): 
   if (!playthrough.campaignName || !playthrough.campaignName.trim()) {
     throw new Error('Campaign name is required')
   }
+  assertPlayerLimit(playthrough)
   const { id, ...data } = playthrough
   await updateDoc(doc(db, 'users', uid, 'playthroughs', id), data as Record<string, any>)
 }
