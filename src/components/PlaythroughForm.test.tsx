@@ -26,6 +26,9 @@ describe('PlaythroughForm player controls', () => {
 
     const removeButton = screen.getByRole('button', { name: 'Remove investigator 1' })
     expect(removeButton).toHaveClass('text-destructive', 'bg-destructive/10', 'focus-visible:ring-destructive/50')
+    expect(removeButton).toHaveClass('self-end')
+    expect(removeButton).not.toHaveClass('mt-7')
+    expect(removeButton.parentElement).toHaveClass('flex', 'items-end')
 
     await user.click(removeButton)
     expect(addButton).toBeEnabled()

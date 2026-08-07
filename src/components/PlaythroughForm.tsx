@@ -569,7 +569,7 @@ function InvestigatorRow({ investigator, index, isDreamEaters, onRemove, onChang
 
   return (
     <div className="border rounded-lg p-4 space-y-3">
-      <div className="flex items-start justify-between gap-2">
+      <div className="flex items-end justify-between gap-2">
         <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3">
           <div className="space-y-2">
             <Label>Player Name (Optional)</Label>
@@ -711,7 +711,7 @@ function InvestigatorRow({ investigator, index, isDreamEaters, onRemove, onChang
             variant="ghost"
             size="icon"
             onClick={onRemove}
-            className="shrink-0 mt-7 border border-destructive/40 bg-destructive/10 text-destructive hover:bg-destructive/20 hover:text-destructive focus-visible:border-destructive focus-visible:ring-destructive/50"
+            className="shrink-0 self-end border border-destructive/40 bg-destructive/10 text-destructive hover:bg-destructive/20 hover:text-destructive focus-visible:border-destructive focus-visible:ring-destructive/50"
             aria-label={`Remove investigator ${index + 1}`}
           >
             <Trash size={16} weight="bold" />
