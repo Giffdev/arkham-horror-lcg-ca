@@ -150,7 +150,7 @@ export function CommunityStats() {
         <p className="text-muted-foreground">See what the community is playing</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 items-start">
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
@@ -200,7 +200,7 @@ export function CommunityStats() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6 items-start">
         <StatsListCard
           icon={Trophy}
           title="Most Popular Campaigns"

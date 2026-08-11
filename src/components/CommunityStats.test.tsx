@@ -12,7 +12,10 @@
  *  5. Loading state renders without crash
  *  6. Empty-data state renders without crash
  *  7. [2026-08-11 Lambert] Duplicate-key regression: two same-named/different-chapter investigators both render and produce no React duplicate-key warning.
+ *  8. [2026-08-11 Lambert] Mobile KPI 2×2 grid: grid wrapper carries grid-cols-2 base class (not grid-cols-1).
+ *  9. [2026-08-11 Lambert] Expanded content overflow: expanded list is inside scroll-area / max-h containment.
  */
+import userEvent from '@testing-library/user-event'
 import { render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { CommunityStats } from './CommunityStats'
@@ -216,6 +219,136 @@ describe('CommunityStats', () => {
       const heading = screen.getByText(/most popular campaigns/i)
       const grid = heading.closest('[class*="grid"]')
       expect(grid).toBeInTheDocument()
+    })
+  })
+
+  describe('KPI summary grid — mobile 2×2 layout (overflow regression)', () => {
+    /**
+     * On mobile the four KPI tiles must sit in a two-column grid so they
+     * fit without overflowing. The Tailwind class contract is:
+     *   grid-cols-2                 → 2 columns from the base (mobile-first)
+     *   md:grid-cols-4              → 4 columns on md+
+     *
+     * jsdom cannot compute viewport-dependent layout, so we assert the
+     * CSS class contract on the wrapper element directly.
+     * Physical rendering must be verified in a real browser / Playwright.
+     *
+     * Expected to FAIL until Dallas updates the KPI grid wrapper class from
+     *   "grid-cols-1 sm:grid-cols-2 md:grid-cols-4"
+     * to
+     *   "grid-cols-2 md:grid-cols-4"
+     */
+
+    it('KPI grid wrapper has grid-cols-2 (mobile two-column base class)', async () => {
+      await renderAndWait(FULL_STATS)
+      // Find any of the four KPI metric values and climb to the grid wrapper.
+      const totalGamesValue = screen.getByText('42') // totalGames
+      // The grid wrapper is the closest ancestor with both "grid" and "grid-cols"
+      // classes (the div that holds all four KPI cards).
+      let el: Element | null = totalGamesValue.parentElement
+      let gridWrapper: Element | null = null
+      while (el) {
+        const cls = el.className ?? ''
+        if (typeof cls === 'string' && cls.includes('grid') && cls.includes('grid-cols')) {
+          gridWrapper = el
+          break
+        }
+        el = el.parentElement
+      }
+      expect(gridWrapper).toBeInTheDocument()
+      // Must NOT start at grid-cols-1 (that's the old single-column mobile layout)
+      expect(gridWrapper!.className).not.toMatch(/\bgrid-cols-1\b/)
+      // Must have grid-cols-2 at the BASE breakpoint (no sm:/md:/lg: prefix).
+      // A regex of /(?<![:\w])grid-cols-2\b/ rejects sm:grid-cols-2 et al.
+      expect(gridWrapper!.className).toMatch(/(?<![:\w])grid-cols-2\b/)
+    })
+
+    it('KPI grid wrapper retains md:grid-cols-4 for desktop (no regression)', async () => {
+      await renderAndWait(FULL_STATS)
+      const totalGamesValue = screen.getByText('42')
+      let el: Element | null = totalGamesValue.parentElement
+      let gridWrapper: Element | null = null
+      while (el) {
+        const cls = el.className ?? ''
+        if (typeof cls === 'string' && cls.includes('grid') && cls.includes('grid-cols')) {
+          gridWrapper = el
+          break
+        }
+        el = el.parentElement
+      }
+      expect(gridWrapper).toBeInTheDocument()
+      expect(gridWrapper!.className).toMatch(/md:grid-cols-4/)
+    })
+
+    it('all four KPI labels are rendered inside the grid wrapper', async () => {
+      await renderAndWait(FULL_STATS)
+      // Each KPI card title must be present. Verifies no card is accidentally
+      // moved outside the grid during the layout fix.
+      expect(screen.getByText(/total campaigns logged/i)).toBeInTheDocument()
+      expect(screen.getByText(/community members/i)).toBeInTheDocument()
+      expect(screen.getByText(/investigators played/i)).toBeInTheDocument()
+      expect(screen.getByText(/unique campaigns/i)).toBeInTheDocument()
+    })
+  })
+
+  describe('StatsListCard expanded content — overflow containment (regression)', () => {
+    /**
+     * When a StatsListCard is expanded via "Show all", the content must remain
+     * inside a deliberate scroll/containment boundary so it does not visually
+     * overflow the card on narrow viewports.
+     *
+     * jsdom limitation: physical scroll-height/clientHeight are always 0 in
+     * jsdom, so we cannot directly detect pixel-level overflow. Instead we
+     * assert the DOM/CSS contract that prevents it — the presence of a
+     * scroll-area root ancestor — same contract asserted in StatsListCard.test.tsx.
+     *
+     * Expected to FAIL until Dallas's expanded-view containment fix lands.
+     */
+
+    it('expanded campaigns card content is inside a scroll-area / max-h containment', async () => {
+      // Provide > 10 campaigns so the ScrollArea max-height class activates
+      const manyStats = {
+        ...FULL_STATS,
+        topCampaigns: Array.from({ length: 12 }, (_, i) => ({
+          name: `Campaign ${i + 1}`,
+          count: 12 - i,
+          set: 'Core',
+        })),
+      }
+      mockGetCommunityStats.mockResolvedValueOnce(manyStats as never)
+      render(<CommunityStats />)
+      await waitFor(() =>
+        expect(screen.queryByText(/loading community stats/i)).not.toBeInTheDocument(),
+      )
+
+      const user = userEvent.setup()
+      await user.click(screen.getByRole('button', { name: /show all/i }))
+
+      // "Show less" must be accessible after expansion
+      const showLessBtn = screen.getByRole('button', { name: /show (less|fewer)/i })
+      expect(showLessBtn).toBeInTheDocument()
+      expect(showLessBtn).not.toBeDisabled()
+
+      // Containment: list region must have a scroll-area / max-h ancestor
+      const controlledId = showLessBtn.getAttribute('aria-controls')
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      const listRegion = document.getElementById(controlledId!)
+      expect(listRegion).toBeInTheDocument()
+
+      let el: Element | null = listRegion?.parentElement ?? null
+      let foundContainment = false
+      while (el) {
+        const cls = el.className ?? ''
+        if (
+          el.hasAttribute('data-radix-scroll-area-root') ||
+          (typeof cls === 'string' && cls.includes('max-h-'))
+        ) {
+          foundContainment = true
+          break
+        }
+        el = el.parentElement
+      }
+      expect(foundContainment).toBe(true)
     })
   })
 })
