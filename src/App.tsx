@@ -86,13 +86,16 @@ function AuthenticatedApp({ currentUser, onSignOut }: AuthenticatedAppProps) {
         await playthroughActions.add(playthrough)
         toast.success('Playthrough logged successfully')
       }
+      setEditingPlaythrough(null)
     } catch (error) {
       console.error('Failed to save playthrough:', error)
-      toast.error('Failed to save playthrough')
+      const raw = error instanceof Error ? error.message : String(error)
+      const display = raw.length > 120 ? `${raw.slice(0, 120)}…` : raw
+      toast.error(`Failed to save playthrough: ${display}`)
+      throw error
     } finally {
       setIsSaving(false)
     }
-    setEditingPlaythrough(null)
   }
 
   const handleDeletePlaythrough = async () => {

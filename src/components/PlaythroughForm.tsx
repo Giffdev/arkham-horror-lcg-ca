@@ -15,6 +15,7 @@ import { FULL_CAMPAIGNS, SCENARIO_PACK_SCENARIOS, SMALL_CAMPAIGNS } from '@/lib/
 import { INVESTIGATORS, getInvestigatorById, getInvestigatorDisplayName, getChapterBadgeLabel, isChapterBadgeSpecial, type Investigator } from '@/lib/investigator-data'
 import { MAX_PLAYERS_PER_PLAYTHROUGH, getPlayerLimitError } from '@/lib/playthrough-validation'
 import { matchesSearchText } from '@/lib/search'
+import { toDateInputValue } from '@/lib/date-utils'
 import { Check, CaretDown, X, Plus, Trash, Sparkle } from '@phosphor-icons/react'
 
 import { cn } from '@/lib/utils'
@@ -43,6 +44,7 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough, k
   const [customSideStory, setCustomSideStory] = useState('')
   const [campaignSearchOpen, setCampaignSearchOpen] = useState(false)
   const [dateError, setDateError] = useState('')
+  const [saveError, setSaveError] = useState('')
 
   useEffect(() => {
     if (open && editPlaythrough) {
@@ -50,10 +52,11 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough, k
       setCampaignName(editPlaythrough.campaignName)
       setCampaignSet(editPlaythrough.campaignSet || '')
       setCustomCampaignName(editPlaythrough.customCampaignName || '')
-      setDate(editPlaythrough.date)
+      setDate(toDateInputValue(editPlaythrough.date))
       setSideStories(editPlaythrough.sideStories || [])
       setNotes(editPlaythrough.notes || '')
       setDateError('')
+      setSaveError('')
       setInvestigators(editPlaythrough.investigators.map(inv => ({
         ...inv,
         archetypes: inv.archetypes || [inv.archetype]
@@ -67,6 +70,7 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough, k
       setSideStories([])
       setNotes('')
       setDateError('')
+      setSaveError('')
       setInvestigators([{
         playerName: '', 
         investigatorName: '', 
@@ -186,7 +190,7 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough, k
     return true
   })()
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     // Date validation
     if (!date) {
       setDateError('Date is required')
@@ -252,21 +256,33 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough, k
         // Auto-set to unknown if no investigator was selected
         const isAutoUnknown = !inv.isUnknown && !inv.investigatorName && !inv.isCustom
         const effectiveInv = isAutoUnknown ? { ...inv, isUnknown: true, investigatorName: 'Unknown', archetype: 'Unknown' as const, archetypes: undefined } : inv
+        // Use conditional spreads for every optional field so that no
+        // explicit `undefined` reaches Firestore (updateDoc rejects it).
+        // investigatorId / chapter are preserved here so they survive edits.
         return {
-        playerName: effectiveInv.playerName,
-        investigatorName: effectiveInv.isUnknown ? 'Unknown' : effectiveInv.investigatorName,
-        archetype: effectiveInv.archetype,
-        archetypes: effectiveInv.archetypes,
-        investigatorSet: effectiveInv.investigatorSet,
-        isUnknown: effectiveInv.isUnknown,
-        isCustom: effectiveInv.isCustom,
-        ...(effectiveInv.customInvestigatorName ? { customInvestigatorName: effectiveInv.customInvestigatorName } : {}),
-        ...(effectiveInv.dreamEatersPath ? { dreamEatersPath: effectiveInv.dreamEatersPath } : {})
-      }})
+          playerName: effectiveInv.playerName,
+          investigatorName: effectiveInv.isUnknown ? 'Unknown' : effectiveInv.investigatorName,
+          archetype: effectiveInv.archetype,
+          ...(effectiveInv.archetypes?.length ? { archetypes: effectiveInv.archetypes } : {}),
+          ...(effectiveInv.investigatorId ? { investigatorId: effectiveInv.investigatorId } : {}),
+          ...(effectiveInv.chapter != null ? { chapter: effectiveInv.chapter } : {}),
+          ...(effectiveInv.investigatorSet ? { investigatorSet: effectiveInv.investigatorSet } : {}),
+          ...(effectiveInv.isUnknown != null ? { isUnknown: effectiveInv.isUnknown } : {}),
+          ...(effectiveInv.isCustom != null ? { isCustom: effectiveInv.isCustom } : {}),
+          ...(effectiveInv.customInvestigatorName ? { customInvestigatorName: effectiveInv.customInvestigatorName } : {}),
+          ...(effectiveInv.dreamEatersPath ? { dreamEatersPath: effectiveInv.dreamEatersPath } : {}),
+        }
+      })
     }
 
-    onSave(editPlaythrough ? { ...playthrough, id: editPlaythrough.id } : playthrough)
-    onOpenChange(false)
+    setSaveError('')
+    try {
+      await onSave(editPlaythrough ? { ...playthrough, id: editPlaythrough.id } : playthrough)
+      onOpenChange(false)
+    } catch (error) {
+      const raw = error instanceof Error ? error.message : String(error)
+      setSaveError(raw.length > 120 ? `${raw.slice(0, 120)}…` : raw)
+    }
   }
 
   const availableCampaigns = 
@@ -537,6 +553,11 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough, k
         </div>
 
         <DialogFooter className="flex-shrink-0">
+          {saveError && (
+            <p className="text-xs text-destructive flex-1 self-center" role="alert">
+              {saveError}
+            </p>
+          )}
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>

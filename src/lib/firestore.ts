@@ -24,6 +24,35 @@ export function playthroughsCollection(uid: string) {
   return collection(db, 'users', uid, 'playthroughs')
 }
 
+/**
+ * Strip undefined values from a playthrough before writing to Firestore.
+ * Firestore rejects documents containing explicit `undefined` field values
+ * (FirebaseError: Unsupported field value: undefined). Legacy playthroughs
+ * loaded from Firestore and then re-saved through the form can carry optional
+ * fields (archetypes, investigatorSet, isUnknown, isCustom, etc.) as
+ * `undefined` rather than omitted, which causes updateDoc/addDoc to throw.
+ */
+export function sanitizePlaythrough<T extends Omit<Playthrough, 'id'>>(data: T): T {
+  const sanitizeObject = (obj: Record<string, unknown>): Record<string, unknown> => {
+    const result: Record<string, unknown> = {}
+    for (const key of Object.keys(obj)) {
+      const value = obj[key]
+      if (value === undefined) continue
+      if (Array.isArray(value)) {
+        result[key] = value.map(item =>
+          item !== null && typeof item === 'object' ? sanitizeObject(item as Record<string, unknown>) : item
+        )
+      } else if (value !== null && typeof value === 'object') {
+        result[key] = sanitizeObject(value as Record<string, unknown>)
+      } else {
+        result[key] = value
+      }
+    }
+    return result
+  }
+  return sanitizeObject(data as unknown as Record<string, unknown>) as T
+}
+
 export function subscribeToPlaythroughs(
   uid: string,
   callback: (playthroughs: Playthrough[]) => void,
@@ -51,7 +80,7 @@ export async function addPlaythrough(uid: string, data: Omit<Playthrough, 'id'>)
     throw new Error('Campaign name is required')
   }
   assertPlayerLimit(data)
-  const ref = await addDoc(playthroughsCollection(uid), data)
+  const ref = await addDoc(playthroughsCollection(uid), sanitizePlaythrough(data))
   return ref.id
 }
 
@@ -61,7 +90,7 @@ export async function updatePlaythrough(uid: string, playthrough: Playthrough): 
   }
   assertPlayerLimit(playthrough)
   const { id, ...data } = playthrough
-  await updateDoc(doc(db, 'users', uid, 'playthroughs', id), data as Record<string, any>)
+  await updateDoc(doc(db, 'users', uid, 'playthroughs', id), sanitizePlaythrough(data) as Record<string, any>)
 }
 
 export async function deletePlaythrough(uid: string, playthroughId: string): Promise<void> {
