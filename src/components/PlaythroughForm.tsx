@@ -360,6 +360,9 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough, k
                               )}
                             />
                             {campaign.name}
+                            {campaign.chapter === 2 && (
+                              <span className="ml-2 text-xs font-medium text-violet-400">Ch. 2</span>
+                            )}
                           </CommandItem>
                         ))}
                       </CommandGroup>
@@ -464,9 +467,12 @@ export function PlaythroughForm({ open, onOpenChange, onSave, editPlaythrough, k
                             />
                             <Label
                               htmlFor={`side-${scenario.name}`}
-                              className="text-sm font-normal cursor-pointer"
+                              className="text-sm font-normal cursor-pointer flex items-center gap-1.5"
                             >
                               {scenario.name}
+                              {scenario.chapter === 2 && (
+                                <span className="text-xs font-medium text-violet-400">Ch. 2</span>
+                              )}
                             </Label>
                           </div>
                         ))}

@@ -3,6 +3,7 @@ export interface Campaign {
   set: string
   type: 'Full Campaign' | 'Small Campaign' | 'Scenario Pack'
   chapter?: 1 | 2
+  returnTo?: boolean
 }
 
 // Chapter 2 campaign sets
@@ -19,15 +20,15 @@ export const FULL_CAMPAIGNS: Campaign[] = [
   { name: 'The Scarlet Keys', set: 'The Scarlet Keys', type: 'Full Campaign', chapter: 1 },
   { name: 'The Feast of Hemlock Vale', set: 'The Feast of Hemlock Vale', type: 'Full Campaign', chapter: 1 },
   { name: 'The Drowned City', set: 'The Drowned City', type: 'Full Campaign', chapter: 1 },
-  { name: 'Return to The Dunwich Legacy', set: 'Return to The Dunwich Legacy', type: 'Full Campaign', chapter: 1 },
-  { name: 'Return to The Path to Carcosa', set: 'Return to The Path to Carcosa', type: 'Full Campaign', chapter: 1 },
-  { name: 'Return to The Forgotten Age', set: 'Return to The Forgotten Age', type: 'Full Campaign', chapter: 1 },
-  { name: 'Return to The Circle Undone', set: 'Return to The Circle Undone', type: 'Full Campaign', chapter: 1 },
+  { name: 'Return to The Dunwich Legacy', set: 'Return to The Dunwich Legacy', type: 'Full Campaign', chapter: 1, returnTo: true },
+  { name: 'Return to The Path to Carcosa', set: 'Return to The Path to Carcosa', type: 'Full Campaign', chapter: 1, returnTo: true },
+  { name: 'Return to The Forgotten Age', set: 'Return to The Forgotten Age', type: 'Full Campaign', chapter: 1, returnTo: true },
+  { name: 'Return to The Circle Undone', set: 'Return to The Circle Undone', type: 'Full Campaign', chapter: 1, returnTo: true },
 ]
 
 export const SMALL_CAMPAIGNS: Campaign[] = [
   { name: 'The Night of the Zealot', set: 'Core', type: 'Small Campaign', chapter: 1 },
-  { name: 'Return to The Night of the Zealot', set: 'Return to The Night of the Zealot', type: 'Small Campaign', chapter: 1 },
+  { name: 'Return to The Night of the Zealot', set: 'Return to The Night of the Zealot', type: 'Small Campaign', chapter: 1, returnTo: true },
   { name: 'Children of Blood', set: 'Children of Blood', type: 'Small Campaign', chapter: 2 },
   { name: 'Brethren of Ash', set: 'Core 2026', type: 'Small Campaign', chapter: 2 },
 ]
@@ -44,7 +45,7 @@ export const SCENARIO_PACK_SCENARIOS: Campaign[] = [
   { name: 'Fortune and Folly', set: 'Scenario Pack', type: 'Scenario Pack' },
   { name: 'The Midwinter Gala', set: 'Scenario Pack', type: 'Scenario Pack' },
   { name: 'Film Fatale', set: 'Scenario Pack', type: 'Scenario Pack' },
-  { name: 'Traces To Nowhere', set: 'Scenario Pack', type: 'Scenario Pack' },
+  { name: 'Traces To Nowhere', set: 'Scenario Pack', type: 'Scenario Pack', chapter: 2 },
   { name: 'Barkham Horror: The Meddling of Meowlathotep', set: 'Barkham Horror', type: 'Scenario Pack' },
 ]
 

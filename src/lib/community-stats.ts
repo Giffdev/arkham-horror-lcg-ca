@@ -2,6 +2,7 @@ import { Playthrough, Archetype } from './types'
 import { getCommunityStatsFromFirestore, saveCommunityStats, getAllPlaythroughs } from './firestore'
 import { getCampaignSet } from './campaign-data'
 import { getInvestigatorPairKey, resolveInvestigator } from './investigator-data'
+import { SCENARIO_PACK_SCENARIOS } from './campaign-data'
 
 export interface CompletionBreakdown {
   fullCampaigns: number
@@ -16,6 +17,11 @@ export interface CommunityPairing {
   count: number
 }
 
+export interface StandalonePlayBreakdown {
+  asStandalone: number
+  asSideStory: number
+}
+
 export interface CommunityStats {
   totalGames: number
   topCampaigns: { name: string; count: number; set?: string }[]
@@ -23,11 +29,16 @@ export interface CommunityStats {
   topClasses: { archetype: Archetype; count: number }[]
   totalInvestigatorsPlayed: number
   topSideScenarios: { name: string; count: number }[]
-  topStandalones: { name: string; count: number; set?: string }[]
+  topStandalones: { name: string; count: number; set?: string; breakdown?: StandalonePlayBreakdown }[]
   completionBreakdown?: CompletionBreakdown
   topPairings?: CommunityPairing[]
   registeredUsers: number
   lastUpdated: number
+}
+
+/** Normalize a scenario/side-story name for map keying. Trim, lowercase, collapse whitespace. */
+function normalizeKey(s: string): string {
+  return s.trim().toLowerCase().replace(/\s+/g, ' ')
 }
 
 /**
@@ -47,17 +58,68 @@ export async function rebuildCommunityStats(_localPlaythroughs?: Playthrough[]):
   const completionBreakdown: CompletionBreakdown = { fullCampaigns: 0, smallCampaigns: 0, scenarioPacks: 0, fanMade: 0 }
   const pairCounts = new Map<string, number>()
 
+  // Canonical scenario pack names for standalone lookup (lowercase key → canonical name + set)
+  const canonicalStandaloneMap = new Map<string, { name: string; set: string }>()
+  for (const sp of SCENARIO_PACK_SCENARIOS) {
+    canonicalStandaloneMap.set(normalizeKey(sp.name), { name: sp.name, set: sp.set })
+  }
+
+  // standalone counts: key = canonical name
+  const standaloneCounts = new Map<string, { name: string; set: string; asStandalone: number; asSideStory: number }>()
+  // side scenario counts: key = normalized string, value = { display, count }
+  const sideCounts = new Map<string, { name: string; count: number }>()
+
   for (const p of playthroughs) {
-    // Count campaigns - use customCampaignName as fallback for legacy Fan-Made entries
-    const effectiveName = (p.campaignName && p.campaignName.trim()) 
-      ? p.campaignName.trim()
-      : (p.customCampaignName && p.customCampaignName.trim()) 
-        ? p.customCampaignName.trim() 
-        : null
-    if (effectiveName) {
-      const existing = campaignCounts.get(effectiveName) || { count: 0, set: getCampaignSet(effectiveName) }
-      existing.count++
-      campaignCounts.set(effectiveName, existing)
+    // Count campaigns — exclude Scenario Pack playthroughs (they have their own card)
+    if (p.campaignType !== 'Scenario Pack') {
+      const effectiveName = (p.campaignName && p.campaignName.trim())
+        ? p.campaignName.trim()
+        : (p.customCampaignName && p.customCampaignName.trim())
+          ? p.customCampaignName.trim()
+          : null
+      if (effectiveName) {
+        const existing = campaignCounts.get(effectiveName) || { count: 0, set: getCampaignSet(effectiveName) }
+        existing.count++
+        campaignCounts.set(effectiveName, existing)
+      }
+    }
+
+    // Count standalone scenario pack plays (asStandalone)
+    if (p.campaignType === 'Scenario Pack') {
+      const name = p.campaignName?.trim()
+      if (name) {
+        const key = normalizeKey(name)
+        const canonical = canonicalStandaloneMap.get(key)
+        if (canonical) {
+          const entry = standaloneCounts.get(canonical.name) || { name: canonical.name, set: canonical.set, asStandalone: 0, asSideStory: 0 }
+          entry.asStandalone++
+          standaloneCounts.set(canonical.name, entry)
+        }
+      }
+    }
+
+    // Count side story appearances
+    if (p.sideStories && p.sideStories.length > 0) {
+      for (const raw of p.sideStories) {
+        const trimmed = raw?.trim()
+        if (!trimmed) continue
+        const key = normalizeKey(trimmed)
+        // Check if this is a canonical standalone scenario pack
+        const canonical = canonicalStandaloneMap.get(key)
+        if (canonical) {
+          const entry = standaloneCounts.get(canonical.name) || { name: canonical.name, set: canonical.set, asStandalone: 0, asSideStory: 0 }
+          entry.asSideStory++
+          standaloneCounts.set(canonical.name, entry)
+        }
+        // Always count in side scenarios (including custom entries)
+        const existing = sideCounts.get(key)
+        if (existing) {
+          existing.count++
+        } else {
+          // First-seen display casing: use canonical name if available, else raw trimmed
+          sideCounts.set(key, { name: canonical ? canonical.name : trimmed, count: 1 })
+        }
+      }
     }
 
     // Count completion breakdown by type
@@ -118,7 +180,7 @@ export async function rebuildCommunityStats(_localPlaythroughs?: Playthrough[]):
       return entry
     })
     .sort((a, b) => b.count - a.count)
-    .slice(0, 10)
+    .slice(0, 25)
 
   const topInvestigators = Array.from(investigatorCounts.entries())
     .map(([, data]) => {
@@ -131,11 +193,26 @@ export async function rebuildCommunityStats(_localPlaythroughs?: Playthrough[]):
       return entry
     })
     .sort((a, b) => b.count - a.count)
-    .slice(0, 10)
+    .slice(0, 25)
 
   const topClasses = Array.from(classCounts.entries())
     .map(([archetype, count]) => ({ archetype, count }))
     .sort((a, b) => b.count - a.count)
+
+  const topStandalones = Array.from(standaloneCounts.values())
+    .map(entry => ({
+      name: entry.name,
+      count: entry.asStandalone + entry.asSideStory,
+      set: entry.set,
+      breakdown: { asStandalone: entry.asStandalone, asSideStory: entry.asSideStory },
+    }))
+    .filter(e => e.count > 0)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 25)
+
+  const topSideScenarios = Array.from(sideCounts.values())
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 25)
 
   const topPairings = Array.from(pairCounts.entries())
     .map(([key, count]) => {
@@ -143,6 +220,7 @@ export async function rebuildCommunityStats(_localPlaythroughs?: Playthrough[]):
       return { investigator1: a, investigator2: b, count }
     })
     .sort((a, b) => b.count - a.count || a.investigator1.localeCompare(b.investigator1))
+    .slice(0, 200)
 
   const stats: CommunityStats = {
     totalGames: playthroughs.length,
@@ -150,8 +228,8 @@ export async function rebuildCommunityStats(_localPlaythroughs?: Playthrough[]):
     topInvestigators,
     topClasses,
     totalInvestigatorsPlayed: uniqueInvestigators.size,
-    topSideScenarios: [],
-    topStandalones: [],
+    topSideScenarios,
+    topStandalones,
     completionBreakdown,
     topPairings,
     registeredUsers: userCount,
@@ -188,7 +266,11 @@ export async function getCommunityStats(): Promise<CommunityStats | null> {
     const stats = await getCommunityStatsFromFirestore()
     if (stats) {
       // Filter out any blank campaign names that may have been stored previously
-      stats.topCampaigns = stats.topCampaigns.filter(c => c.name && c.name.trim())
+      stats.topCampaigns = (stats.topCampaigns ?? []).filter(c => c.name && c.name.trim())
+      stats.topStandalones = stats.topStandalones ?? []
+      stats.topSideScenarios = stats.topSideScenarios ?? []
+      stats.topPairings = stats.topPairings ?? []
+      stats.topClasses = stats.topClasses ?? []
     }
     return stats
   } catch (error) {

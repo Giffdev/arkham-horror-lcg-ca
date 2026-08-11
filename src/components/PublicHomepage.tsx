@@ -6,9 +6,20 @@ import { AuthDialog } from '@/components/AuthDialog'
 import { User } from '@/lib/auth'
 import { getCommunityStats, CommunityStats } from '@/lib/community-stats'
 import { ArchetypeBadge } from '@/components/ArchetypeBadge'
+import { StatsListCard } from '@/components/StatsListCard'
+import { ALL_CAMPAIGNS } from '@/lib/campaign-data'
 
 interface PublicHomepageProps {
   onAuthSuccess: (user: User) => void
+}
+
+function campaignTypeLabel(name: string): string {
+  const c = ALL_CAMPAIGNS.find(x => x.name === name)
+  if (!c) return ''
+  if (c.returnTo) return 'Return To'
+  if (c.type === 'Full Campaign') return 'Full'
+  if (c.type === 'Small Campaign') return 'Short'
+  return ''
 }
 
 export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
@@ -33,6 +44,68 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
   const handleLogin = () => {
     setAuthDialogOpen(true)
   }
+
+  // Build StatsListCard items from community stats (with safety defaults for missing fields)
+  const investigatorItems = (communityStats?.topInvestigators ?? []).map(investigator => ({
+    key: investigator.investigatorId ?? `${investigator.name}__ch${investigator.chapter ?? 1}`,
+    countLabel: `${investigator.count} ${investigator.count === 1 ? 'play' : 'plays'}`,
+    renderContent: () => (
+      <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex gap-1">
+          {investigator.archetypes.map((archetype) => (
+            <ArchetypeBadge key={archetype} archetype={archetype} />
+          ))}
+        </div>
+        <span className="font-medium text-foreground">{investigator.name}</span>
+      </div>
+    ),
+  }))
+
+  const campaignItems = (communityStats?.topCampaigns ?? []).map(campaign => {
+    const typeLabel = campaignTypeLabel(campaign.name)
+    return {
+      key: campaign.name,
+      countLabel: `${campaign.count} ${campaign.count === 1 ? 'play' : 'plays'}`,
+      renderContent: () => (
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="font-medium text-foreground">{campaign.name}</span>
+          {typeLabel && (
+            <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+              {typeLabel}
+            </span>
+          )}
+        </div>
+      ),
+    }
+  })
+
+  const classTotal = (communityStats?.topClasses ?? []).reduce((s, c) => s + c.count, 0)
+  const classItems = (communityStats?.topClasses ?? []).map(cls => ({
+    key: cls.archetype,
+    countLabel: `${cls.count} plays (${classTotal > 0 ? Math.round((cls.count / classTotal) * 100) : 0}%)`,
+    renderContent: () => <ArchetypeBadge archetype={cls.archetype} />,
+  }))
+
+  const standaloneItems = (communityStats?.topStandalones ?? []).map(s => ({
+    key: s.name,
+    countLabel: `${s.count} ${s.count === 1 ? 'play' : 'plays'}`,
+    renderContent: () => (
+      <div>
+        <span className="font-medium text-foreground">{s.name}</span>
+        {s.breakdown && (
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {s.breakdown.asStandalone} standalone · {s.breakdown.asSideStory} side story
+          </p>
+        )}
+      </div>
+    ),
+  }))
+
+  const sideScenarioItems = (communityStats?.topSideScenarios ?? []).map(ss => ({
+    key: ss.name,
+    countLabel: `${ss.count} ${ss.count === 1 ? 'play' : 'plays'}`,
+    renderContent: () => <span className="font-medium text-foreground">{ss.name}</span>,
+  }))
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -125,158 +198,43 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
                 </Card>
               </div>
 
-                            <Card>
-                  <CardHeader>
-                    <div className="flex items-center gap-2">
-                      <Users size={20} className="text-primary" weight="duotone" />
-                      <CardTitle>Most Played Investigators</CardTitle>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {communityStats.topInvestigators.slice(0, 5).map((investigator, index) => (
-                        <div key={investigator.name} className="flex items-center justify-between">
-                          <div className="flex items-center gap-3 min-w-0 flex-1">
-                            <span className="text-2xl font-bold text-muted-foreground/40 w-6 text-right flex-shrink-0">
-                              {index + 1}
-                            </span>
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <div className="flex gap-1">
-                                  {investigator.archetypes.map((archetype) => (
-                                    <ArchetypeBadge key={archetype} archetype={archetype} />
-                                  ))}
-                                </div>
-                                <span className="font-medium text-foreground">{investigator.name}</span>
-                              </div>
-                            </div>
-                          </div>
-                          <span className="text-sm text-muted-foreground ml-2 flex-shrink-0">
-                            {investigator.count} {investigator.count === 1 ? 'play' : 'plays'}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
+              <StatsListCard
+                icon={Users}
+                title="Most Played Investigators"
+                items={investigatorItems}
+              />
 
-<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Card>
-                  <CardHeader>
-                    <div className="flex items-center gap-2">
-                      <Trophy size={20} className="text-primary" weight="duotone" />
-                      <CardTitle>Most Popular Campaigns</CardTitle>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {communityStats.topCampaigns.slice(0, 5).map((campaign, index) => (
-                        <div key={campaign.name} className="flex items-center justify-between">
-                          <div className="flex items-center gap-3 min-w-0 flex-1">
-                            <span className="text-2xl font-bold text-muted-foreground/40 w-6 text-right flex-shrink-0">
-                              {index + 1}
-                            </span>
-                            <div className="min-w-0 flex-1">
-                              <span className="font-medium text-foreground">{campaign.name}</span>
-                            </div>
-                          </div>
-                          <span className="text-sm text-muted-foreground ml-2 flex-shrink-0">
-                            {campaign.count} {campaign.count === 1 ? 'play' : 'plays'}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+                <StatsListCard
+                  icon={Trophy}
+                  title="Most Popular Campaigns"
+                  subtitle="Full, short & Return To campaigns"
+                  items={campaignItems}
+                />
 
-{communityStats.topClasses && communityStats.topClasses.length > 0 && (
-                  <Card>
-                    <CardHeader>
-                      <div className="flex items-center gap-2">
-                        <Shield size={20} className="text-primary" weight="duotone" />
-                        <CardTitle>Class Ranking</CardTitle>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-3">
-                        {communityStats.topClasses.map((cls, index) => {
-                          const total = communityStats.topClasses.reduce((sum, c) => sum + c.count, 0)
-                          const pct = total > 0 ? Math.round((cls.count / total) * 100) : 0
-                          return (
-                            <div key={cls.archetype} className="flex items-center justify-between">
-                              <div className="flex items-center gap-3 min-w-0 flex-1">
-                                <span className="text-2xl font-bold text-muted-foreground/40 w-6 text-right flex-shrink-0">
-                                  {index + 1}
-                                </span>
-                                <ArchetypeBadge archetype={cls.archetype} />
-                              </div>
-                              <span className="text-sm text-muted-foreground ml-2 flex-shrink-0">
-                                {cls.count} plays ({pct}%)
-                              </span>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </CardContent>
-                  </Card>
+                {classItems.length > 0 && (
+                  <StatsListCard
+                    icon={Shield}
+                    title="Class Ranking"
+                    items={classItems}
+                  />
                 )}
 
-                {communityStats.topStandalones.length > 0 && (
-                  <Card>
-                    <CardHeader>
-                      <div className="flex items-center gap-2">
-                        <Sparkle size={20} className="text-primary" weight="duotone" />
-                        <CardTitle>Popular Standalone Scenarios</CardTitle>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-3">
-                        {communityStats.topStandalones.slice(0, 5).map((standalone, index) => (
-                          <div key={standalone.name} className="flex items-center justify-between">
-                            <div className="flex items-center gap-3 min-w-0 flex-1">
-                              <span className="text-2xl font-bold text-muted-foreground/40 w-6 text-right flex-shrink-0">
-                                {index + 1}
-                              </span>
-                              <div className="min-w-0 flex-1">
-                                <span className="font-medium text-foreground">{standalone.name}</span>
-                              </div>
-                            </div>
-                            <span className="text-sm text-muted-foreground ml-2 flex-shrink-0">
-                              {standalone.count} {standalone.count === 1 ? 'play' : 'plays'}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
+                {standaloneItems.length > 0 && (
+                  <StatsListCard
+                    icon={Sparkle}
+                    title="Popular Standalone Scenarios"
+                    subtitle="Includes plays as standalone and side story"
+                    items={standaloneItems}
+                  />
                 )}
 
-                {communityStats.topSideScenarios.length > 0 && (
-                  <Card>
-                    <CardHeader>
-                      <div className="flex items-center gap-2">
-                        <ChartBar size={20} className="text-primary" weight="duotone" />
-                        <CardTitle>Popular Side Stories</CardTitle>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-3">
-                        {communityStats.topSideScenarios.slice(0, 5).map((sideScenario, index) => (
-                          <div key={sideScenario.name} className="flex items-center justify-between">
-                            <div className="flex items-center gap-3 min-w-0 flex-1">
-                              <span className="text-2xl font-bold text-muted-foreground/40 w-6 text-right flex-shrink-0">
-                                {index + 1}
-                              </span>
-                              <span className="font-medium text-foreground truncate">{sideScenario.name}</span>
-                            </div>
-                            <span className="text-sm text-muted-foreground ml-2 flex-shrink-0">
-                              {sideScenario.count} {sideScenario.count === 1 ? 'play' : 'plays'}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
+                {sideScenarioItems.length > 0 && (
+                  <StatsListCard
+                    icon={ChartBar}
+                    title="Popular Side Stories"
+                    items={sideScenarioItems}
+                  />
                 )}
               </div>
             </div>

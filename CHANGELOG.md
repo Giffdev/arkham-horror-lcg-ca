@@ -6,6 +6,43 @@ This project follows the spirit of [Keep a Changelog](https://keepachangelog.com
 
 ## [Unreleased]
 
+### Changed
+
+- **"Most Popular Campaigns" no longer includes Scenario Pack one-shots.**
+  Scenario Pack playthroughs (e.g. Curse of the Rougarou) are excluded from the campaigns
+  ranking; they now appear in the dedicated "Most Played Standalones" card instead.
+  Full campaigns, small campaigns, Return To campaigns, and fan-made entries continue to count.
+  This changes what is visible in the campaigns card for any community that has logged
+  Scenario Pack plays.
+
+### Added
+
+- **Standalone popularity card now shows real data.** Scenario Pack plays are counted
+  whether logged as their own playthrough (`asStandalone`) or slotted as a side story in a
+  longer campaign (`asSideStory`). The combined count and breakdown are persisted per scenario.
+
+- **Side-scenarios card now shows real data.** All `sideStories[]` entries are aggregated,
+  including custom free-text values. Names are normalised for deduplication (trim / lowercase /
+  collapsed whitespace), with canonical Scenario Pack names preferred for display casing and
+  first-seen casing used for custom entries.
+
+- **"Traces To Nowhere" is now annotated as a Chapter 2 standalone scenario.**
+  The existing catalog entry gains `chapter: 2`; the name string and set are unchanged, so
+  no existing playthrough records are orphaned.
+
+- **Five "Return To" campaigns are now explicitly marked in the catalog** (`returnTo: true`
+  on `Campaign`), enabling the campaigns card to show which source each row draws from.
+
+- **Top-list persistence cap raised from 10 to 25** for campaigns, investigators, standalones,
+  and side scenarios, so the "show all" affordance can reveal meaningful depth.
+
+- **Investigator pairings capped at 200 stored entries.** The previously unbounded
+  `topPairings` array is now stored with a 200-entry cap, comfortably above the 7-entry
+  client slice used by the pairings panel.
+
+- **`getCommunityStats()` now defensively defaults new/missing list fields to `[]`.**
+  Documents persisted before this release will not crash the community cards on load.
+
 ### Fixed
 
 - **Dual-chapter investigators are now correctly differentiated in the co-occurrence heatmap.**
