@@ -139,11 +139,14 @@ describe('Neutral faction icon SVG normalisation (regression)', () => {
     expect(svg).toMatch(/<svg[^>]*fill="currentColor"/)
   })
 
-  it('Neutral SVG carries no other fill="..." overrides', () => {
+  it('Neutral SVG carries only fill="currentColor" — no hardcoded fill overrides', () => {
     const svg = getFactionSvgRaw('Neutral')
-    // Only one fill attribute allowed: the currentColor on <svg>
-    const fillMatches = svg.match(/\bfill="/g) ?? []
-    expect(fillMatches.length).toBe(1)
+    // Every fill="..." in the output must be fill="currentColor" (belt-and-suspenders path injection)
+    const allFills = [...svg.matchAll(/\bfill="([^"]*)"/g)].map(m => m[1])
+    expect(allFills.length, 'at least one fill attribute expected (root SVG)').toBeGreaterThan(0)
+    for (const val of allFills) {
+      expect(val, `all fills must be currentColor, found "${val}"`).toBe('currentColor')
+    }
   })
 
   it('all faction SVGs are free of embedded <style> blocks', () => {
@@ -161,6 +164,51 @@ describe('Neutral faction icon SVG normalisation (regression)', () => {
       expect(svg, `${faction} SVG must carry fill="currentColor"`).toMatch(
         /<svg[^>]*fill="currentColor"/,
       )
+    }
+  })
+})
+
+// ── Regression: neutral.svg Inkscape metadata stripped (hotfix/rendered-icon-regressions) ──
+// Root cause: neutral.svg (Inkscape export) contained <sodipodi:namedview> and
+// empty <defs> elements. When injected via dangerouslySetInnerHTML in a browser,
+// these Inkscape-specific elements disrupt fill-color inheritance from the HTML
+// parent element. The normalise() function must strip them so the rendered SVG
+// inherits color correctly.
+// Belt-and-suspenders: normalise() now also injects fill="currentColor" on
+// each SVG shape element directly so the icon never falls back to SVG-initial
+// black if CSS inheritance is incomplete.
+describe('Neutral SVG — Inkscape metadata stripped + per-path fill (hotfix/rendered-icon-regressions)', () => {
+  it('Neutral SVG contains no <sodipodi:*> elements after normalisation', () => {
+    const svg = getFactionSvgRaw('Neutral')
+    expect(svg).not.toMatch(/<sodipodi:/i)
+  })
+
+  it('Neutral SVG contains no <inkscape:*> elements after normalisation', () => {
+    const svg = getFactionSvgRaw('Neutral')
+    expect(svg).not.toMatch(/<inkscape:/i)
+  })
+
+  it('Neutral SVG contains no empty <defs> blocks after normalisation', () => {
+    const svg = getFactionSvgRaw('Neutral')
+    // Both self-closing and content-less <defs> are stripped
+    expect(svg).not.toMatch(/<defs\b/i)
+  })
+
+  it('Neutral SVG path element carries fill="currentColor" directly (belt-and-suspenders)', () => {
+    const svg = getFactionSvgRaw('Neutral')
+    // The <path> element must have fill="currentColor" so inheritance never misses
+    expect(svg).toMatch(/<path[^>]*fill="currentColor"/)
+  })
+
+  it('all faction SVGs have every shape element carrying fill="currentColor" directly', () => {
+    const factions = ['Guardian', 'Seeker', 'Rogue', 'Mystic', 'Survivor', 'Neutral']
+    const shapePattern = /<(path|circle|rect|polygon|polyline|ellipse|line)(\s[^>]*)?\bfill="([^"]*)"/g
+    for (const faction of factions) {
+      const svg = getFactionSvgRaw(faction)
+      const matches = [...svg.matchAll(shapePattern)]
+      for (const m of matches) {
+        expect(m[3], `${faction}: shape element fill must be currentColor`).toBe('currentColor')
+      }
     }
   })
 })
