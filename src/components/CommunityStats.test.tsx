@@ -156,10 +156,20 @@ describe('CommunityStats', () => {
       expect(screen.getByText('4 standalone · 3 side story')).toBeVisible()
     })
 
-    it('renders the Popular Side Stories card', async () => {
+    /**
+     * D3 / Dallas intent: "Popular Side Stories" card is removed from the
+     * Community page. Side-scenario data is consolidated into "Popular Standalone
+     * Scenarios". This test will FAIL until Dallas removes the sideScenarioItems
+     * rendering block from CommunityStats.tsx.
+     */
+    it('does NOT render a "Popular Side Stories" heading or card', async () => {
       await renderAndWait(FULL_STATS)
-      expect(screen.getByText(/popular side stories/i)).toBeVisible()
-      expect(screen.getByText('Carnevale of Horrors')).toBeVisible()
+      expect(screen.queryByText(/popular side stories/i)).not.toBeInTheDocument()
+    })
+
+    it('"Popular Standalone Scenarios" card is still rendered (not removed with side stories)', async () => {
+      await renderAndWait(FULL_STATS)
+      expect(screen.getByText(/popular standalone scenarios/i)).toBeVisible()
     })
   })
 
@@ -349,6 +359,41 @@ describe('CommunityStats', () => {
         el = el.parentElement
       }
       expect(foundContainment).toBe(true)
+    })
+  })
+
+  // ─── Equal-height grid layout contract ───────────────────────────────────────
+  // [2026-08-11 Lambert] The StatsListCard grid uses items-stretch so all cards
+  // in a row match the tallest card's height. Each card receives className="h-full"
+  // to fill its grid cell. This describe block guards both the grid wrapper class
+  // and the per-card h-full class from regressing.
+
+  describe('StatsListCard grid — equal-height layout contract (items-stretch + h-full)', () => {
+    it('grid wrapper carries items-stretch for equal row heights', async () => {
+      await renderAndWait(FULL_STATS)
+      // The grid wrapper uses items-stretch so all cards in the same row are the same height.
+      const grids = document.querySelectorAll('.items-stretch')
+      expect(
+        grids.length,
+        'At least one element must carry items-stretch — the StatsListCard grid wrapper',
+      ).toBeGreaterThan(0)
+    })
+
+    it('StatsListCards inside the grid each carry h-full for cell-filling height', async () => {
+      await renderAndWait(FULL_STATS)
+      // Locate the items-stretch grid and check that its direct children carry h-full.
+      const grid = document.querySelector('.items-stretch')
+      expect(grid).toBeInTheDocument()
+      // At least one card (Most Popular Campaigns) is always rendered.
+      const hFullChildren = grid
+        ? Array.from(grid.children).filter((child) =>
+            (child as HTMLElement).className?.includes('h-full'),
+          )
+        : []
+      expect(
+        hFullChildren.length,
+        'At least one direct child of items-stretch grid must carry h-full',
+      ).toBeGreaterThan(0)
     })
   })
 })

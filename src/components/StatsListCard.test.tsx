@@ -309,4 +309,33 @@ describe('StatsListCard', () => {
       expect(document.querySelector('[data-expanded-scroll-region]')).not.toBeInTheDocument()
     })
   })
+
+  // ─── className prop pass-through contract ─────────────────────────────────
+  // [2026-08-11 Lambert] CommunityStats passes className="h-full" to each
+  // StatsListCard so they fill their items-stretch grid cells.
+  // StatsListCard must propagate className to its root element.
+
+  describe('className prop — pass-through to root element (equal-height grid contract)', () => {
+    it('root element carries the className prop value', () => {
+      const { container } = render(
+        <StatsListCard
+          {...defaultProps()}
+          className="h-full regression-sentinel"
+        />,
+      )
+      const root = container.firstChild as HTMLElement
+      expect(
+        root?.className ?? '',
+        'Root element must include className prop — required for equal-height items-stretch grid',
+      ).toContain('regression-sentinel')
+    })
+
+    it('root element carries h-full when passed as className', () => {
+      const { container } = render(
+        <StatsListCard {...defaultProps()} className="h-full" />,
+      )
+      const root = container.firstChild as HTMLElement
+      expect(root?.className ?? '').toContain('h-full')
+    })
+  })
 })

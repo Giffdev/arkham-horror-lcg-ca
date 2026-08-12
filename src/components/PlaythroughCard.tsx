@@ -8,7 +8,13 @@ import { PencilSimple, Trash, Clock, UsersThree, Sparkle, Notepad } from '@phosp
 import { formatDate } from '@/lib/date-utils'
 import { getDisplaySetName, getArkhamDBUrl, getArkhamDBUrlById, resolveInvestigator, getChapterBadgeLabel, isChapterBadgeSpecial } from '@/lib/investigator-data'
 import type { InvestigatorAssignment } from '@/lib/types'
+import { CampaignSvgIcon } from './CampaignSvgIcon'
 
+/**
+ * InvestigatorDisplay renders two sibling elements so the parent grid
+ * (grid-cols-[max-content_1fr]) can align badges and names across all rows.
+ * The fragment children flow into col-1 (badge) and col-2 (name/metadata).
+ */
 function InvestigatorDisplay({ inv }: { inv: InvestigatorAssignment }) {
   const resolved = resolveInvestigator(inv)
   const chosenArchetype = inv.archetype
@@ -19,53 +25,65 @@ function InvestigatorDisplay({ inv }: { inv: InvestigatorAssignment }) {
   const showChapterBadge = !inv.isUnknown && inv.investigatorName !== 'Unknown'
 
   return (
-    <div className="flex flex-col md:flex-row md:items-center gap-1.5 md:gap-3 text-sm">
-      <div className="flex flex-col md:flex-row md:flex-wrap md:items-center gap-1.5 md:gap-2 min-w-0 md:min-w-0">
-        <div className="flex items-center gap-2">
-          <ArchetypeBadge 
-            archetype={chosenArchetype}
-            investigatorId={resolved?.id ?? inv.investigatorId}
-            investigatorName={inv.investigatorName}
-            investigatorSet={resolved?.set ?? inv.investigatorSet}
-            chapter={resolved?.chapter ?? inv.chapter}
-          />
-          {defaultUrl && !inv.isUnknown && inv.investigatorName !== 'Unknown' ? (
-            <a 
-              href={defaultUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-medium hover:underline hover:text-accent transition-colors"
-            >
-              {inv.investigatorName}
-            </a>
-          ) : (
-            <span className="font-medium">
-              {inv.isUnknown || inv.investigatorName === 'Unknown' ? 'Unknown' : inv.investigatorName}
-            </span>
-          )}
-          {showChapterBadge && (
-            <span className={`text-xs font-medium ${
-              isChapterBadgeSpecial({ set: resolved?.set, chapter: displayChapter })
-                ? 'text-violet-400'
-                : 'text-muted-foreground opacity-60'
-            }`}>
-              · {getChapterBadgeLabel({ set: resolved?.set, chapter: displayChapter })}
-            </span>
-          )}
-        </div>
+    <>
+      {/* Grid col 1: archetype badge — consistent width across all rows */}
+      <div className="flex items-center pt-0.5 flex-shrink-0">
+        <ArchetypeBadge
+          archetype={chosenArchetype}
+          investigatorId={resolved?.id ?? inv.investigatorId}
+          investigatorName={inv.investigatorName}
+          investigatorSet={resolved?.set ?? inv.investigatorSet}
+          chapter={resolved?.chapter ?? inv.chapter}
+        />
+      </div>
+      {/* Grid col 2: name, chapter/set badges, player — takes remaining width */}
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 min-w-0 text-sm">
+        {defaultUrl && !inv.isUnknown && inv.investigatorName !== 'Unknown' ? (
+          <a
+            href={defaultUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium hover:underline hover:text-accent transition-colors"
+          >
+            {inv.investigatorName}
+          </a>
+        ) : (
+          <span className="font-medium">
+            {inv.isUnknown || inv.investigatorName === 'Unknown' ? 'Unknown' : inv.investigatorName}
+          </span>
+        )}
+        {showChapterBadge && (
+          <span className={`text-xs font-medium ${
+            isChapterBadgeSpecial({ set: resolved?.set, chapter: displayChapter })
+              ? 'text-violet-400'
+              : 'text-muted-foreground opacity-60'
+          }`}>
+            · {getChapterBadgeLabel({ set: resolved?.set, chapter: displayChapter })}
+          </span>
+        )}
         {inv.investigatorSet && !inv.isUnknown && inv.investigatorName !== 'Unknown' && (
           <Badge variant="outline" className="text-xs whitespace-nowrap">
             {getDisplaySetName(inv.investigatorName, inv.investigatorSet)}
           </Badge>
         )}
-      </div>
-      <div className="flex items-center gap-2 md:ml-auto min-w-0">
         {inv.playerName && (
           <span className="text-muted-foreground truncate">
             {inv.playerName}
           </span>
         )}
       </div>
+    </>
+  )
+}
+
+/** Shared grid wrapper for investigator rows — aligns badges in col 1, names in col 2. */
+function InvestigatorGrid({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      className="grid items-start gap-x-3 gap-y-2.5"
+      style={{ gridTemplateColumns: 'max-content 1fr' }}
+    >
+      {children}
     </div>
   )
 }
@@ -91,7 +109,14 @@ export const PlaythroughCard = memo(function PlaythroughCard({ playthrough, onEd
       <div className="flex flex-col md:flex-row gap-4 md:gap-6 md:items-start">
         <div className="flex items-start justify-between gap-4 md:min-w-[320px] md:flex-shrink-0">
           <div className="flex-1 min-w-0">
-            <h3 className="text-lg md:text-xl font-semibold mb-1 truncate">
+            <h3 className="text-lg md:text-xl font-semibold mb-1 truncate flex items-center gap-2">
+              <span aria-hidden="true" className="flex-shrink-0">
+                <CampaignSvgIcon
+                  campaignSet={playthrough.campaignSet ?? playthrough.campaignName}
+                  size={18}
+                  className="text-primary/70"
+                />
+              </span>
               {displayName || 'Untitled Campaign'}
             </h3>
             <div className="flex md:hidden flex-wrap items-center gap-2 text-sm text-muted-foreground">
@@ -190,11 +215,11 @@ export const PlaythroughCard = memo(function PlaythroughCard({ playthrough, onEd
                                 Campaign A: The Dream-Quest
                               </Badge>
                             </div>
-                            <div className="space-y-2.5">
+                            <InvestigatorGrid>
                               {pathAInvestigators.map((inv, idx) => (
                                 <InvestigatorDisplay key={idx} inv={inv} />
                               ))}
-                            </div>
+                            </InvestigatorGrid>
                           </div>
                         )}
                         
@@ -205,31 +230,31 @@ export const PlaythroughCard = memo(function PlaythroughCard({ playthrough, onEd
                                 Campaign B: The Web of Dreams
                               </Badge>
                             </div>
-                            <div className="space-y-2.5">
+                            <InvestigatorGrid>
                               {pathBInvestigators.map((inv, idx) => (
                                 <InvestigatorDisplay key={idx} inv={inv} />
                               ))}
-                            </div>
+                            </InvestigatorGrid>
                           </div>
                         )}
 
                         {noPathInvestigators.length > 0 && (
-                          <div className="space-y-2.5">
+                          <InvestigatorGrid>
                             {noPathInvestigators.map((inv, idx) => (
                               <InvestigatorDisplay key={idx} inv={inv} />
                             ))}
-                          </div>
+                          </InvestigatorGrid>
                         )}
                       </>
                     )
                   })()}
                 </div>
               ) : (
-                <div className="space-y-2.5">
+                <InvestigatorGrid>
                   {playthrough.investigators.map((inv, idx) => (
                     <InvestigatorDisplay key={idx} inv={inv} />
                   ))}
-                </div>
+                </InvestigatorGrid>
               )}
             </>
           )}

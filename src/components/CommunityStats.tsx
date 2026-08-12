@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { MapTrifold, Users, Scroll, Sparkle, Trophy, BookOpen, UserFocus, Detective, Shield } from '@phosphor-icons/react'
+import { MapTrifold, Users, Sparkle, Trophy, BookOpen, UserFocus, Detective, Shield } from '@phosphor-icons/react'
 import { getCommunityStats, CommunityStats as CommunityStatsType } from '@/lib/community-stats'
 import { ArchetypeBadge } from '@/components/ArchetypeBadge'
 import { getArkhamDBUrl, getArkhamDBUrlById, getChapterBadgeLabel, isChapterBadgeSpecial, resolveInvestigator } from '@/lib/investigator-data'
 import { StatsListCard } from '@/components/StatsListCard'
 import { ALL_CAMPAIGNS } from '@/lib/campaign-data'
+import { CampaignSvgIcon } from '@/components/CampaignSvgIcon'
 
 function campaignTypeLabel(name: string): string {
   const c = ALL_CAMPAIGNS.find(x => x.name === name)
@@ -14,6 +15,17 @@ function campaignTypeLabel(name: string): string {
   if (c.type === 'Full Campaign') return 'Full'
   if (c.type === 'Small Campaign') return 'Short'
   return ''
+}
+
+/**
+ * Resolve the key passed to getCampaignSvgRaw for a campaign name.
+ * Scenario Packs all share set='Scenario Pack', so pass the scenario name
+ * directly — the asset registry's standalone map is keyed by name.
+ */
+function campaignSetKey(name: string): string {
+  const c = ALL_CAMPAIGNS.find(x => x.name === name)
+  if (c?.type === 'Scenario Pack') return name
+  return c?.set ?? name
 }
 
 export function CommunityStats() {
@@ -59,10 +71,19 @@ export function CommunityStats() {
       key: campaign.name,
       countLabel: `${campaign.count} ${campaign.count === 1 ? 'play' : 'plays'}`,
       renderContent: () => (
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="font-medium text-foreground">{campaign.name}</span>
+        <div className="flex items-center gap-2 flex-wrap min-w-0">
+          {/* Icon + name are atomic — they stay together as a unit */}
+          <span className="inline-flex items-center gap-1.5 min-w-0">
+            <CampaignSvgIcon
+              campaignSet={campaignSetKey(campaign.name)}
+              size={14}
+              aria-hidden="true"
+              className="flex-shrink-0 text-primary/60"
+            />
+            <span className="font-medium text-foreground">{campaign.name}</span>
+          </span>
           {typeLabel && (
-            <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+            <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded flex-shrink-0">
               {typeLabel}
             </span>
           )}
@@ -87,25 +108,28 @@ export function CommunityStats() {
       key: investigator.investigatorId ?? `${investigator.name}__ch${investigator.chapter ?? 1}`,
       countLabel: `${investigator.count} ${investigator.count === 1 ? 'play' : 'plays'}`,
       renderContent: () => (
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex gap-1">
-            {investigator.archetypes.map((archetype) => (
-              <ArchetypeBadge key={archetype} archetype={archetype} />
-            ))}
-          </div>
-          {arkhamDBUrl ? (
-            <a
-              href={arkhamDBUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-medium text-foreground hover:text-primary transition-colors underline decoration-transparent hover:decoration-primary"
-            >
-              {investigator.name}
-            </a>
-          ) : (
-            <span className="font-medium text-foreground">{investigator.name}</span>
-          )}
-          <span className={`text-xs font-medium ${
+        <div className="flex items-center gap-2 flex-wrap min-w-0">
+          {/* Archetype badge(s) + investigator name are atomic — chapter badge may wrap */}
+          <span className="inline-flex items-center gap-2 min-w-0">
+            <span className="flex gap-1 flex-shrink-0">
+              {investigator.archetypes.map((archetype) => (
+                <ArchetypeBadge key={archetype} archetype={archetype} />
+              ))}
+            </span>
+            {arkhamDBUrl ? (
+              <a
+                href={arkhamDBUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium text-foreground hover:text-primary transition-colors underline decoration-transparent hover:decoration-primary min-w-0"
+              >
+                {investigator.name}
+              </a>
+            ) : (
+              <span className="font-medium text-foreground min-w-0">{investigator.name}</span>
+            )}
+          </span>
+          <span className={`text-xs font-medium flex-shrink-0 ${
             isChapterBadgeSpecial(chapterInfo) ? 'text-violet-400' : 'text-muted-foreground opacity-60'
           }`}>
             · {getChapterBadgeLabel(chapterInfo)}
@@ -127,7 +151,16 @@ export function CommunityStats() {
     countLabel: `${s.count} ${s.count === 1 ? 'play' : 'plays'}`,
     renderContent: () => (
       <div>
-        <span className="font-medium text-foreground">{s.name}</span>
+        {/* Icon + name atomic unit; fallback (Elder Sign) allowed for unconfirmed scenarios */}
+        <span className="inline-flex items-center gap-1.5 min-w-0">
+          <CampaignSvgIcon
+            campaignSet={s.name}
+            size={14}
+            aria-hidden="true"
+            className="flex-shrink-0 text-primary/60"
+          />
+          <span className="font-medium text-foreground">{s.name}</span>
+        </span>
         {s.breakdown && (
           <p className="text-xs text-muted-foreground mt-0.5">
             {s.breakdown.asStandalone} standalone · {s.breakdown.asSideStory} side story
@@ -135,12 +168,6 @@ export function CommunityStats() {
         )}
       </div>
     ),
-  }))
-
-  const sideScenarioItems = (communityStats.topSideScenarios ?? []).map(ss => ({
-    key: ss.name,
-    countLabel: `${ss.count} ${ss.count === 1 ? 'play' : 'plays'}`,
-    renderContent: () => <span className="font-medium text-foreground">{ss.name}</span>,
   }))
 
   return (
@@ -200,18 +227,20 @@ export function CommunityStats() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6 items-start">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6 items-stretch">
         <StatsListCard
           icon={Trophy}
           title="Most Popular Campaigns"
           subtitle="Full, short & Return To campaigns"
           items={campaignItems}
+          className="h-full"
         />
 
         <StatsListCard
           icon={Detective}
           title="Most Played Investigators"
           items={investigatorItems}
+          className="h-full"
         />
 
         {classItems.length > 0 && (
@@ -219,6 +248,7 @@ export function CommunityStats() {
             icon={Shield}
             title="Class Popularity"
             items={classItems}
+            className="h-full"
           />
         )}
 
@@ -228,14 +258,7 @@ export function CommunityStats() {
             title="Popular Standalone Scenarios"
             subtitle="Includes plays as standalone and side story"
             items={standaloneItems}
-          />
-        )}
-
-        {sideScenarioItems.length > 0 && (
-          <StatsListCard
-            icon={Scroll}
-            title="Popular Side Stories"
-            items={sideScenarioItems}
+            className="h-full"
           />
         )}
       </div>

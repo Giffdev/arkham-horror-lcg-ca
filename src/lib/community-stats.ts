@@ -98,26 +98,27 @@ export async function rebuildCommunityStats(_localPlaythroughs?: Playthrough[]):
       }
     }
 
-    // Count side story appearances
+    // Count side story appearances — only canonical scenario pack names feed topStandalones.
+    // Custom user-entered side-story strings are intentionally not persisted into public aggregate output.
     if (p.sideStories && p.sideStories.length > 0) {
       for (const raw of p.sideStories) {
         const trimmed = raw?.trim()
         if (!trimmed) continue
         const key = normalizeKey(trimmed)
-        // Check if this is a canonical standalone scenario pack
         const canonical = canonicalStandaloneMap.get(key)
         if (canonical) {
           const entry = standaloneCounts.get(canonical.name) || { name: canonical.name, set: canonical.set, asStandalone: 0, asSideStory: 0 }
           entry.asSideStory++
           standaloneCounts.set(canonical.name, entry)
         }
-        // Always count in side scenarios (including custom entries)
-        const existing = sideCounts.get(key)
-        if (existing) {
-          existing.count++
-        } else {
-          // First-seen display casing: use canonical name if available, else raw trimmed
-          sideCounts.set(key, { name: canonical ? canonical.name : trimmed, count: 1 })
+        // Count in sideCounts only for canonical entries (used for backward-compat topSideScenarios output)
+        if (canonical) {
+          const existing = sideCounts.get(key)
+          if (existing) {
+            existing.count++
+          } else {
+            sideCounts.set(key, { name: canonical.name, count: 1 })
+          }
         }
       }
     }

@@ -77,7 +77,7 @@ export function StatsListCard({
   )
 
   return (
-    <Card className={cn(className)}>
+    <Card className={cn('flex flex-col', className)}>
       <CardHeader>
         <div className="flex items-center gap-2">
           <IconComponent size={20} className="text-primary" weight="duotone" />
@@ -89,7 +89,7 @@ export function StatsListCard({
           </div>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex-1 flex flex-col">
         {expanded ? (
           // Expanded: use a focusable, scrollable div so keyboard users can
           // Tab into it and use Arrow/Page keys. tabIndex=0 puts it in tab

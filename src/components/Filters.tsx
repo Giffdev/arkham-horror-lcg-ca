@@ -6,6 +6,8 @@ import { useMemo, useState } from 'react'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { Badge } from '@/components/ui/badge'
+import { CampaignSvgIcon } from '@/components/CampaignSvgIcon'
+import { hasDedicatedCampaignIcon } from '@/lib/campaign-icon-map'
 
 interface FiltersProps {
   selectedArchetypes: Archetype[]
@@ -92,7 +94,16 @@ function FilterContent({
                 size="sm"
                 variant={isSelected ? 'default' : 'outline'}
                 onClick={() => onArchetypeToggle(archetype)}
+                className="gap-1.5"
               >
+                {hasDedicatedCampaignIcon(archetype) && (
+                  <CampaignSvgIcon
+                    campaignSet={archetype}
+                    size={13}
+                    aria-hidden="true"
+                    className="flex-shrink-0 opacity-80"
+                  />
+                )}
                 {archetype}
               </Button>
             )

@@ -1,13 +1,35 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { BookOpen, SignIn, Users, ChartBar, Sparkle, Trophy, GameController, Shield } from '@phosphor-icons/react'
+import { SignIn, Users, ChartBar, Sparkle, Trophy, GameController, Shield } from '@phosphor-icons/react'
 import { AuthDialog } from '@/components/AuthDialog'
 import { User } from '@/lib/auth'
 import { getCommunityStats, CommunityStats } from '@/lib/community-stats'
 import { ArchetypeBadge } from '@/components/ArchetypeBadge'
 import { StatsListCard } from '@/components/StatsListCard'
 import { ALL_CAMPAIGNS } from '@/lib/campaign-data'
+import { CampaignSvgIcon } from '@/components/CampaignSvgIcon'
+import { getBrandSvgRaw } from '@/lib/campaign-icon-map'
+import { cn } from '@/lib/utils'
+
+function injectSize(svgString: string, size: number): string {
+  return svgString.replace(
+    /<svg\b([^>]*)>/,
+    (_, attrs: string) => `<svg${attrs.replace(/\s*(width|height)="[^"]*"/g, '')} width="${size}" height="${size}">`,
+  )
+}
+
+function BrandSvg({ brandKey, size = 24, className }: { brandKey: 'codex' | 'log'; size?: number; className?: string }) {
+  const raw = useMemo(() => injectSize(getBrandSvgRaw(brandKey), size), [brandKey, size])
+  return (
+    <span
+      aria-hidden="true"
+      className={cn('inline-flex flex-shrink-0', className)}
+      style={{ width: size, height: size }}
+      dangerouslySetInnerHTML={{ __html: raw }}
+    />
+  )
+}
 
 interface PublicHomepageProps {
   onAuthSuccess: (user: User) => void
@@ -20,6 +42,12 @@ function campaignTypeLabel(name: string): string {
   if (c.type === 'Full Campaign') return 'Full'
   if (c.type === 'Small Campaign') return 'Short'
   return ''
+}
+
+function campaignSetKey(name: string): string {
+  const c = ALL_CAMPAIGNS.find(x => x.name === name)
+  if (c?.type === 'Scenario Pack') return name
+  return c?.set ?? name
 }
 
 export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
@@ -50,13 +78,16 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
     key: investigator.investigatorId ?? `${investigator.name}__ch${investigator.chapter ?? 1}`,
     countLabel: `${investigator.count} ${investigator.count === 1 ? 'play' : 'plays'}`,
     renderContent: () => (
-      <div className="flex items-center gap-2 flex-wrap">
-        <div className="flex gap-1">
-          {investigator.archetypes.map((archetype) => (
-            <ArchetypeBadge key={archetype} archetype={archetype} />
-          ))}
-        </div>
-        <span className="font-medium text-foreground">{investigator.name}</span>
+      <div className="flex items-center gap-2 flex-wrap min-w-0">
+        {/* Badge(s) + name atomic; chapter badge may wrap */}
+        <span className="inline-flex items-center gap-2 min-w-0">
+          <span className="flex gap-1 flex-shrink-0">
+            {investigator.archetypes.map((archetype) => (
+              <ArchetypeBadge key={archetype} archetype={archetype} />
+            ))}
+          </span>
+          <span className="font-medium text-foreground min-w-0">{investigator.name}</span>
+        </span>
       </div>
     ),
   }))
@@ -67,10 +98,18 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
       key: campaign.name,
       countLabel: `${campaign.count} ${campaign.count === 1 ? 'play' : 'plays'}`,
       renderContent: () => (
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="font-medium text-foreground">{campaign.name}</span>
+        <div className="flex items-center gap-2 flex-wrap min-w-0">
+          <span className="inline-flex items-center gap-1.5 min-w-0">
+            <CampaignSvgIcon
+              campaignSet={campaignSetKey(campaign.name)}
+              size={14}
+              aria-hidden="true"
+              className="flex-shrink-0 text-primary/60"
+            />
+            <span className="font-medium text-foreground">{campaign.name}</span>
+          </span>
           {typeLabel && (
-            <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+            <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded flex-shrink-0">
               {typeLabel}
             </span>
           )}
@@ -91,7 +130,15 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
     countLabel: `${s.count} ${s.count === 1 ? 'play' : 'plays'}`,
     renderContent: () => (
       <div>
-        <span className="font-medium text-foreground">{s.name}</span>
+        <span className="inline-flex items-center gap-1.5 min-w-0">
+          <CampaignSvgIcon
+            campaignSet={s.name}
+            size={14}
+            aria-hidden="true"
+            className="flex-shrink-0 text-primary/60"
+          />
+          <span className="font-medium text-foreground">{s.name}</span>
+        </span>
         {s.breakdown && (
           <p className="text-xs text-muted-foreground mt-0.5">
             {s.breakdown.asStandalone} standalone · {s.breakdown.asSideStory} side story
@@ -101,19 +148,13 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
     ),
   }))
 
-  const sideScenarioItems = (communityStats?.topSideScenarios ?? []).map(ss => ({
-    key: ss.name,
-    countLabel: `${ss.count} ${ss.count === 1 ? 'play' : 'plays'}`,
-    renderContent: () => <span className="font-medium text-foreground">{ss.name}</span>,
-  }))
-
   return (
     <div className="min-h-screen bg-background text-foreground">
       <header className="border-b bg-card/50 backdrop-blur-sm">
         <div className="container mx-auto px-6 py-4 md:py-6">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 md:gap-3">
-              <BookOpen size={24} className="md:w-8 md:h-8 text-primary" weight="duotone" />
+              <BrandSvg brandKey="codex" size={24} className="md:w-8 md:h-8 text-primary" />
               <h1 className="text-lg md:text-3xl font-bold text-foreground">Arkham Horror LCG Tracker</h1>
             </div>
             <Button onClick={handleLogin} className="gap-2">
@@ -188,7 +229,7 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
                 <Card>
                   <CardHeader className="pb-3">
                     <div className="flex items-center gap-2">
-                      <BookOpen size={20} className="text-primary" weight="duotone" />
+                      <BrandSvg brandKey="log" size={20} className="text-primary" />
                       <CardTitle className="text-sm text-muted-foreground">Unique Campaigns</CardTitle>
                     </div>
                   </CardHeader>
@@ -204,12 +245,13 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
                 items={investigatorItems}
               />
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6 items-start">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6 items-stretch">
                 <StatsListCard
                   icon={Trophy}
                   title="Most Popular Campaigns"
                   subtitle="Full, short & Return To campaigns"
                   items={campaignItems}
+                  className="h-full"
                 />
 
                 {classItems.length > 0 && (
@@ -217,6 +259,7 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
                     icon={Shield}
                     title="Class Ranking"
                     items={classItems}
+                    className="h-full"
                   />
                 )}
 
@@ -226,14 +269,7 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
                     title="Popular Standalone Scenarios"
                     subtitle="Includes plays as standalone and side story"
                     items={standaloneItems}
-                  />
-                )}
-
-                {sideScenarioItems.length > 0 && (
-                  <StatsListCard
-                    icon={ChartBar}
-                    title="Popular Side Stories"
-                    items={sideScenarioItems}
+                    className="h-full"
                   />
                 )}
               </div>
@@ -244,7 +280,7 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
             <Card className="text-center">
               <CardHeader>
                 <div className="mx-auto mb-2 w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <BookOpen size={24} className="text-primary" weight="duotone" />
+                  <BrandSvg brandKey="log" size={24} className="text-primary" />
                 </div>
                 <CardTitle className="text-foreground">Log Campaigns</CardTitle>
               </CardHeader>
