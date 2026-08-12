@@ -355,15 +355,13 @@ describe('Faction icons — getFactionSvgRaw file-identity contracts', () => {
 // return the Elder Sign for both getStandaloneSvgRaw() and getCampaignSvgRaw()
 // when called with the scenario name directly.
 //
-// Specifically guards against artwork being silently mis-assigned or "guessed"
-// by the registry when new dedicated files are added.
-//
 // Unresolved packs (as of 2026-08-12):
-//   War of the Outer Gods,
-//   Traces To Nowhere, Barkham Horror: The Meddling of Meowlathotep
+//   War of the Outer Gods, Traces To Nowhere
 //
 // Resolved 2026-08-12 (hotfix/neutral-icon-contrast): The Midwinter Gala → gala.svg
 // Resolved 2026-08-12 (hotfix/neutral-icon-contrast): The Labyrinths of Lunacy → lol.svg
+// Resolved 2026-08-12 (hotfix/neutral-icon-contrast): Barkham Horror: The Meddling of
+//   Meowlathotep → barkham_horror.svg (alias to canonical Barkham Horror entry)
 //
 // Do NOT require a Return to The Innsmouth Conspiracy campaign record — the
 // production registry has a comment noting rttic.svg is available but the
@@ -375,7 +373,6 @@ describe('Unresolved standalone packs — generic Elder Sign fallback (no guessi
   const UNRESOLVED = [
     'War of the Outer Gods',
     'Traces To Nowhere',
-    'Barkham Horror: The Meddling of Meowlathotep',
   ]
 
   for (const name of UNRESOLVED) {
@@ -444,6 +441,38 @@ describe('The Labyrinths of Lunacy — confirmed standalone icon (lol.svg)', () 
 
   it('getStandaloneSvgRaw("The Labyrinths of Lunacy") returns a valid normalised SVG', () => {
     const svg = getStandaloneSvgRaw('The Labyrinths of Lunacy')
+    expect(svg.trimStart()).toMatch(/^<svg\b/)
+    expect(svg).toContain('fill="currentColor"')
+    expect(svg).not.toMatch(/<style\b/i)
+  })
+})
+
+// ─── 12. Barkham Horror: The Meddling of Meowlathotep — alias to barkham_horror.svg ──
+// User confirmed 2026-08-12: the standalone scenario "Barkham Horror: The Meddling
+// of Meowlathotep" uses the same artwork as the canonical "Barkham Horror" campaign
+// entry. The asset is NOT duplicated — STANDALONE_ICONS maps the full scenario name
+// to the same normalise(barkhamRaw) value already used by CAMPAIGN_ICONS.
+// Migrated from UNRESOLVED list.
+
+describe('Barkham Horror: The Meddling of Meowlathotep — confirmed icon alias (barkham_horror.svg)', () => {
+  const FULL_NAME = 'Barkham Horror: The Meddling of Meowlathotep'
+
+  it('getStandaloneSvgRaw uses barkham_horror.svg (file-identity contract)', () => {
+    expect(getStandaloneSvgRaw(FULL_NAME)).toBe(normalise(barkhamRaw))
+  })
+
+  it('getCampaignSvgRaw resolves via unified lookup (not Elder Sign fallback)', () => {
+    const elderSign = getCampaignSvgRaw('__unknown__')
+    expect(getCampaignSvgRaw(FULL_NAME)).not.toBe(elderSign)
+    expect(getCampaignSvgRaw(FULL_NAME)).toBe(normalise(barkhamRaw))
+  })
+
+  it('asset is the same normalised value as canonical Barkham Horror entry (no file duplication)', () => {
+    expect(getCampaignSvgRaw(FULL_NAME)).toBe(getCampaignSvgRaw('Barkham Horror'))
+  })
+
+  it('returns a valid normalised SVG (no <style> block, has fill="currentColor")', () => {
+    const svg = getStandaloneSvgRaw(FULL_NAME)
     expect(svg.trimStart()).toMatch(/^<svg\b/)
     expect(svg).toContain('fill="currentColor"')
     expect(svg).not.toMatch(/<style\b/i)

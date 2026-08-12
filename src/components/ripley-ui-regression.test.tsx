@@ -18,9 +18,11 @@
  *  - CampaignSvgIcon renders an <svg> element; we look for role=img / svg tag presence.
  *  - PlaythroughCard SVG icon wrapper already has aria-hidden="true" on the outer span.
  *  - Unknown archetype is excluded from the "six factions" glyph requirement.
- *  - Do NOT assert War/Barkham dedicated icons — fallback is intentional.
+ *  - Do NOT assert War/Traces dedicated icons — fallback is intentional.
  *  - The Midwinter Gala icon (gala.svg) confirmed 2026-08-12; moved to KNOWN_STANDALONES.
  *  - The Labyrinths of Lunacy icon (lol.svg) confirmed 2026-08-12; moved to KNOWN_STANDALONES.
+ *  - Barkham Horror: The Meddling of Meowlathotep (barkham_horror.svg alias) confirmed
+ *    2026-08-12; moved to KNOWN_STANDALONES.
  */
 
 import { render, screen, within } from '@testing-library/react'
@@ -217,6 +219,7 @@ describe('PlaythroughCard — standalone icon resolution', () => {
     'The Blob That Ate Everything',
     'The Midwinter Gala',
     'The Labyrinths of Lunacy',
+    'Barkham Horror: The Meddling of Meowlathotep',
   ]
 
   it.each(KNOWN_STANDALONES)('"%s" renders an svg icon without crashing', (scenarioName) => {
@@ -246,11 +249,12 @@ describe('PlaythroughCard — unconfirmed standalone uses safe fallback (no cras
    * Removed from this list 2026-08-12 (hotfix/neutral-icon-contrast):
    *   'The Midwinter Gala' — confirmed dedicated icon gala.svg, moved to KNOWN_STANDALONES.
    *   'The Labyrinths of Lunacy' — confirmed dedicated icon lol.svg, moved to KNOWN_STANDALONES.
+   *   'Barkham Horror: The Meddling of Meowlathotep' — confirmed alias to barkham_horror.svg,
+   *   moved to KNOWN_STANDALONES.
    */
   const UNCONFIRMED_STANDALONES = [
     'War of the Outer Gods',
     'Traces To Nowhere',
-    'Barkham Horror: The Meddling of Meowlathotep',
   ]
 
   it.each(UNCONFIRMED_STANDALONES)('"%s" renders a fallback svg without crashing', (scenarioName) => {

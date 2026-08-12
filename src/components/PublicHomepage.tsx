@@ -69,16 +69,18 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
     key: investigator.investigatorId ?? `${investigator.name}__ch${investigator.chapter ?? 1}`,
     countLabel: `${investigator.count} ${investigator.count === 1 ? 'play' : 'plays'}`,
     renderContent: () => (
-      <div className="flex items-center gap-2 flex-wrap min-w-0">
-        {/* Badge(s) + name atomic; chapter badge may wrap */}
-        <span className="inline-flex items-center gap-2 min-w-0">
-          <span className="flex gap-1 flex-shrink-0">
-            {investigator.archetypes.map((archetype) => (
-              <ArchetypeBadge key={archetype} archetype={archetype} />
-            ))}
-          </span>
+      <div
+        className="grid items-center gap-x-2 min-w-0"
+        style={{ gridTemplateColumns: 'max-content 1fr' }}
+      >
+        <div data-badge className="flex gap-1 flex-shrink-0 items-center">
+          {investigator.archetypes.map((archetype) => (
+            <ArchetypeBadge key={archetype} archetype={archetype} />
+          ))}
+        </div>
+        <div data-name className="min-w-0">
           <span className="font-medium text-foreground min-w-0">{investigator.name}</span>
-        </span>
+        </div>
       </div>
     ),
   }))

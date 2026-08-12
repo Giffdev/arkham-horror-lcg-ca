@@ -246,7 +246,7 @@ describe('rebuildCommunityStats — standalone & side-scenario aggregation', () 
     expect(campaignNames).toContain('The Dunwich Legacy')
   })
 
-  it('includes Full, Small, Return To, and Fan-Made in topCampaigns', async () => {
+  it('includes canonical Full, Small, and Return To campaigns in topCampaigns but excludes freeform names', async () => {
     mockGetAllPlaythroughs.mockResolvedValue({
       userCount: 1,
       playthroughs: [
@@ -259,10 +259,12 @@ describe('rebuildCommunityStats — standalone & side-scenario aggregation', () 
     await rebuildCommunityStats()
     const stats = mockSaveCommunityStats.mock.calls[0][0]
     const names = stats.topCampaigns.map((c: { name: string }) => c.name)
+    // Canonical campaigns appear
     expect(names).toContain('The Dunwich Legacy')
     expect(names).toContain('The Night of the Zealot')
     expect(names).toContain('Return to The Dunwich Legacy')
-    expect(names).toContain('My Fan Campaign')
+    // Freeform fan-made campaign name must be excluded from the public ranking
+    expect(names).not.toContain('My Fan Campaign')
   })
 
   it('caps topCampaigns, topInvestigators, topStandalones at 25', async () => {
@@ -321,5 +323,121 @@ describe('getCommunityStats — defensive defaults', () => {
     mockGetCommunityStatsFromFirestore.mockRejectedValue(new Error('network error'))
     const result = await getCommunityStats()
     expect(result).toBeNull()
+  })
+})
+
+describe('public data hygiene — custom campaign names excluded (regression)', () => {
+  /**
+   * User-entered free-form campaign names must never surface in the public
+   * "Most Popular Campaigns" ranking. Only names present in the canonical
+   * ALL_CAMPAIGNS registry may appear.
+   *
+   * Two protection layers:
+   *  1. rebuildCommunityStats() — canonical check at aggregate derivation time
+   *  2. getCommunityStats()     — defensive filter on the persisted read path
+   *
+   * This prevents inappropriate/offensive user-generated text from appearing
+   * on the public homepage.
+   */
+
+  beforeEach(() => { vi.clearAllMocks() })
+
+  describe('rebuildCommunityStats layer', () => {
+    it('excludes a freeform customCampaignName from the public ranking', async () => {
+      mockGetAllPlaythroughs.mockResolvedValue({
+        userCount: 1,
+        playthroughs: [
+          {
+            id: 'fan-1', date: '2026-01-01',
+            // Fan-Made with user-entered custom name
+            campaignName: '',
+            customCampaignName: 'OFFENSIVE_CUSTOM_TEXT',
+            campaignType: 'Fan-Made',
+            investigators: [makeInvestigator('Roland Banks')],
+          },
+          {
+            id: 'fc-1', date: '2026-01-01',
+            campaignName: 'The Dunwich Legacy',
+            campaignType: 'Full Campaign',
+            investigators: [makeInvestigator('Roland Banks')],
+          },
+        ],
+      })
+      await rebuildCommunityStats()
+      const stats = mockSaveCommunityStats.mock.calls[0][0]
+      const names = stats.topCampaigns.map((c: { name: string }) => c.name)
+      expect(names).not.toContain('OFFENSIVE_CUSTOM_TEXT')
+      expect(names).toContain('The Dunwich Legacy')
+    })
+
+    it('excludes a non-canonical campaignName (typo / freeform) from the public ranking', async () => {
+      mockGetAllPlaythroughs.mockResolvedValue({
+        userCount: 1,
+        playthroughs: [
+          {
+            id: 'fc-1', date: '2026-01-01',
+            campaignName: 'Not A Real Campaign Name', // not in ALL_CAMPAIGNS
+            campaignType: 'Full Campaign',
+            investigators: [makeInvestigator('Roland Banks')],
+          },
+          {
+            id: 'fc-2', date: '2026-01-01',
+            campaignName: 'The Path to Carcosa', // canonical
+            campaignType: 'Full Campaign',
+            investigators: [makeInvestigator('Roland Banks')],
+          },
+        ],
+      })
+      await rebuildCommunityStats()
+      const stats = mockSaveCommunityStats.mock.calls[0][0]
+      const names = stats.topCampaigns.map((c: { name: string }) => c.name)
+      expect(names).not.toContain('Not A Real Campaign Name')
+      expect(names).toContain('The Path to Carcosa')
+    })
+
+    it('Return To canonical campaigns still appear after the canonical filter', async () => {
+      mockGetAllPlaythroughs.mockResolvedValue({
+        userCount: 1,
+        playthroughs: [
+          {
+            id: 'rt-1', date: '2026-01-01',
+            campaignName: 'Return to The Dunwich Legacy',
+            campaignType: 'Full Campaign',
+            investigators: [makeInvestigator('Roland Banks')],
+          },
+        ],
+      })
+      await rebuildCommunityStats()
+      const stats = mockSaveCommunityStats.mock.calls[0][0]
+      expect(stats.topCampaigns.map((c: { name: string }) => c.name)).toContain('Return to The Dunwich Legacy')
+    })
+  })
+
+  describe('getCommunityStats read-path layer (stale persisted aggregates)', () => {
+    it('filters out non-canonical names from a stale persisted document', async () => {
+      mockGetCommunityStatsFromFirestore.mockResolvedValue({
+        totalGames: 10,
+        topCampaigns: [
+          { name: 'The Dunwich Legacy', count: 5 },       // canonical — keep
+          { name: 'INJECTED_CUSTOM_TEXT', count: 99 },    // non-canonical — strip
+          { name: 'Return to The Dunwich Legacy', count: 3 }, // canonical — keep
+          { name: 'My Fan Campaign', count: 2 },           // non-canonical — strip
+        ],
+        topInvestigators: [],
+        topClasses: [],
+        totalInvestigatorsPlayed: 0,
+        topStandalones: [],
+        topSideScenarios: [],
+        registeredUsers: 1,
+        lastUpdated: 0,
+      } as never)
+      const result = await getCommunityStats()
+      expect(result).not.toBeNull()
+      const names = result!.topCampaigns.map(c => c.name)
+      expect(names).toContain('The Dunwich Legacy')
+      expect(names).toContain('Return to The Dunwich Legacy')
+      expect(names).not.toContain('INJECTED_CUSTOM_TEXT')
+      expect(names).not.toContain('My Fan Campaign')
+    })
   })
 })

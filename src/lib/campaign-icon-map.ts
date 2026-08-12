@@ -120,16 +120,18 @@ const CAMPAIGN_ICONS: Record<string, string> = {
 
 // ── Standalone scenario icons (keyed by canonical campaign name) ──────────────
 const STANDALONE_ICONS: Record<string, string> = {
-  'Carnevale of Horrors':              normalise(veniceRaw),
-  'Curse of the Rougarou':             normalise(rougarouRaw),
-  'Film Fatale':                       normalise(filmFataleRaw),
-  'Fortune and Folly':                 normalise(fortuneFollyRaw),
-  'Guardians of the Abyss':            normalise(guardiansScenarioRaw),
-  'Murder at the Excelsior Hotel':     normalise(murderRaw),
-  'The Blob That Ate Everything':      normalise(blobRaw),
-  'Machinations Through Time':         normalise(mttRaw),
-  'The Midwinter Gala':                normalise(galaRaw),
-  'The Labyrinths of Lunacy':          normalise(lolRaw),
+  'Carnevale of Horrors':                            normalise(veniceRaw),
+  'Curse of the Rougarou':                           normalise(rougarouRaw),
+  'Film Fatale':                                     normalise(filmFataleRaw),
+  'Fortune and Folly':                               normalise(fortuneFollyRaw),
+  'Guardians of the Abyss':                          normalise(guardiansScenarioRaw),
+  'Murder at the Excelsior Hotel':                   normalise(murderRaw),
+  'The Blob That Ate Everything':                    normalise(blobRaw),
+  'Machinations Through Time':                       normalise(mttRaw),
+  'The Midwinter Gala':                              normalise(galaRaw),
+  'The Labyrinths of Lunacy':                        normalise(lolRaw),
+  // Alias: scenario name → same asset as canonical campaign entry
+  'Barkham Horror: The Meddling of Meowlathotep':   normalise(barkhamRaw),
 }
 
 // ── Starter investigator deck icons (keyed by both short key AND full name) ────

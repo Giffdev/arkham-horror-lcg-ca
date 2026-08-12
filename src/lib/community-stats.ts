@@ -1,8 +1,7 @@
 import { Playthrough, Archetype } from './types'
 import { getCommunityStatsFromFirestore, saveCommunityStats, getAllPlaythroughs } from './firestore'
-import { getCampaignSet } from './campaign-data'
+import { getCampaignSet, ALL_CAMPAIGNS, SCENARIO_PACK_SCENARIOS } from './campaign-data'
 import { getInvestigatorPairKey, resolveInvestigator } from './investigator-data'
-import { SCENARIO_PACK_SCENARIOS } from './campaign-data'
 
 export interface CompletionBreakdown {
   fullCampaigns: number
@@ -58,6 +57,10 @@ export async function rebuildCommunityStats(_localPlaythroughs?: Playthrough[]):
   const completionBreakdown: CompletionBreakdown = { fullCampaigns: 0, smallCampaigns: 0, scenarioPacks: 0, fanMade: 0 }
   const pairCounts = new Map<string, number>()
 
+  // Canonical campaign names for the public ranking — user freeform text (customCampaignName,
+  // or any non-canonical string) must never appear in public stats output.
+  const canonicalCampaignNames = new Set(ALL_CAMPAIGNS.map(c => c.name))
+
   // Canonical scenario pack names for standalone lookup (lowercase key → canonical name + set)
   const canonicalStandaloneMap = new Map<string, { name: string; set: string }>()
   for (const sp of SCENARIO_PACK_SCENARIOS) {
@@ -77,7 +80,7 @@ export async function rebuildCommunityStats(_localPlaythroughs?: Playthrough[]):
         : (p.customCampaignName && p.customCampaignName.trim())
           ? p.customCampaignName.trim()
           : null
-      if (effectiveName) {
+      if (effectiveName && canonicalCampaignNames.has(effectiveName)) {
         const existing = campaignCounts.get(effectiveName) || { count: 0, set: getCampaignSet(effectiveName) }
         existing.count++
         campaignCounts.set(effectiveName, existing)
@@ -266,8 +269,12 @@ export async function getCommunityStats(): Promise<CommunityStats | null> {
   try {
     const stats = await getCommunityStatsFromFirestore()
     if (stats) {
-      // Filter out any blank campaign names that may have been stored previously
-      stats.topCampaigns = (stats.topCampaigns ?? []).filter(c => c.name && c.name.trim())
+      // Filter blank + non-canonical campaign names — guards against persisted aggregates
+      // that were written before the canonical-only filter was introduced in rebuild.
+      const canonicalNames = new Set(ALL_CAMPAIGNS.map(c => c.name))
+      stats.topCampaigns = (stats.topCampaigns ?? []).filter(
+        c => c.name && c.name.trim() && canonicalNames.has(c.name)
+      )
       stats.topStandalones = stats.topStandalones ?? []
       stats.topSideScenarios = stats.topSideScenarios ?? []
       stats.topPairings = stats.topPairings ?? []
