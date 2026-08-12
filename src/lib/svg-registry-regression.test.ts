@@ -84,12 +84,22 @@ import lolRaw             from '@/components/icons/lol.svg?raw'
 // <style> blocks and orphaned class="..." attributes on non-<svg> elements so
 // that SVGs with Illustrator-generated class-based fills (e.g. neutral.svg's
 // `.st0{fill:#020203;}`) fully honour currentColor.
+// Updated 2026-08-12 (hotfix/rendered-icon-regressions): strips Inkscape/Sodipodi
+// metadata elements and empty <defs> blocks; also injects fill="currentColor"
+// on each SVG shape element (belt-and-suspenders alongside root SVG attribute).
 function normalise(raw: string): string {
   return raw
     .replace(/<\?xml[^?]*\?>\s*/g, '')
     .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, '')
+    .replace(/<sodipodi:[^>]*\/>/gi, '')
+    .replace(/<sodipodi:[^>]*>[\s\S]*?<\/sodipodi:[a-zA-Z]+>/gi, '')
+    .replace(/<inkscape:[^>]*\/>/gi, '')
+    .replace(/<inkscape:[^>]*>[\s\S]*?<\/inkscape:[a-zA-Z]+>/gi, '')
+    .replace(/<defs\b[^>]*\/>/gi, '')
+    .replace(/<defs\b[^>]*>\s*<\/defs>/gi, '')
     .replace(/\sfill="[^"]*"/g, '')
     .replace(/(<(?!svg\b)[a-zA-Z][^>]*?)\sclass="[^"]*"/g, '$1')
+    .replace(/<(path|circle|rect|polygon|polyline|ellipse|line)(\s)/g, '<$1 fill="currentColor"$2')
     .replace(/<svg\b/, '<svg fill="currentColor"')
 }
 

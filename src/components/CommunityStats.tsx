@@ -7,6 +7,7 @@ import { getArkhamDBUrl, getArkhamDBUrlById, getChapterBadgeLabel, isChapterBadg
 import { StatsListCard } from '@/components/StatsListCard'
 import { ALL_CAMPAIGNS, campaignTypeLabel } from '@/lib/campaign-data'
 import { CampaignSvgIcon } from '@/components/CampaignSvgIcon'
+import { hasDedicatedCampaignIcon } from '@/lib/campaign-icon-map'
 
 /**
  * Resolve the key passed to getCampaignSvgRaw for a campaign name.
@@ -17,6 +18,21 @@ function campaignSetKey(name: string): string {
   const c = ALL_CAMPAIGNS.find(x => x.name === name)
   if (c?.type === 'Scenario Pack') return name
   return c?.set ?? name
+}
+
+/**
+ * Resolve the icon key for a standalone scenario entry from community stats.
+ *
+ * Firestore data may carry the canonical scenario name (full title) or, for
+ * older cached documents, just the campaign set name.  We prefer the scenario
+ * name because the standalone registry is keyed that way, but fall back to the
+ * set field so that any Barkham-labeled label always reaches barkham_horror.svg
+ * before the Elder Sign fallback.
+ */
+function standaloneIconKey(s: { name: string; set?: string }): string {
+  if (hasDedicatedCampaignIcon(s.name)) return s.name
+  if (s.set && hasDedicatedCampaignIcon(s.set)) return s.set
+  return s.name
 }
 
 export function CommunityStats() {
@@ -149,7 +165,7 @@ export function CommunityStats() {
         {/* Icon + name atomic unit; fallback (Elder Sign) allowed for unconfirmed scenarios */}
         <span className="inline-flex items-center gap-1.5 min-w-0">
           <CampaignSvgIcon
-            campaignSet={s.name}
+            campaignSet={standaloneIconKey(s)}
             size={14}
             aria-hidden="true"
             className="flex-shrink-0 text-primary/60"
