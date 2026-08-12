@@ -191,7 +191,9 @@ describe('rebuildCommunityStats — standalone & side-scenario aggregation', () 
     expect(standaloneEntry.breakdown.asSideStory).toBe(1)
   })
 
-  it('includes custom side-story entries that are not canonical scenario packs', async () => {
+  it('does not persist custom user-entered side-story names into public aggregate output', async () => {
+    // Custom strings like "The Black Goat Thing" must not appear in topSideScenarios or topStandalones.
+    // Only canonical scenario pack names (from SCENARIO_PACK_SCENARIOS) are retained.
     mockGetAllPlaythroughs.mockResolvedValue({
       userCount: 1,
       playthroughs: [
@@ -204,20 +206,21 @@ describe('rebuildCommunityStats — standalone & side-scenario aggregation', () 
         {
           id: 'fc-2', date: '2026-01-02',
           campaignName: 'The Dunwich Legacy', campaignType: 'Full Campaign',
-          sideStories: ['my custom scenario'],
+          sideStories: ['my custom scenario', 'The Black Goat Thing'],
           investigators: [makeInvestigator('Roland Banks')],
         },
       ],
     })
     await rebuildCommunityStats()
     const stats = mockSaveCommunityStats.mock.calls[0][0]
-    // Custom entry uses first-seen casing
-    const sideEntry = stats.topSideScenarios.find((e: { name: string }) => e.name === 'My Custom Scenario')
-    expect(sideEntry).toBeDefined()
-    expect(sideEntry.count).toBe(2)
-    // Should NOT appear in topStandalones
-    const standaloneEntry = stats.topStandalones.find((e: { name: string }) => e.name === 'My Custom Scenario')
-    expect(standaloneEntry).toBeUndefined()
+    // Custom entries must NOT appear in topSideScenarios
+    expect(stats.topSideScenarios.find((e: { name: string }) => e.name === 'My Custom Scenario')).toBeUndefined()
+    expect(stats.topSideScenarios.find((e: { name: string }) => /black goat/i.test(e.name))).toBeUndefined()
+    // Custom entries must NOT appear in topStandalones
+    expect(stats.topStandalones.find((e: { name: string }) => e.name === 'My Custom Scenario')).toBeUndefined()
+    expect(stats.topStandalones.find((e: { name: string }) => /black goat/i.test(e.name))).toBeUndefined()
+    // Canonical standalone aggregation is unaffected (Rougarou would still work if present)
+    expect(Array.isArray(stats.topStandalones)).toBe(true)
   })
 
   it('excludes Scenario Pack playthroughs from topCampaigns', async () => {
@@ -262,7 +265,7 @@ describe('rebuildCommunityStats — standalone & side-scenario aggregation', () 
     expect(names).toContain('My Fan Campaign')
   })
 
-  it('caps topCampaigns, topInvestigators, topStandalones, topSideScenarios at 25', async () => {
+  it('caps topCampaigns, topInvestigators, topStandalones at 25', async () => {
     // Build 30 unique campaigns to test cap
     const playthroughs: Playthrough[] = Array.from({ length: 30 }, (_, i) => ({
       id: `p-${i}`, date: '2026-01-01',

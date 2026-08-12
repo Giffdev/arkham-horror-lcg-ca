@@ -4,6 +4,8 @@ import { Card } from '@/components/ui/card'
 import { INVESTIGATORS, Investigator, getArkhamDBUrlById, getChapterBadgeLabel, INVESTIGATOR_SETS, resolveInvestigator } from '@/lib/investigator-data'
 import { Check, ArrowSquareOut, Funnel, CaretDown, CaretUp } from '@phosphor-icons/react'
 import { ArchetypeBadge } from '@/components/ArchetypeBadge'
+import { CampaignSvgIcon } from '@/components/CampaignSvgIcon'
+import { hasDedicatedCampaignIcon } from '@/lib/campaign-icon-map'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -140,7 +142,16 @@ export function PlayersOverview({ playthroughs }: PlayersOverviewProps) {
                   variant={selectedArchetypes.includes(archetype) ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => handleArchetypeToggle(archetype)}
+                  className="gap-1.5"
                 >
+                  {hasDedicatedCampaignIcon(archetype) && (
+                    <CampaignSvgIcon
+                      campaignSet={archetype}
+                      size={13}
+                      aria-hidden="true"
+                      className="flex-shrink-0 opacity-80"
+                    />
+                  )}
                   {archetype}
                 </Button>
               ))}
@@ -196,16 +207,15 @@ export function PlayersOverview({ playthroughs }: PlayersOverviewProps) {
                       )}
                       <div className="flex items-start gap-3">
                         <div className="flex-1 min-w-0">
+                          {/* Archetype badge(s) first in DOM order per D14 reading-order contract */}
+                          <div className="flex flex-wrap gap-1 mb-1.5">
+                            {investigator.archetypes.map(archetype => (
+                              <ArchetypeBadge key={archetype} archetype={archetype} className="text-xs" />
+                            ))}
+                          </div>
                           <div className="flex items-start gap-2">
                             <h3 className="font-semibold truncate flex-1">{investigator.name}</h3>
                             {arkhamDBUrl && <ArrowSquareOut size={16} className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />}
-                          </div>
-                          <div className="flex items-center gap-2 mt-1.5">
-                            <div className="flex flex-wrap gap-1">
-                              {investigator.archetypes.map(archetype => (
-                                <ArchetypeBadge key={archetype} archetype={archetype} className="text-xs" />
-                              ))}
-                            </div>
                           </div>
                           <p className="text-xs text-muted-foreground mt-1">
                             {investigator.set} <span className="opacity-60">· {getChapterBadgeLabel(investigator)}</span>

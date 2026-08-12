@@ -15,6 +15,15 @@
  *  7. "Never Played" panel empty state when every investigator has been played
  *  8. Nested tablist has aria-label="Investigator view" (D14)
  */
+/**
+ * Row structure / semantics tests — appended by Lambert 2026-08-11
+ *
+ * Covered (D13-D17 extended, per task):
+ *  9. Played card two-column structure: investigator name + archetype badge + play
+ *     count all co-present in the played tabpanel.
+ * 10. Archetype badge precedes investigator name in DOM order in each played card
+ *     (EXPECTED FAILURE until Dallas reorders the name/archetype markup).
+ */
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
@@ -202,5 +211,58 @@ describe('PlayersOverview — empty states', () => {
     await user.click(screen.getByRole('button', { name: 'Guardian' }))
     await user.click(screen.getByRole('tab', { name: /^Never Played/i }))
     expect(screen.getByRole('tab', { name: /^Never Played/i })).toHaveAttribute('aria-selected', 'true')
+  })
+})
+
+// ─── Row structure / semantics (D13-D17 extended) ─────────────────────────────
+
+describe('PlayersOverview — played card row structure (D14-D16)', () => {
+  /**
+   * Two-column content grouping: each "played" investigator card exposes both
+   * investigator meta-data (name + archetype) in the left column and a play
+   * count in the right column. Tests use semantic content only — no CSS class
+   * assertions.
+   */
+  it('played card exposes investigator name, archetype badge, and play count in the tabpanel', () => {
+    render(<PlayersOverview playthroughs={[ROLAND_PLAYTHROUGH]} />)
+    const panel = screen.getByRole('tabpanel')
+    // Left-column content
+    expect(within(panel).getByRole('heading', { name: 'Roland Banks' })).toBeInTheDocument()
+    expect(within(panel).getAllByText('Guardian').length).toBeGreaterThan(0)
+    // Right-column content: singular "time" only appears when timesPlayed === 1
+    expect(within(panel).getByText('time')).toBeInTheDocument()
+  })
+
+  it('multi-play card uses plural "times" label', () => {
+    const twoPlays: Playthrough[] = [
+      makePlayed([{ playerName: 'Alice', investigatorName: 'Roland Banks', archetype: 'Guardian' }]),
+      makePlayed([{ playerName: 'Alice', investigatorName: 'Roland Banks', archetype: 'Guardian' }]),
+    ]
+    render(<PlayersOverview playthroughs={twoPlays} />)
+    const panel = screen.getByRole('tabpanel')
+    expect(within(panel).getByText('times')).toBeInTheDocument()
+  })
+
+  /**
+   * Archetype precedes investigator name in DOM document order within each
+   * played card — scoped to the tabpanel to exclude hidden filter buttons.
+   *
+   * EXPECTED FAILURE until Dallas reorders the markup so ArchetypeBadge
+   * renders before the <h3> name heading inside each played card.
+   * Current production order: <h3 name> … <ArchetypeBadge>
+   * Required order:           <ArchetypeBadge> … <h3 name>
+   */
+  it('archetype badge precedes investigator name in DOM order (regression)', () => {
+    render(<PlayersOverview playthroughs={[ROLAND_PLAYTHROUGH]} />)
+    const panel = screen.getByRole('tabpanel')
+    const nameEl = within(panel).getByRole('heading', { name: 'Roland Banks' })
+    // Find archetype badge elements inside the tabpanel (excludes hidden filter buttons)
+    const guardianEls = within(panel).queryAllByText('Guardian')
+    expect(guardianEls.length).toBeGreaterThan(0)
+    // DOCUMENT_POSITION_FOLLOWING (4): the other node (nameEl) comes after guardianEl
+    const anyBefore = guardianEls.some(
+      el => (el.compareDocumentPosition(nameEl) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0,
+    )
+    expect(anyBefore).toBe(true)
   })
 })
