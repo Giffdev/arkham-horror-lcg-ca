@@ -17,6 +17,15 @@
  *    name OR just the set name ("Barkham Horror") for Barkham entries.
  *    The new standaloneIconKey() resolver checks both.
  *
+ * M. PlaythroughCard — The Midwinter Gala shows gala.svg, not the Elder Sign.
+ *    Root cause: all SCENARIO_PACK_SCENARIOS entries share set='Scenario Pack' in
+ *    campaign-data.ts.  PlaythroughForm persists campaignSet='Scenario Pack' for
+ *    any scenario-pack selection.  PlaythroughCard previously resolved the icon
+ *    via (playthrough.campaignSet ?? playthrough.campaignName), which evaluated to
+ *    'Scenario Pack' (non-null) → Elder Sign fallback instead of gala.svg.
+ *    Fix: PlaythroughCard now prefers campaignName when hasDedicatedCampaignIcon
+ *    returns true for it, falling back to campaignSet only for unnamed entries.
+ *
  * Test strategy:
  *  - Tests inspect rendered DOM structure and SVG path content, NOT Tailwind
  *    class snapshots.  SVG path `d` attributes are compared against known unique
@@ -31,6 +40,8 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ArchetypeBadge } from './ArchetypeBadge'
 import { Filters } from './Filters'
 import { CommunityStats } from './CommunityStats'
+import { PlaythroughCard } from './PlaythroughCard'
+import type { Playthrough } from '@/lib/types'
 
 // matchMedia is not implemented in jsdom
 beforeAll(() => {
@@ -57,6 +68,7 @@ const mockGetCommunityStats = vi.mocked(getCommunityStats)
 // unique enough to distinguish them without importing the full raw SVG string.
 const ELDER_SIGN_PATH_PREFIX = 'M352.418'   // elder_sign.svg → fallback
 const BARKHAM_PATH_PREFIX     = 'M695.315'  // barkham_horror.svg
+const GALA_PATH_PREFIX        = 'M401.027'  // gala.svg
 
 const noop = () => {}
 
@@ -254,6 +266,80 @@ describe('CommunityStats standalone card — Barkham Horror icon identity (L)', 
     expect(
       iconSpan!.innerHTML,
       'Rougarou must not use the Elder Sign fallback (dedicated icon exists)',
+    ).not.toContain(ELDER_SIGN_PATH_PREFIX)
+  })
+})
+
+// ─── M. PlaythroughCard — Midwinter Gala uses gala.svg, not Elder Sign ────────
+//
+// Regression: a Gala playthrough persisted with campaignSet='Scenario Pack' and
+// campaignName='The Midwinter Gala' showed the Elder Sign icon in the game log.
+//
+// Root cause: PlaythroughCard resolved the icon via
+//   campaignSet ?? campaignName  →  'Scenario Pack' (non-null)
+//   getCampaignSvgRaw('Scenario Pack')  →  Elder Sign fallback
+//
+// Fix: prefer campaignName when hasDedicatedCampaignIcon(campaignName) is true.
+//
+// These tests use the real persisted data shape (campaignSet='Scenario Pack') so
+// they fail against the original code and pass only after the fix.
+
+const GALA_PLAYTHROUGH: Playthrough = {
+  id:           'gala-test-1',
+  date:         '2026-08-12',
+  campaignName: 'The Midwinter Gala',
+  campaignSet:  'Scenario Pack',   // ← real persisted shape from PlaythroughForm
+  campaignType: 'Scenario Pack',
+  investigators: [{
+    playerName:     'Devin',
+    investigatorName: 'Unknown',
+    archetype:      'Unknown',
+    isUnknown:      true,
+  }],
+}
+
+describe('PlaythroughCard — Midwinter Gala icon identity (M)', () => {
+  it('renders gala.svg path (not Elder Sign) when campaignSet="Scenario Pack" and campaignName="The Midwinter Gala"', () => {
+    const { container } = render(
+      <PlaythroughCard playthrough={GALA_PLAYTHROUGH} onEdit={noop} onDelete={noop} />,
+    )
+    const iconSpan = container.querySelector('[aria-hidden="true"]')
+    expect(iconSpan, 'icon span must be present in PlaythroughCard header').not.toBeNull()
+
+    const svgHTML = iconSpan!.innerHTML
+    expect(
+      svgHTML,
+      'Gala card must use gala.svg path prefix, not the Elder Sign fallback',
+    ).toContain(GALA_PATH_PREFIX)
+    expect(
+      svgHTML,
+      'Gala card must NOT use the Elder Sign fallback',
+    ).not.toContain(ELDER_SIGN_PATH_PREFIX)
+  })
+
+  it('does not regress full-campaign icon (Dunwich Legacy still uses Dunwich icon when campaignSet matches)', () => {
+    const dunwichPlaythrough: Playthrough = {
+      id:           'dunwich-test-1',
+      date:         '2026-08-12',
+      campaignName: 'The Dunwich Legacy',
+      campaignSet:  'The Dunwich Legacy',
+      campaignType: 'Full Campaign',
+      investigators: [{
+        playerName:     'Devin',
+        investigatorName: 'Unknown',
+        archetype:      'Unknown',
+        isUnknown:      true,
+      }],
+    }
+    const { container } = render(
+      <PlaythroughCard playthrough={dunwichPlaythrough} onEdit={noop} onDelete={noop} />,
+    )
+    const iconSpan = container.querySelector('[aria-hidden="true"]')
+    expect(iconSpan, 'icon span must be present for Dunwich card').not.toBeNull()
+    // Dunwich icon is not the Elder Sign
+    expect(
+      iconSpan!.innerHTML,
+      'Dunwich card must not use the Elder Sign fallback',
     ).not.toContain(ELDER_SIGN_PATH_PREFIX)
   })
 })
