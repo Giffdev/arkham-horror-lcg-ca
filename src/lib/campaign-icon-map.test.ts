@@ -11,6 +11,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   getCampaignSvgRaw,
+  getFactionSvgRaw,
   hasDedicatedCampaignIcon,
   CAMPAIGN_ICON_SETS,
 } from './campaign-icon-map'
@@ -112,6 +113,54 @@ describe('CAMPAIGN_ICON_SETS', () => {
   it('contains all expected canonical campaign sets', () => {
     for (const set of KNOWN_SETS) {
       expect(CAMPAIGN_ICON_SETS).toContain(set)
+    }
+  })
+})
+
+// ── Regression: Neutral icon contrast (hotfix/neutral-icon-contrast) ──────────
+// Before the fix, neutral.svg contained a <style> block with `.st0{fill:#020203;}`
+// that overrode currentColor, rendering the icon black on dark backgrounds.
+describe('Neutral faction icon SVG normalisation (regression)', () => {
+  it('Neutral SVG contains no embedded <style> block', () => {
+    const svg = getFactionSvgRaw('Neutral')
+    expect(svg).not.toMatch(/<style\b/i)
+  })
+
+  it('Neutral SVG contains no hardcoded black fill colour (#020203)', () => {
+    const svg = getFactionSvgRaw('Neutral')
+    expect(svg).not.toContain('#020203')
+    expect(svg).not.toContain('020203')
+  })
+
+  it('Neutral SVG carries fill="currentColor" on the root <svg> element', () => {
+    const svg = getFactionSvgRaw('Neutral')
+    expect(svg).toContain('fill="currentColor"')
+    // Must be on the opening <svg tag, not a child element
+    expect(svg).toMatch(/<svg[^>]*fill="currentColor"/)
+  })
+
+  it('Neutral SVG carries no other fill="..." overrides', () => {
+    const svg = getFactionSvgRaw('Neutral')
+    // Only one fill attribute allowed: the currentColor on <svg>
+    const fillMatches = svg.match(/\bfill="/g) ?? []
+    expect(fillMatches.length).toBe(1)
+  })
+
+  it('all faction SVGs are free of embedded <style> blocks', () => {
+    const factions = ['Guardian', 'Seeker', 'Rogue', 'Mystic', 'Survivor', 'Neutral']
+    for (const faction of factions) {
+      const svg = getFactionSvgRaw(faction)
+      expect(svg, `${faction} SVG must not contain a <style> block`).not.toMatch(/<style\b/i)
+    }
+  })
+
+  it('all faction SVGs carry fill="currentColor" on the root <svg>', () => {
+    const factions = ['Guardian', 'Seeker', 'Rogue', 'Mystic', 'Survivor', 'Neutral']
+    for (const faction of factions) {
+      const svg = getFactionSvgRaw(faction)
+      expect(svg, `${faction} SVG must carry fill="currentColor"`).toMatch(
+        /<svg[^>]*fill="currentColor"/,
+      )
     }
   })
 })

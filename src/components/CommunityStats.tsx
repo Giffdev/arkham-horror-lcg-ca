@@ -5,17 +5,8 @@ import { getCommunityStats, CommunityStats as CommunityStatsType } from '@/lib/c
 import { ArchetypeBadge } from '@/components/ArchetypeBadge'
 import { getArkhamDBUrl, getArkhamDBUrlById, getChapterBadgeLabel, isChapterBadgeSpecial, resolveInvestigator } from '@/lib/investigator-data'
 import { StatsListCard } from '@/components/StatsListCard'
-import { ALL_CAMPAIGNS } from '@/lib/campaign-data'
+import { ALL_CAMPAIGNS, campaignTypeLabel } from '@/lib/campaign-data'
 import { CampaignSvgIcon } from '@/components/CampaignSvgIcon'
-
-function campaignTypeLabel(name: string): string {
-  const c = ALL_CAMPAIGNS.find(x => x.name === name)
-  if (!c) return ''
-  if (c.returnTo) return 'Return To'
-  if (c.type === 'Full Campaign') return 'Full'
-  if (c.type === 'Small Campaign') return 'Short'
-  return ''
-}
 
 /**
  * Resolve the key passed to getCampaignSvgRaw for a campaign name.
@@ -231,7 +222,7 @@ export function CommunityStats() {
         <StatsListCard
           icon={Trophy}
           title="Most Popular Campaigns"
-          subtitle="Full, short & Return To campaigns"
+          subtitle="Full & short campaigns"
           items={campaignItems}
           className="h-full"
         />
@@ -240,6 +231,7 @@ export function CommunityStats() {
           icon={Detective}
           title="Most Played Investigators"
           items={investigatorItems}
+          totalCount={communityStats.totalInvestigatorsPlayed}
           className="h-full"
         />
 

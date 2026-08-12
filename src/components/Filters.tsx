@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button'
-import { Archetype, CampaignType, ARCHETYPES, CAMPAIGN_TYPES, Playthrough } from '@/lib/types'
+import { Archetype, CampaignType, ARCHETYPES, ARCHETYPE_COLORS, CAMPAIGN_TYPES, Playthrough } from '@/lib/types'
 import { Funnel, X } from '@phosphor-icons/react'
 import { getFullCampaignNames, getSmallCampaignNames, getScenarioPackCampaignNames } from '@/lib/campaign-data'
 import { useMemo, useState } from 'react'
@@ -8,6 +8,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { Badge } from '@/components/ui/badge'
 import { CampaignSvgIcon } from '@/components/CampaignSvgIcon'
 import { hasDedicatedCampaignIcon } from '@/lib/campaign-icon-map'
+import { cn } from '@/lib/utils'
 
 interface FiltersProps {
   selectedArchetypes: Archetype[]
@@ -94,7 +95,7 @@ function FilterContent({
                 size="sm"
                 variant={isSelected ? 'default' : 'outline'}
                 onClick={() => onArchetypeToggle(archetype)}
-                className="gap-1.5"
+                className={cn("gap-1.5", !isSelected && ARCHETYPE_COLORS[archetype])}
               >
                 {hasDedicatedCampaignIcon(archetype) && (
                   <CampaignSvgIcon

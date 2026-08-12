@@ -135,3 +135,24 @@ export function getCampaignChapter(campaignName: string): 1 | 2 {
 }
 
 export const CAMPAIGN_SETS: string[] = Array.from(new Set(ALL_CAMPAIGNS.map(c => c.set)))
+
+/**
+ * Returns the display badge label for a campaign's length/type.
+ *
+ * The `returnTo` flag is identity metadata (this is a re-release of a prior
+ * campaign), NOT a length category. Return To campaigns have their own `type`
+ * field ('Full Campaign' / 'Small Campaign') which is the correct source of
+ * truth for the badge. Badging them as "Return To" misclassifies their length.
+ *
+ * Returns:
+ *  'Full'  — Full Campaign (including all Return To full-cycle expansions)
+ *  'Short' — Small Campaign (including Return to The Night of the Zealot)
+ *  ''      — Scenario Pack or unknown (no length badge shown)
+ */
+export function campaignTypeLabel(name: string): string {
+  const c = ALL_CAMPAIGNS.find(x => x.name === name)
+  if (!c) return ''
+  if (c.type === 'Full Campaign') return 'Full'
+  if (c.type === 'Small Campaign') return 'Short'
+  return ''
+}

@@ -42,6 +42,8 @@ import guardiansScenarioRaw from '@/components/icons/guardians.svg?raw'
 import murderRaw from '@/components/icons/murder_at_the_excelsior_hotel.svg?raw'
 import blobRaw from '@/components/icons/blob_set.svg?raw'
 import mttRaw from '@/components/icons/mtt.svg?raw'
+import galaRaw from '@/components/icons/gala.svg?raw'
+import lolRaw from '@/components/icons/lol.svg?raw'
 
 // ── Starter investigator deck icons ───────────────────────────────────────────
 import nateRaw from '@/components/icons/nate.svg?raw'
@@ -67,12 +69,23 @@ import elderSignRaw from '@/components/icons/elder_sign.svg?raw'
 
 /**
  * Normalise an SVG string so its paths respond to CSS `currentColor`.
- * Also strips XML declarations (<?xml...?>) that precede some SVG elements.
+ *
+ * Steps applied (in order):
+ *  1. Strip XML processing instructions (<?xml ...?>).
+ *  2. Strip embedded <style> blocks — they may hard-code fill colours that
+ *     override currentColor (e.g. `.st0{fill:#020203;}` in neutral.svg).
+ *  3. Remove all fill="..." attributes from every element.
+ *  4. Remove class="..." attributes from non-<svg> elements so orphaned
+ *     class references can't accidentally pick up external stylesheets.
+ *  5. Inject fill="currentColor" on the root <svg> element so every
+ *     descendant path inherits the surrounding text colour.
  */
 function normalise(raw: string): string {
   return raw
     .replace(/<\?xml[^?]*\?>\s*/g, '')
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, '')
     .replace(/\sfill="[^"]*"/g, '')
+    .replace(/(<(?!svg\b)[a-zA-Z][^>]*?)\sclass="[^"]*"/g, '$1')
     .replace(/<svg\b/, '<svg fill="currentColor"')
 }
 
@@ -115,6 +128,8 @@ const STANDALONE_ICONS: Record<string, string> = {
   'Murder at the Excelsior Hotel':     normalise(murderRaw),
   'The Blob That Ate Everything':      normalise(blobRaw),
   'Machinations Through Time':         normalise(mttRaw),
+  'The Midwinter Gala':                normalise(galaRaw),
+  'The Labyrinths of Lunacy':          normalise(lolRaw),
 }
 
 // ── Starter investigator deck icons (keyed by both short key AND full name) ────

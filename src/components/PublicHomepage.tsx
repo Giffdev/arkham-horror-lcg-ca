@@ -7,7 +7,7 @@ import { User } from '@/lib/auth'
 import { getCommunityStats, CommunityStats } from '@/lib/community-stats'
 import { ArchetypeBadge } from '@/components/ArchetypeBadge'
 import { StatsListCard } from '@/components/StatsListCard'
-import { ALL_CAMPAIGNS } from '@/lib/campaign-data'
+import { ALL_CAMPAIGNS, campaignTypeLabel } from '@/lib/campaign-data'
 import { CampaignSvgIcon } from '@/components/CampaignSvgIcon'
 import { getBrandSvgRaw } from '@/lib/campaign-icon-map'
 import { cn } from '@/lib/utils'
@@ -33,15 +33,6 @@ function BrandSvg({ brandKey, size = 24, className }: { brandKey: 'codex' | 'log
 
 interface PublicHomepageProps {
   onAuthSuccess: (user: User) => void
-}
-
-function campaignTypeLabel(name: string): string {
-  const c = ALL_CAMPAIGNS.find(x => x.name === name)
-  if (!c) return ''
-  if (c.returnTo) return 'Return To'
-  if (c.type === 'Full Campaign') return 'Full'
-  if (c.type === 'Small Campaign') return 'Short'
-  return ''
 }
 
 function campaignSetKey(name: string): string {
@@ -243,13 +234,14 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
                 icon={Users}
                 title="Most Played Investigators"
                 items={investigatorItems}
+                totalCount={communityStats.totalInvestigatorsPlayed}
               />
 
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6 items-stretch">
                 <StatsListCard
                   icon={Trophy}
                   title="Most Popular Campaigns"
-                  subtitle="Full, short & Return To campaigns"
+                  subtitle="Full & short campaigns"
                   items={campaignItems}
                   className="h-full"
                 />

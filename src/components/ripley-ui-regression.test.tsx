@@ -18,7 +18,9 @@
  *  - CampaignSvgIcon renders an <svg> element; we look for role=img / svg tag presence.
  *  - PlaythroughCard SVG icon wrapper already has aria-hidden="true" on the outer span.
  *  - Unknown archetype is excluded from the "six factions" glyph requirement.
- *  - Do NOT assert War/Gala/Barkham dedicated icons — fallback is intentional.
+ *  - Do NOT assert War/Barkham dedicated icons — fallback is intentional.
+ *  - The Midwinter Gala icon (gala.svg) confirmed 2026-08-12; moved to KNOWN_STANDALONES.
+ *  - The Labyrinths of Lunacy icon (lol.svg) confirmed 2026-08-12; moved to KNOWN_STANDALONES.
  */
 
 import { render, screen, within } from '@testing-library/react'
@@ -213,6 +215,8 @@ describe('PlaythroughCard — standalone icon resolution', () => {
     'Guardians of the Abyss',
     'Murder at the Excelsior Hotel',
     'The Blob That Ate Everything',
+    'The Midwinter Gala',
+    'The Labyrinths of Lunacy',
   ]
 
   it.each(KNOWN_STANDALONES)('"%s" renders an svg icon without crashing', (scenarioName) => {
@@ -238,11 +242,13 @@ describe('PlaythroughCard — unconfirmed standalone uses safe fallback (no cras
    * state or thrown error.
    *
    * Do NOT assert a specific non-fallback file for these packs.
+   *
+   * Removed from this list 2026-08-12 (hotfix/neutral-icon-contrast):
+   *   'The Midwinter Gala' — confirmed dedicated icon gala.svg, moved to KNOWN_STANDALONES.
+   *   'The Labyrinths of Lunacy' — confirmed dedicated icon lol.svg, moved to KNOWN_STANDALONES.
    */
   const UNCONFIRMED_STANDALONES = [
-    'The Labyrinths of Lunacy',
     'War of the Outer Gods',
-    'The Midwinter Gala',
     'Traces To Nowhere',
     'Barkham Horror: The Meddling of Meowlathotep',
   ]
@@ -338,5 +344,95 @@ describe('PlayersOverview — Class filter buttons contain faction glyph + visib
     const hiddenSpan = btn!.querySelector('[aria-hidden="true"]')
     expect(hiddenSpan).not.toBeNull()
     expect(hiddenSpan!.querySelector('svg')).not.toBeNull()
+  })
+})
+
+// ─── J. Neutral class-filter contrast regression ──────────────────────────────
+//
+// Root cause (2026-08-12 hotfix/neutral-icon-contrast):
+//   1. neutral.svg had embedded <style>.st0{fill:#020203;} — SVG fix in campaign-icon-map.ts
+//   2. --neutral-text was oklch(0.65 0.01 280) — only ~3.7:1 on neutral-bg; WCAG AA requires 4.5:1
+//   3. Filters + PlayersOverview class filter buttons were not applying ARCHETYPE_COLORS,
+//      so the faction text-color token was never reached in those surfaces.
+//
+// Fix: raised --neutral-text to oklch(0.82 0.01 280) (~6.2:1 on neutral-bg) and applied
+// ARCHETYPE_COLORS to idle faction filter buttons in both surfaces.
+
+describe('Neutral class-filter — contrast regression (text-neutral-text + SVG currentColor)', () => {
+  function renderFilters(selectedArchetypes: Archetype[] = []) {
+    return render(
+      <Filters
+        selectedArchetypes={selectedArchetypes}
+        selectedCampaignTypes={[]}
+        selectedCampaigns={[]}
+        onArchetypeToggle={noop}
+        onCampaignTypeToggle={noop}
+        onCampaignToggle={noop}
+        onClearFilters={noop}
+        playthroughs={[]}
+      />
+    )
+  }
+
+  it('idle Neutral button in Filters carries text-neutral-text for WCAG contrast', () => {
+    const { container } = renderFilters()
+    const buttons = container.querySelectorAll('button')
+    const neutralBtn = Array.from(buttons).find(b => b.textContent?.includes('Neutral'))
+    expect(neutralBtn, 'Neutral filter button must exist').toBeTruthy()
+    expect(
+      neutralBtn!.className,
+      'idle Neutral button must carry text-neutral-text so --neutral-text token is applied',
+    ).toContain('text-neutral-text')
+  })
+
+  it('selected Neutral button in Filters uses primary-variant (no text-neutral-text override)', () => {
+    const { container } = renderFilters(['Neutral'])
+    const buttons = container.querySelectorAll('button')
+    // Avoid matching the "Clear" button
+    const neutralBtn = Array.from(buttons).find(
+      b => b.textContent?.includes('Neutral') && !b.textContent?.includes('Clear'),
+    )
+    expect(neutralBtn).toBeTruthy()
+    // Selected state uses variant="default" (bg-primary text-primary-foreground) — no faction override
+    expect(neutralBtn!.className).not.toContain('text-neutral-text')
+  })
+
+  it('idle Neutral SVG in Filters carries fill="currentColor" (no hardcoded fill)', () => {
+    const { container } = renderFilters()
+    const buttons = container.querySelectorAll('button')
+    const neutralBtn = Array.from(buttons).find(b => b.textContent?.includes('Neutral'))!
+    const hiddenSpan = neutralBtn.querySelector('[aria-hidden="true"]')
+    expect(hiddenSpan, 'Neutral button must have aria-hidden icon span').not.toBeNull()
+    const svg = hiddenSpan!.querySelector('svg')
+    expect(svg, 'aria-hidden span must contain an SVG').not.toBeNull()
+    expect(
+      svg!.getAttribute('fill'),
+      'Neutral SVG root must have fill="currentColor" so it inherits button text color',
+    ).toBe('currentColor')
+    // No <style> child element means the Illustrator style block was stripped
+    expect(svg!.querySelector('style')).toBeNull()
+  })
+
+  it('all six idle faction buttons in Filters carry their ARCHETYPE_COLORS text class', () => {
+    const { container } = renderFilters()
+    const buttons = container.querySelectorAll('button')
+    const factionTextClasses: Record<Archetype, string> = {
+      Guardian: 'text-guardian-text',
+      Seeker:   'text-seeker-text',
+      Rogue:    'text-rogue-text',
+      Mystic:   'text-mystic-text',
+      Survivor: 'text-survivor-text',
+      Neutral:  'text-neutral-text',
+      Unknown:  'text-muted-foreground',
+    }
+    const testedFactions: Archetype[] = ['Guardian', 'Seeker', 'Rogue', 'Mystic', 'Survivor', 'Neutral']
+    for (const faction of testedFactions) {
+      const btn = Array.from(buttons).find(b => b.textContent?.includes(faction))
+      expect(btn, `${faction} filter button must exist`).toBeTruthy()
+      expect(
+        btn!.className,
+        `idle ${faction} button must carry ${factionTextClasses[faction]}`,
+      ).toContain(factionTextClasses[faction])
+    }
   })
 })

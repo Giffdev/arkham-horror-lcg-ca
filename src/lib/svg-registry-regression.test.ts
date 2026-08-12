@@ -75,14 +75,21 @@ import rogueRaw           from '@/components/icons/rogue.svg?raw'
 import mysticRaw          from '@/components/icons/mystic.svg?raw'
 import survivorRaw        from '@/components/icons/survivor.svg?raw'
 import neutralRaw         from '@/components/icons/neutral.svg?raw'
+import galaRaw            from '@/components/icons/gala.svg?raw'
+import lolRaw             from '@/components/icons/lol.svg?raw'
 
 // ─── local normalise — mirrors campaign-icon-map.ts private normalise() ───────
-// IMPORTANT: Keep in sync with the production function. As of 2026-08-11 it
-// strips XML declarations (<?xml...?>) in addition to fill attributes.
+// IMPORTANT: Keep in sync with the production function.
+// Updated 2026-08-12 (hotfix/neutral-icon-contrast): also strips embedded
+// <style> blocks and orphaned class="..." attributes on non-<svg> elements so
+// that SVGs with Illustrator-generated class-based fills (e.g. neutral.svg's
+// `.st0{fill:#020203;}`) fully honour currentColor.
 function normalise(raw: string): string {
   return raw
     .replace(/<\?xml[^?]*\?>\s*/g, '')
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, '')
     .replace(/\sfill="[^"]*"/g, '')
+    .replace(/(<(?!svg\b)[a-zA-Z][^>]*?)\sclass="[^"]*"/g, '$1')
     .replace(/<svg\b/, '<svg fill="currentColor"')
 }
 
@@ -351,9 +358,12 @@ describe('Faction icons — getFactionSvgRaw file-identity contracts', () => {
 // Specifically guards against artwork being silently mis-assigned or "guessed"
 // by the registry when new dedicated files are added.
 //
-// Unresolved packs (as of 2026-08-11):
-//   The Labyrinths of Lunacy, War of the Outer Gods, The Midwinter Gala,
+// Unresolved packs (as of 2026-08-12):
+//   War of the Outer Gods,
 //   Traces To Nowhere, Barkham Horror: The Meddling of Meowlathotep
+//
+// Resolved 2026-08-12 (hotfix/neutral-icon-contrast): The Midwinter Gala → gala.svg
+// Resolved 2026-08-12 (hotfix/neutral-icon-contrast): The Labyrinths of Lunacy → lol.svg
 //
 // Do NOT require a Return to The Innsmouth Conspiracy campaign record — the
 // production registry has a comment noting rttic.svg is available but the
@@ -363,9 +373,7 @@ describe('Unresolved standalone packs — generic Elder Sign fallback (no guessi
   const ELDER_SIGN = getCampaignSvgRaw('__unknown__')
 
   const UNRESOLVED = [
-    'The Labyrinths of Lunacy',
     'War of the Outer Gods',
-    'The Midwinter Gala',
     'Traces To Nowhere',
     'Barkham Horror: The Meddling of Meowlathotep',
   ]
@@ -391,5 +399,53 @@ describe('Unresolved standalone packs — generic Elder Sign fallback (no guessi
     expect(hasDedicatedCampaignIcon('Return to The Innsmouth Conspiracy')).toBe(false)
     // Falling through the registry returns the Elder Sign
     expect(getCampaignSvgRaw('Return to The Innsmouth Conspiracy')).toBe(ELDER_SIGN)
+  })
+})
+
+// ─── 10. The Midwinter Gala — confirmed file-identity (gala.svg) ──────────────
+// User confirmed 2026-08-12: The Midwinter Gala maps to gala.svg.
+// Migrated from UNRESOLVED list. Verified via getStandaloneSvgRaw and
+// the unified getCampaignSvgRaw lookup so PlaythroughCard resolves correctly.
+
+describe('The Midwinter Gala — confirmed standalone icon (gala.svg)', () => {
+  it('getStandaloneSvgRaw("The Midwinter Gala") uses gala.svg (file-identity contract)', () => {
+    expect(getStandaloneSvgRaw('The Midwinter Gala')).toBe(normalise(galaRaw))
+  })
+
+  it('getCampaignSvgRaw("The Midwinter Gala") resolves via unified lookup (not Elder Sign)', () => {
+    const elderSign = getCampaignSvgRaw('__unknown__')
+    expect(getCampaignSvgRaw('The Midwinter Gala')).not.toBe(elderSign)
+    expect(getCampaignSvgRaw('The Midwinter Gala')).toBe(normalise(galaRaw))
+  })
+
+  it('getStandaloneSvgRaw("The Midwinter Gala") returns a valid normalised SVG', () => {
+    const svg = getStandaloneSvgRaw('The Midwinter Gala')
+    expect(svg.trimStart()).toMatch(/^<svg\b/)
+    expect(svg).toContain('fill="currentColor"')
+    expect(svg).not.toMatch(/<style\b/i)
+  })
+})
+
+// ─── 11. The Labyrinths of Lunacy — confirmed file-identity (lol.svg) ─────────
+// User confirmed 2026-08-12: The Labyrinths of Lunacy maps to lol.svg.
+// Migrated from UNRESOLVED list. Verified via getStandaloneSvgRaw and
+// the unified getCampaignSvgRaw lookup so PlaythroughCard resolves correctly.
+
+describe('The Labyrinths of Lunacy — confirmed standalone icon (lol.svg)', () => {
+  it('getStandaloneSvgRaw("The Labyrinths of Lunacy") uses lol.svg (file-identity contract)', () => {
+    expect(getStandaloneSvgRaw('The Labyrinths of Lunacy')).toBe(normalise(lolRaw))
+  })
+
+  it('getCampaignSvgRaw("The Labyrinths of Lunacy") resolves via unified lookup (not Elder Sign)', () => {
+    const elderSign = getCampaignSvgRaw('__unknown__')
+    expect(getCampaignSvgRaw('The Labyrinths of Lunacy')).not.toBe(elderSign)
+    expect(getCampaignSvgRaw('The Labyrinths of Lunacy')).toBe(normalise(lolRaw))
+  })
+
+  it('getStandaloneSvgRaw("The Labyrinths of Lunacy") returns a valid normalised SVG', () => {
+    const svg = getStandaloneSvgRaw('The Labyrinths of Lunacy')
+    expect(svg.trimStart()).toMatch(/^<svg\b/)
+    expect(svg).toContain('fill="currentColor"')
+    expect(svg).not.toMatch(/<style\b/i)
   })
 })

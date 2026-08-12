@@ -66,8 +66,8 @@
   --survivor-border: oklch(0.50 0.12 20);
 
   --neutral-bg: oklch(0.28 0.01 280);
-  --neutral-text: oklch(0.65 0.01 280);
-  --neutral-border: oklch(0.40 0.01 280);
+  --neutral-text: oklch(0.82 0.01 280);
+  --neutral-border: oklch(0.45 0.01 280);
 }
 
 @theme {

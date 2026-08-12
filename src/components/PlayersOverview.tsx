@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Playthrough, Archetype } from '@/lib/types'
+import { Playthrough, Archetype, ARCHETYPE_COLORS } from '@/lib/types'
 import { Card } from '@/components/ui/card'
 import { INVESTIGATORS, Investigator, getArkhamDBUrlById, getChapterBadgeLabel, INVESTIGATOR_SETS, resolveInvestigator } from '@/lib/investigator-data'
 import { Check, ArrowSquareOut, Funnel, CaretDown, CaretUp } from '@phosphor-icons/react'
@@ -142,7 +142,7 @@ export function PlayersOverview({ playthroughs }: PlayersOverviewProps) {
                   variant={selectedArchetypes.includes(archetype) ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => handleArchetypeToggle(archetype)}
-                  className="gap-1.5"
+                  className={cn("gap-1.5", !selectedArchetypes.includes(archetype) && ARCHETYPE_COLORS[archetype])}
                 >
                   {hasDedicatedCampaignIcon(archetype) && (
                     <CampaignSvgIcon
