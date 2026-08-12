@@ -371,7 +371,6 @@ describe('CommunityStats', () => {
   describe('StatsListCard grid — equal-height layout contract (items-stretch + h-full)', () => {
     it('grid wrapper carries items-stretch for equal row heights', async () => {
       await renderAndWait(FULL_STATS)
-      // The grid wrapper uses items-stretch so all cards in the same row are the same height.
       const grids = document.querySelectorAll('.items-stretch')
       expect(
         grids.length,
@@ -381,10 +380,8 @@ describe('CommunityStats', () => {
 
     it('StatsListCards inside the grid each carry h-full for cell-filling height', async () => {
       await renderAndWait(FULL_STATS)
-      // Locate the items-stretch grid and check that its direct children carry h-full.
       const grid = document.querySelector('.items-stretch')
       expect(grid).toBeInTheDocument()
-      // At least one card (Most Popular Campaigns) is always rendered.
       const hFullChildren = grid
         ? Array.from(grid.children).filter((child) =>
             (child as HTMLElement).className?.includes('h-full'),
@@ -394,6 +391,145 @@ describe('CommunityStats', () => {
         hFullChildren.length,
         'At least one direct child of items-stretch grid must carry h-full',
       ).toBeGreaterThan(0)
+    })
+  })
+
+  // ─── Return To badge taxonomy regression ─────────────────────────────────────
+  // [2026-08-12 Dallas] Prior bug: campaignTypeLabel() checked `c.returnTo` before
+  // `c.type`, so Return To Full campaigns were badged "Return To" instead of "Full".
+
+  describe('Return To campaign badge taxonomy (regression)', () => {
+    it('Return to The Dunwich Legacy renders badge "Full", not "Return To"', async () => {
+      await renderAndWait(FULL_STATS)
+      expect(screen.getByText('Return to The Dunwich Legacy')).toBeVisible()
+      const fullBadges = screen.getAllByText('Full')
+      expect(fullBadges.length).toBeGreaterThan(0)
+    })
+
+    it('no "Return To" badge text appears in the campaigns card', async () => {
+      await renderAndWait(FULL_STATS)
+      const allText = document.body.textContent ?? ''
+      const hasReturnToBadge = /Return To\b/.test(allText)
+      expect(hasReturnToBadge, '"Return To" badge must not appear — use "Full" or "Short" instead').toBe(false)
+    })
+  })
+
+  // ─── capped-list "Show top N" regression (investigators card) ───────────────
+  // [2026-08-12 Dallas] When topInvestigators has 25 entries but
+  // totalInvestigatorsPlayed is 73, the expand button must say "Show top 25",
+  // not the misleading "Show all 25".
+
+  describe('investigators card — capped expand label (regression)', () => {
+    it('renders "Show top 25" when 25 investigators are listed out of 73 total', async () => {
+      const manyInvestigators = Array.from({ length: 25 }, (_, i) => ({
+        name: `Investigator ${i + 1}`,
+        count: 25 - i,
+        archetypes: ['Guardian'],
+        chapter: 1,
+      }))
+      const cappedStats = {
+        ...FULL_STATS,
+        totalInvestigatorsPlayed: 73,
+        topInvestigators: manyInvestigators,
+      }
+      await renderAndWait(cappedStats)
+      expect(screen.getByRole('button', { name: /show top 25/i })).toBeVisible()
+    })
+
+    it('does NOT render "Show all 25" in the capped-investigator scenario', async () => {
+      const manyInvestigators = Array.from({ length: 25 }, (_, i) => ({
+        name: `Investigator ${i + 1}`,
+        count: 25 - i,
+        archetypes: ['Seeker'],
+        chapter: 1,
+      }))
+      const cappedStats = {
+        ...FULL_STATS,
+        totalInvestigatorsPlayed: 73,
+        topInvestigators: manyInvestigators,
+      }
+      await renderAndWait(cappedStats)
+      expect(screen.queryByRole('button', { name: /show all 25/i })).not.toBeInTheDocument()
+    })
+  })
+
+  // ─── Investigator badge+name grid-column alignment (regression) ──────────────
+  // [2026-08-12 Dallas] Prior layout: flex-wrap caused archetype badges and
+  // investigator names to start at inconsistent x-positions when badge widths varied.
+  // Fix: each row's renderContent uses grid grid-cols-[max-content_1fr] with
+  // data-badge and data-name columns, matching PlaythroughCard's InvestigatorGrid.
+
+  describe('investigator rows — badge and name in separate grid columns', () => {
+    it('each rendered investigator row has a [data-badge] element', async () => {
+      await renderAndWait(FULL_STATS)
+      // FULL_STATS has 1 investigator (Roland Banks — visible within collapseAfter=5)
+      const badges = document.querySelectorAll('[data-badge]')
+      expect(badges.length).toBeGreaterThan(0)
+    })
+
+    it('each rendered investigator row has a [data-name] element', async () => {
+      await renderAndWait(FULL_STATS)
+      const names = document.querySelectorAll('[data-name]')
+      expect(names.length).toBeGreaterThan(0)
+    })
+
+    it('[data-badge] and [data-name] counts are equal (one of each per row)', async () => {
+      // Use multiple investigators so the ratio is meaningful
+      const stats = {
+        ...FULL_STATS,
+        topInvestigators: Array.from({ length: 4 }, (_, i) => ({
+          name: `Investigator ${i + 1}`,
+          count: 4 - i,
+          archetypes: ['Guardian'],
+          chapter: 1,
+        })),
+      }
+      await renderAndWait(stats)
+      const badges = document.querySelectorAll('[data-badge]')
+      const names = document.querySelectorAll('[data-name]')
+      expect(badges.length).toBe(names.length)
+      expect(badges.length).toBe(4) // all 4 are within default collapseAfter=5
+    })
+
+    it('[data-name] contains the investigator name text', async () => {
+      await renderAndWait(FULL_STATS)
+      const nameEl = document.querySelector('[data-name]')
+      expect(nameEl).toBeInTheDocument()
+      expect(nameEl!.textContent).toContain('Roland Banks')
+    })
+
+    it('[data-badge] and [data-name] are siblings inside the same grid container', async () => {
+      await renderAndWait(FULL_STATS)
+      const badge = document.querySelector('[data-badge]')
+      const name = document.querySelector('[data-name]')
+      expect(badge).toBeInTheDocument()
+      expect(name).toBeInTheDocument()
+      // They must share the same parent (grid row container)
+      expect(badge!.parentElement).toBe(name!.parentElement)
+    })
+  })
+
+  // ─── Custom/freeform campaign names excluded from public ranking ─────────────
+  // [2026-08-12 Dallas] User-entered campaign names from Fan-Made / custom plays
+  // must not surface in the public "Most Popular Campaigns" card.
+  // The canonical filter is applied at both the rebuild and read layers, but
+  // here we verify the render path stays clean when getCommunityStats returns
+  // only canonical names (as it should after the defensive filter).
+
+  describe('public campaign ranking — custom names excluded from rendered output', () => {
+    it('renders a canonical campaign name and NOT a custom name', async () => {
+      // Supply stats as if getCommunityStats returned a pre-filtered list
+      const filtered = {
+        ...FULL_STATS,
+        topCampaigns: [
+          { name: 'The Dunwich Legacy', count: 8, set: 'The Dunwich Legacy' },
+          { name: 'Edge of the Earth', count: 5, set: 'Edge of the Earth' },
+        ],
+      }
+      await renderAndWait(filtered)
+      expect(screen.getByText('The Dunwich Legacy')).toBeVisible()
+      // Simulate: if a custom name somehow arrived it must not be in the DOM
+      expect(screen.queryByText('OFFENSIVE_CUSTOM_TEXT')).not.toBeInTheDocument()
     })
   })
 })

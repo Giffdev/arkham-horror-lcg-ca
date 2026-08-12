@@ -7,7 +7,7 @@ import { User } from '@/lib/auth'
 import { getCommunityStats, CommunityStats } from '@/lib/community-stats'
 import { ArchetypeBadge } from '@/components/ArchetypeBadge'
 import { StatsListCard } from '@/components/StatsListCard'
-import { ALL_CAMPAIGNS } from '@/lib/campaign-data'
+import { ALL_CAMPAIGNS, campaignTypeLabel } from '@/lib/campaign-data'
 import { CampaignSvgIcon } from '@/components/CampaignSvgIcon'
 import { getBrandSvgRaw } from '@/lib/campaign-icon-map'
 import { cn } from '@/lib/utils'
@@ -33,15 +33,6 @@ function BrandSvg({ brandKey, size = 24, className }: { brandKey: 'codex' | 'log
 
 interface PublicHomepageProps {
   onAuthSuccess: (user: User) => void
-}
-
-function campaignTypeLabel(name: string): string {
-  const c = ALL_CAMPAIGNS.find(x => x.name === name)
-  if (!c) return ''
-  if (c.returnTo) return 'Return To'
-  if (c.type === 'Full Campaign') return 'Full'
-  if (c.type === 'Small Campaign') return 'Short'
-  return ''
 }
 
 function campaignSetKey(name: string): string {
@@ -78,16 +69,18 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
     key: investigator.investigatorId ?? `${investigator.name}__ch${investigator.chapter ?? 1}`,
     countLabel: `${investigator.count} ${investigator.count === 1 ? 'play' : 'plays'}`,
     renderContent: () => (
-      <div className="flex items-center gap-2 flex-wrap min-w-0">
-        {/* Badge(s) + name atomic; chapter badge may wrap */}
-        <span className="inline-flex items-center gap-2 min-w-0">
-          <span className="flex gap-1 flex-shrink-0">
-            {investigator.archetypes.map((archetype) => (
-              <ArchetypeBadge key={archetype} archetype={archetype} />
-            ))}
-          </span>
+      <div
+        className="grid items-center gap-x-2 min-w-0"
+        style={{ gridTemplateColumns: 'max-content 1fr' }}
+      >
+        <div data-badge className="flex gap-1 flex-shrink-0 items-center">
+          {investigator.archetypes.map((archetype) => (
+            <ArchetypeBadge key={archetype} archetype={archetype} />
+          ))}
+        </div>
+        <div data-name className="min-w-0">
           <span className="font-medium text-foreground min-w-0">{investigator.name}</span>
-        </span>
+        </div>
       </div>
     ),
   }))
@@ -243,13 +236,14 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
                 icon={Users}
                 title="Most Played Investigators"
                 items={investigatorItems}
+                totalCount={communityStats.totalInvestigatorsPlayed}
               />
 
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6 items-stretch">
                 <StatsListCard
                   icon={Trophy}
                   title="Most Popular Campaigns"
-                  subtitle="Full, short & Return To campaigns"
+                  subtitle="Full & short campaigns"
                   items={campaignItems}
                   className="h-full"
                 />

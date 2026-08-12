@@ -5,17 +5,8 @@ import { getCommunityStats, CommunityStats as CommunityStatsType } from '@/lib/c
 import { ArchetypeBadge } from '@/components/ArchetypeBadge'
 import { getArkhamDBUrl, getArkhamDBUrlById, getChapterBadgeLabel, isChapterBadgeSpecial, resolveInvestigator } from '@/lib/investigator-data'
 import { StatsListCard } from '@/components/StatsListCard'
-import { ALL_CAMPAIGNS } from '@/lib/campaign-data'
+import { ALL_CAMPAIGNS, campaignTypeLabel } from '@/lib/campaign-data'
 import { CampaignSvgIcon } from '@/components/CampaignSvgIcon'
-
-function campaignTypeLabel(name: string): string {
-  const c = ALL_CAMPAIGNS.find(x => x.name === name)
-  if (!c) return ''
-  if (c.returnTo) return 'Return To'
-  if (c.type === 'Full Campaign') return 'Full'
-  if (c.type === 'Small Campaign') return 'Short'
-  return ''
-}
 
 /**
  * Resolve the key passed to getCampaignSvgRaw for a campaign name.
@@ -108,14 +99,18 @@ export function CommunityStats() {
       key: investigator.investigatorId ?? `${investigator.name}__ch${investigator.chapter ?? 1}`,
       countLabel: `${investigator.count} ${investigator.count === 1 ? 'play' : 'plays'}`,
       renderContent: () => (
-        <div className="flex items-center gap-2 flex-wrap min-w-0">
-          {/* Archetype badge(s) + investigator name are atomic — chapter badge may wrap */}
-          <span className="inline-flex items-center gap-2 min-w-0">
-            <span className="flex gap-1 flex-shrink-0">
-              {investigator.archetypes.map((archetype) => (
-                <ArchetypeBadge key={archetype} archetype={archetype} />
-              ))}
-            </span>
+        <div
+          className="grid items-center gap-x-2 min-w-0"
+          style={{ gridTemplateColumns: 'max-content 1fr' }}
+        >
+          {/* col 1: badge(s) — max-content column matches PlaythroughCard InvestigatorGrid */}
+          <div data-badge className="flex gap-1 flex-shrink-0 items-center">
+            {investigator.archetypes.map((archetype) => (
+              <ArchetypeBadge key={archetype} archetype={archetype} />
+            ))}
+          </div>
+          {/* col 2: name + chapter — takes remaining width; wraps text without truncation */}
+          <div data-name className="flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-0">
             {arkhamDBUrl ? (
               <a
                 href={arkhamDBUrl}
@@ -128,12 +123,12 @@ export function CommunityStats() {
             ) : (
               <span className="font-medium text-foreground min-w-0">{investigator.name}</span>
             )}
-          </span>
-          <span className={`text-xs font-medium flex-shrink-0 ${
-            isChapterBadgeSpecial(chapterInfo) ? 'text-violet-400' : 'text-muted-foreground opacity-60'
-          }`}>
-            · {getChapterBadgeLabel(chapterInfo)}
-          </span>
+            <span className={`text-xs font-medium flex-shrink-0 ${
+              isChapterBadgeSpecial(chapterInfo) ? 'text-violet-400' : 'text-muted-foreground opacity-60'
+            }`}>
+              · {getChapterBadgeLabel(chapterInfo)}
+            </span>
+          </div>
         </div>
       ),
     }
@@ -231,7 +226,7 @@ export function CommunityStats() {
         <StatsListCard
           icon={Trophy}
           title="Most Popular Campaigns"
-          subtitle="Full, short & Return To campaigns"
+          subtitle="Full & short campaigns"
           items={campaignItems}
           className="h-full"
         />
@@ -240,6 +235,7 @@ export function CommunityStats() {
           icon={Detective}
           title="Most Played Investigators"
           items={investigatorItems}
+          totalCount={communityStats.totalInvestigatorsPlayed}
           className="h-full"
         />
 

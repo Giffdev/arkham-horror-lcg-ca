@@ -9,6 +9,7 @@ import {
   getFullCampaignNames,
   getSmallCampaignNames,
   getScenarioPackCampaignNames,
+  campaignTypeLabel,
 } from './campaign-data'
 
 describe('campaign-data — Traces To Nowhere chapter annotation', () => {
@@ -87,5 +88,57 @@ describe('campaign-data — completeness', () => {
     for (const c of [...FULL_CAMPAIGNS, ...SMALL_CAMPAIGNS, ...SCENARIO_PACK_SCENARIOS]) {
       expect(allNames).toContain(c.name)
     }
+  })
+})
+
+describe('campaignTypeLabel — Return To badge taxonomy (regression)', () => {
+  /**
+   * Return To campaigns (returnTo: true) have a real type field.
+   * The badge must reflect the LENGTH of the campaign, not the release flavour.
+   * Previously a local `if (c.returnTo) return 'Return To'` branch in both
+   * CommunityStats.tsx and PublicHomepage.tsx caused ALL Return To campaigns
+   * to badge as "Return To" regardless of their actual type.
+   */
+
+  it('Return To Full Campaign badges as "Full", not "Return To"', () => {
+    // Return to The Dunwich Legacy is the canonical regression case
+    expect(campaignTypeLabel('Return to The Dunwich Legacy')).toBe('Full')
+  })
+
+  it('all four Full Campaign Return To entries badge as "Full"', () => {
+    const returnToFull = FULL_CAMPAIGNS.filter(c => c.returnTo)
+    expect(returnToFull).toHaveLength(4)
+    for (const c of returnToFull) {
+      expect(
+        campaignTypeLabel(c.name),
+        `expected "${c.name}" to badge as "Full"`,
+      ).toBe('Full')
+    }
+  })
+
+  it('Return To Small Campaign badges as "Short", not "Return To"', () => {
+    // Return to The Night of the Zealot: type=Small Campaign, returnTo=true
+    expect(campaignTypeLabel('Return to The Night of the Zealot')).toBe('Short')
+  })
+
+  it('no campaign ever produces "Return To" badge', () => {
+    for (const c of ALL_CAMPAIGNS) {
+      expect(
+        campaignTypeLabel(c.name),
+        `"Return To" must never be a badge label; got it for "${c.name}"`,
+      ).not.toBe('Return To')
+    }
+  })
+
+  it('standard Full Campaign still badges as "Full"', () => {
+    expect(campaignTypeLabel('The Dunwich Legacy')).toBe('Full')
+  })
+
+  it('standard Small Campaign still badges as "Short"', () => {
+    expect(campaignTypeLabel('The Night of the Zealot')).toBe('Short')
+  })
+
+  it('unknown campaign name returns empty string', () => {
+    expect(campaignTypeLabel('__nonexistent__')).toBe('')
   })
 })

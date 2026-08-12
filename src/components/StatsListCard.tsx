@@ -16,6 +16,16 @@ export interface StatsListCardProps {
   subtitle?: string
   items: StatsListItem[]
   collapseAfter?: number
+  /**
+   * The true size of the population this list was drawn from.
+   * When provided and greater than `items.length`, the list is a capped
+   * top-N subset — expand/collapse labels use "top N" language instead of
+   * "all N" so we never claim a partial list is exhaustive.
+   *
+   * Example: `items` has 25 investigators but `totalCount` is 73 → the expand
+   * button reads "Show top 25" rather than the misleading "Show all 25".
+   */
+  totalCount?: number
   className?: string
 }
 
@@ -25,6 +35,7 @@ export function StatsListCard({
   subtitle,
   items,
   collapseAfter = 5,
+  totalCount,
   className,
 }: StatsListCardProps) {
   const [expanded, setExpanded] = useState(false)
@@ -33,6 +44,9 @@ export function StatsListCard({
   const listId = useId()
 
   const hasMore = items.length > collapseAfter
+  // List is "capped" when the caller tells us the true population is larger than
+  // what we display. In that case "Show all N" would lie — use "top N" instead.
+  const isCapped = totalCount !== undefined && totalCount > items.length
 
   // When the card expands, make the scroll region keyboard-reachable (Blocker 1).
   // Radix ScrollArea viewport carries tabIndex=-1 by default, so sighted
@@ -120,8 +134,8 @@ export function StatsListCard({
             className="mt-3 text-xs text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded"
           >
             {expanded
-              ? 'Show less'
-              : `Show all ${items.length}`}
+              ? isCapped ? `Back to top ${collapseAfter}` : 'Show less'
+              : isCapped ? `Show top ${items.length}` : `Show all ${items.length}`}
           </button>
         )}
       </CardContent>

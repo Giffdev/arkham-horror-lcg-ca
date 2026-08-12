@@ -338,4 +338,82 @@ describe('StatsListCard', () => {
       expect(root?.className ?? '').toContain('h-full')
     })
   })
+
+  // ─── totalCount / capped-list label regression ───────────────────────────────
+  // [2026-08-12 Dallas] "Show all 25" was misleading when the component only
+  // received the top 25 investigators from a pool of 73. The fix introduces the
+  // optional `totalCount` prop. When provided and > items.length, expand/collapse
+  // labels switch to "top N" language.
+
+  describe('totalCount prop — capped vs exhaustive labels', () => {
+    it('shows "Show top N" (not "Show all N") when totalCount > items.length', () => {
+      render(
+        <StatsListCard
+          {...defaultProps({ items: makeItems(8) })}
+          totalCount={50}
+        />,
+      )
+      expect(screen.getByRole('button', { name: /show top 8/i })).toBeVisible()
+      expect(screen.queryByRole('button', { name: /show all/i })).not.toBeInTheDocument()
+    })
+
+    it('shows "Show all N" when no totalCount is provided (exhaustive list)', () => {
+      render(<StatsListCard {...defaultProps({ items: makeItems(8) })} />)
+      expect(screen.getByRole('button', { name: /show all 8/i })).toBeVisible()
+    })
+
+    it('shows "Show all N" when totalCount equals items.length (fully shown)', () => {
+      render(
+        <StatsListCard
+          {...defaultProps({ items: makeItems(8) })}
+          totalCount={8}
+        />,
+      )
+      expect(screen.getByRole('button', { name: /show all 8/i })).toBeVisible()
+      expect(screen.queryByRole('button', { name: /show top/i })).not.toBeInTheDocument()
+    })
+
+    it('collapse button says "Back to top N" when capped', async () => {
+      const user = userEvent.setup()
+      render(
+        <StatsListCard
+          {...defaultProps({ items: makeItems(8) })}
+          totalCount={50}
+        />,
+      )
+      await user.click(screen.getByRole('button', { name: /show top 8/i }))
+      expect(screen.getByRole('button', { name: /back to top 5/i })).toBeInTheDocument()
+    })
+
+    it('collapse button says "Show less" for exhaustive lists', async () => {
+      const user = userEvent.setup()
+      render(<StatsListCard {...defaultProps({ items: makeItems(8) })} />)
+      await user.click(screen.getByRole('button', { name: /show all/i }))
+      expect(screen.getByRole('button', { name: /show less/i })).toBeInTheDocument()
+    })
+
+    it('re-collapses correctly after "Back to top N" click', async () => {
+      const user = userEvent.setup()
+      render(
+        <StatsListCard
+          {...defaultProps({ items: makeItems(8) })}
+          totalCount={50}
+        />,
+      )
+      await user.click(screen.getByRole('button', { name: /show top 8/i }))
+      await user.click(screen.getByRole('button', { name: /back to top 5/i }))
+      expect(screen.queryByText('Campaign 6')).not.toBeVisible()
+    })
+
+    it('exact regression: 25 items, totalCount=73 → "Show top 25", never "Show all 25"', () => {
+      render(
+        <StatsListCard
+          {...defaultProps({ items: makeItems(25) })}
+          totalCount={73}
+        />,
+      )
+      expect(screen.getByRole('button', { name: /show top 25/i })).toBeVisible()
+      expect(screen.queryByRole('button', { name: /show all 25/i })).not.toBeInTheDocument()
+    })
+  })
 })
