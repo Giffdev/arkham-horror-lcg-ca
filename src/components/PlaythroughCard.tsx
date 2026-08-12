@@ -9,6 +9,7 @@ import { formatDate } from '@/lib/date-utils'
 import { getDisplaySetName, getArkhamDBUrl, getArkhamDBUrlById, resolveInvestigator, getChapterBadgeLabel, isChapterBadgeSpecial } from '@/lib/investigator-data'
 import type { InvestigatorAssignment } from '@/lib/types'
 import { CampaignSvgIcon } from './CampaignSvgIcon'
+import { hasDedicatedCampaignIcon } from '@/lib/campaign-icon-map'
 
 /**
  * InvestigatorDisplay renders two sibling elements so the parent grid
@@ -104,6 +105,12 @@ export const PlaythroughCard = memo(function PlaythroughCard({ playthrough, onEd
 
   const isDreamEaters = playthrough.campaignName === 'The Dream-Eaters'
 
+  // When campaignSet is a generic bucket (e.g. 'Scenario Pack'), it has no dedicated
+  // artwork; prefer campaignName when it resolves to a specific standalone icon.
+  const campaignIconKey = hasDedicatedCampaignIcon(playthrough.campaignName)
+    ? playthrough.campaignName
+    : (playthrough.campaignSet ?? playthrough.campaignName)
+
   return (
     <Card className="p-4 md:p-6 hover:border-accent transition-all duration-200 hover:shadow-lg group overflow-hidden">
       <div className="flex flex-col md:flex-row gap-4 md:gap-6 md:items-start">
@@ -112,7 +119,7 @@ export const PlaythroughCard = memo(function PlaythroughCard({ playthrough, onEd
             <h3 className="text-lg md:text-xl font-semibold mb-1 truncate flex items-center gap-2">
               <span aria-hidden="true" className="flex-shrink-0">
                 <CampaignSvgIcon
-                  campaignSet={playthrough.campaignSet ?? playthrough.campaignName}
+                  campaignSet={campaignIconKey}
                   size={18}
                   className="text-primary/70"
                 />
