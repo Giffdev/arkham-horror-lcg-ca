@@ -15,6 +15,7 @@
 }
 
 :root {
+  color-scheme: dark; /* app is always dark — forces native UI controls (calendar icon, etc.) to render light */
   --background: oklch(0.15 0.025 280);
   --foreground: oklch(0.95 0.01 280);
 
