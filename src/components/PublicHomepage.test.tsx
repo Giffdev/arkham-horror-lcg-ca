@@ -4,7 +4,7 @@
  * Covered:
  *  1. Renders without crashing (loading & loaded states)
  *  2. KPI grid: grid-cols-2 base + md:grid-cols-4 on the KPI wrapper
- *  3. KPI grid: items-start prevents uneven title wrapping from stretching row partners
+ *  3. KPI grid: mobile keeps intrinsic heights; desktop stretches all cards equally
  *  4. Ranked grid: items-start present on the ranked-card wrapper
  *  5. Expanded containment: expanded list is inside max-h / overflow-y-auto region
  *  6. Keyboard access: expanded scroll region enters tab order (tabIndex=0)
@@ -124,11 +124,22 @@ describe('PublicHomepage', () => {
       expect(gridWrapper!.className).toMatch(/md:grid-cols-4/)
     })
 
-    it('KPI grid wrapper has items-start (NIT: prevents uneven title wrapping)', async () => {
+    it('KPI grid preserves intrinsic mobile heights and stretches cards on desktop', async () => {
       await renderAndWait()
       const gridWrapper = findGridWrapper('55')
       expect(gridWrapper).toBeInTheDocument()
       expect(gridWrapper!.className).toMatch(/items-start/)
+      expect(gridWrapper!.className).toMatch(/md:items-stretch/)
+    })
+
+    it('all KPI cards fill their desktop grid cells', async () => {
+      await renderAndWait()
+      const gridWrapper = findGridWrapper('55')
+      expect(gridWrapper).toBeInTheDocument()
+
+      const cards = Array.from(gridWrapper!.children)
+      expect(cards).toHaveLength(4)
+      expect(cards.every(card => card.className.includes('md:h-full'))).toBe(true)
     })
 
     it('all four KPI labels are inside the grid wrapper', async () => {

@@ -182,8 +182,8 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
                 <p className="text-muted-foreground">See what the community is playing</p>
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 items-start">
-                <Card>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 items-start md:items-stretch">
+                <Card className="md:h-full">
                   <CardHeader className="pb-3">
                     <div className="flex items-center gap-2">
                       <GameController size={20} className="text-primary" weight="duotone" />
@@ -195,7 +195,7 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
                   </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="md:h-full">
                   <CardHeader className="pb-3">
                     <div className="flex items-center gap-2">
                       <Users size={20} className="text-primary" weight="duotone" />
@@ -207,7 +207,7 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
                   </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="md:h-full">
                   <CardHeader className="pb-3">
                     <div className="flex items-center gap-2">
                       <Users size={20} className="text-primary" weight="duotone" />
@@ -219,7 +219,7 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
                   </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="md:h-full">
                   <CardHeader className="pb-3">
                     <div className="flex items-center gap-2">
                       <BrandSvg brandKey="log" size={20} className="text-primary" />
