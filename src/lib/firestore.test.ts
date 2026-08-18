@@ -17,6 +17,9 @@ vi.mock('firebase/firestore', () => ({
   getDoc: vi.fn(),
   getDocs: vi.fn(),
   setDoc: vi.fn(),
+  runTransaction: vi.fn(),
+  deleteField: vi.fn(() => Symbol('deleteField')),
+  where: vi.fn(),
 }))
 
 function makeInvestigator(overrides: Partial<InvestigatorAssignment> = {}): InvestigatorAssignment {

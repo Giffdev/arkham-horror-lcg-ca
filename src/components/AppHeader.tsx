@@ -1,10 +1,13 @@
 import { Button } from '@/components/ui/button'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { Plus, User, SignOut, CaretDown, Lock } from '@phosphor-icons/react'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { Plus, User, SignOut, CaretDown, Lock, Download, Upload } from '@phosphor-icons/react'
 import { User as AuthUser } from '@/lib/auth'
 import { getBrandSvgRaw } from '@/lib/campaign-icon-map'
-import { useMemo } from 'react'
+import { useId, useMemo, useState } from 'react'
 import { cn } from '@/lib/utils'
+import { CampaignRun, Playthrough } from '@/lib/types'
+import type { NormalizedImportPayload } from '@/lib/import-export'
+import { DataImportDialog, exportData } from '@/components/DataExportImport'
 
 interface AppHeaderProps {
   currentUser: AuthUser
@@ -13,6 +16,9 @@ interface AppHeaderProps {
   isGoogleUser: boolean
   hasPasswordLinked: boolean
   onOpenPasswordLink: () => void
+  playthroughs: Playthrough[]
+  campaignRuns: CampaignRun[]
+  onImportData: (payload: NormalizedImportPayload) => Promise<void> | void
 }
 
 function injectSize(svgString: string, size: number): string {
@@ -42,7 +48,28 @@ function CodexIcon({ size = 24, className }: BrandIconProps) {
   )
 }
 
-export function AppHeader({ currentUser, onNewGame, onSignOut, isGoogleUser, hasPasswordLinked, onOpenPasswordLink }: AppHeaderProps) {
+export function AppHeader({
+  currentUser,
+  onNewGame,
+  onSignOut,
+  isGoogleUser,
+  hasPasswordLinked,
+  onOpenPasswordLink,
+  playthroughs,
+  campaignRuns,
+  onImportData,
+}: AppHeaderProps) {
+  const profileMenuTriggerId = useId()
+  const [importDialogOpen, setImportDialogOpen] = useState(false)
+  const hasExportableData = playthroughs.length + campaignRuns.length > 0
+
+  const restoreProfileTriggerFocus = () => {
+    const trigger = document.getElementById(profileMenuTriggerId)
+    if (trigger instanceof HTMLButtonElement) {
+      trigger.focus()
+    }
+  }
+
   return (
     <header className="border-b bg-card/50 backdrop-blur-sm md:sticky md:top-0 z-10">
       <div className="container mx-auto px-6 py-4 md:py-6">
@@ -54,12 +81,13 @@ export function AppHeader({ currentUser, onNewGame, onSignOut, isGoogleUser, has
           <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
             <Button onClick={onNewGame} className="gap-1.5 md:gap-2 text-xs md:text-sm">
               <Plus size={18} className="md:w-5 md:h-5" weight="bold" />
-              <span className="hidden sm:inline">Log New Game</span>
+              <span className="hidden sm:inline">Log New Campaign</span>
               <span className="sm:hidden">New</span>
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button 
+                  id={profileMenuTriggerId}
                   variant="outline" 
                   className="gap-2 px-3 py-2"
                 >
@@ -69,7 +97,23 @@ export function AppHeader({ currentUser, onNewGame, onSignOut, isGoogleUser, has
                   <CaretDown size={14} weight="bold" className="opacity-50" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem
+                  onSelect={() => exportData(playthroughs, campaignRuns)}
+                  disabled={!hasExportableData}
+                  className="gap-2 cursor-pointer"
+                >
+                  <Download size={16} weight="bold" />
+                  Export Data
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={() => setImportDialogOpen(true)}
+                  className="gap-2 cursor-pointer"
+                >
+                  <Upload size={16} weight="bold" />
+                  Import Data
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
                 {isGoogleUser && !hasPasswordLinked && (
                   <DropdownMenuItem 
                     onClick={onOpenPasswordLink}
@@ -92,6 +136,15 @@ export function AppHeader({ currentUser, onNewGame, onSignOut, isGoogleUser, has
           </div>
         </div>
       </div>
+      <DataImportDialog
+        open={importDialogOpen}
+        onOpenChange={setImportDialogOpen}
+        onImport={onImportData}
+        onCloseAutoFocus={(event) => {
+          event.preventDefault()
+          restoreProfileTriggerFocus()
+        }}
+      />
     </header>
   )
 }

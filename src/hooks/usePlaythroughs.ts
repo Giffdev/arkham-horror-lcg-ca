@@ -3,6 +3,7 @@ import {
   subscribeToPlaythroughs,
   addPlaythrough,
   updatePlaythrough,
+  upsertPlaythrough,
   deletePlaythrough,
 } from '../lib/firestore'
 import { Playthrough } from '../lib/types'
@@ -10,6 +11,7 @@ import { Playthrough } from '../lib/types'
 interface PlaythroughActions {
   add: (data: Omit<Playthrough, 'id'>) => Promise<string>
   update: (playthrough: Playthrough) => Promise<void>
+  upsert: (playthrough: Playthrough) => Promise<void>
   remove: (id: string) => Promise<void>
   /** Bulk replace — for data normalization on first load */
   setAll: (updater: (current: Playthrough[]) => Playthrough[]) => Promise<void>
@@ -65,6 +67,14 @@ export function usePlaythroughs(
     []
   )
 
+  const upsert = useCallback(
+    async (playthrough: Playthrough) => {
+      if (!currentUid.current) throw new Error('Not authenticated')
+      return upsertPlaythrough(currentUid.current, playthrough)
+    },
+    []
+  )
+
   const remove = useCallback(
     async (id: string) => {
       if (!currentUid.current) throw new Error('Not authenticated')
@@ -85,5 +95,5 @@ export function usePlaythroughs(
     [playthroughs]
   )
 
-  return [playthroughs, { add, update, remove, setAll }, loading, error]
+  return [playthroughs, { add, update, upsert, remove, setAll }, loading, error]
 }

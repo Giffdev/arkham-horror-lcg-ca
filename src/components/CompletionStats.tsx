@@ -50,7 +50,12 @@ export function CompletionStatsPanel({ playthroughs, communityBreakdown, communi
   }
 
   const communityStats: CompletionStatsType | null = communityBreakdown
-    ? { total: communityTotal ?? 0, breakdown: communityBreakdown }
+    ? {
+        total: communityTotal ?? 0,
+        campaignRunsPlayedCount: communityTotal ?? 0,
+        uniqueCampaignFamilyCount: 0,
+        breakdown: communityBreakdown,
+      }
     : null
 
   return (

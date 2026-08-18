@@ -1,0 +1,16 @@
+{
+  "functions": {
+    "source": "functions",
+    "predeploy": [
+      "npm run functions:build"
+    ]
+  },
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "emulators": {
+    "firestore": {
+      "port": 8080
+    }
+  }
+}

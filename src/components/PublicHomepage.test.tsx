@@ -17,13 +17,15 @@ import { PublicHomepage } from './PublicHomepage'
 
 vi.mock('@/lib/community-stats', () => ({
   getCommunityStats: vi.fn(),
+  getCommunityStatsAvailability: vi.fn((stats: unknown) => (stats ? 'ready' : 'unavailable')),
 }))
 vi.mock('@/components/AuthDialog', () => ({
   AuthDialog: () => null,
 }))
 
-import { getCommunityStats } from '@/lib/community-stats'
+import { getCommunityStats, getCommunityStatsAvailability } from '@/lib/community-stats'
 const mockGetCommunityStats = vi.mocked(getCommunityStats)
+const mockGetCommunityStatsAvailability = vi.mocked(getCommunityStatsAvailability)
 
 // ─── fixtures ────────────────────────────────────────────────────────────────
 
@@ -87,6 +89,7 @@ function findGridWrapper(anchorText: string | RegExp): Element | null {
 describe('PublicHomepage', () => {
   beforeEach(() => {
     vi.resetAllMocks()
+    mockGetCommunityStatsAvailability.mockImplementation((stats: unknown) => (stats ? 'ready' : 'unavailable'))
   })
 
   describe('basic render', () => {
@@ -102,6 +105,16 @@ describe('PublicHomepage', () => {
 
     it('does not crash when stats load successfully', async () => {
       await expect(renderAndWait()).resolves.toBeUndefined()
+    })
+
+    it('renders an unavailable message when the trusted aggregate is missing', async () => {
+      mockGetCommunityStats.mockResolvedValueOnce(null as never)
+      mockGetCommunityStatsAvailability.mockReturnValueOnce('unavailable')
+      render(<PublicHomepage onAuthSuccess={vi.fn()} />)
+
+      await waitFor(() =>
+        expect(screen.getByText(/community stats are unavailable right now/i)).toBeVisible(),
+      )
     })
   })
 

@@ -17,6 +17,15 @@ beforeAll(() => {
   if (!Element.prototype.scrollIntoView) {
     Element.prototype.scrollIntoView = vi.fn()
   }
+  if (!Element.prototype.hasPointerCapture) {
+    Element.prototype.hasPointerCapture = vi.fn().mockReturnValue(false)
+  }
+  if (!Element.prototype.setPointerCapture) {
+    Element.prototype.setPointerCapture = vi.fn()
+  }
+  if (!Element.prototype.releasePointerCapture) {
+    Element.prototype.releasePointerCapture = vi.fn()
+  }
 })
 
 describe('PlaythroughForm player controls', () => {
@@ -75,6 +84,341 @@ describe('PlaythroughForm player controls', () => {
     expect(screen.getByRole('button', { name: 'Add Investigator' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Update Playthrough' })).toBeEnabled()
     expect(screen.getAllByRole('button', { name: /Remove investigator/ })).toHaveLength(4)
+  })
+})
+
+describe('PlaythroughForm continue-campaign seeding', () => {
+  it('prefills campaign identity and defaults to the first canonical Path to Carcosa scenario for new continuation logs', async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn().mockResolvedValue(undefined)
+
+    const seedPlaythrough: Playthrough = {
+      id: 'existing-log-42',
+      date: '2026-07-20',
+      campaignName: 'The Path to Carcosa',
+      campaignType: 'Full Campaign',
+      investigators: [
+        { playerName: 'Alice', investigatorName: 'Roland Banks', archetype: 'Guardian' },
+      ],
+    }
+
+    render(
+      <PlaythroughForm
+        open
+        onOpenChange={vi.fn()}
+        onSave={onSave}
+        seedPlaythrough={seedPlaythrough}
+      />,
+    )
+
+    expect(screen.getByText('Continue Campaign')).toBeInTheDocument()
+    expect(screen.getByLabelText('Campaign')).toHaveValue('The Path to Carcosa')
+    expect(screen.getByText('Scenario')).toBeInTheDocument()
+    expect(screen.queryByText('Campaign Type')).not.toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: 'Scenario' })).toHaveTextContent('Curtain Call')
+    const lockedCampaignInput = screen.getByLabelText('Campaign') as HTMLInputElement
+    expect(lockedCampaignInput).toHaveAttribute('readonly')
+    expect(lockedCampaignInput).toHaveClass('text-foreground', 'opacity-100')
+
+    await user.click(screen.getByRole('button', { name: /save playthrough/i }))
+
+    expect(onSave).toHaveBeenCalledOnce()
+    const saved = onSave.mock.calls[0][0] as Omit<Playthrough, 'id'>
+    expect(saved.campaignName).toBe('The Path to Carcosa')
+    expect(saved.campaignType).toBe('Full Campaign')
+    expect(saved.scenarioName).toBe('Curtain Call')
+    expect((saved as Playthrough).id).toBeUndefined()
+  })
+
+  it('lists Path to Carcosa canonical scenarios in order and does not include campaign title as a scenario option', async () => {
+    const user = userEvent.setup()
+    render(
+      <PlaythroughForm
+        open
+        onOpenChange={vi.fn()}
+        onSave={vi.fn()}
+        seedPlaythrough={{
+          id: 'path-seed',
+          date: '2026-08-12',
+          campaignName: 'The Path to Carcosa',
+          campaignType: 'Full Campaign',
+          investigators: [{ playerName: 'Alice', investigatorName: 'Roland Banks', archetype: 'Guardian' }],
+        }}
+      />,
+    )
+
+    await user.click(screen.getByRole('combobox', { name: 'Scenario' }))
+    const listbox = await screen.findByRole('listbox')
+    const options = within(listbox)
+      .getAllByRole('option')
+      .map(option => option.textContent ?? '')
+
+    expect(options[0]).toContain('Curtain Call')
+    expect(options[1]).toContain('The Last King')
+    expect(options).not.toContain('The Path to Carcosa')
+  })
+
+  it('defaults to the next Path to Carcosa scenario when a prior one is already logged', () => {
+    const seed: Playthrough = {
+      id: 'path-root',
+      date: '2026-08-11',
+      campaignName: 'The Path to Carcosa',
+      campaignType: 'Full Campaign',
+      investigators: [{ playerName: 'Alice', investigatorName: 'Roland Banks', archetype: 'Guardian' }],
+    }
+
+    const priorScenario: Playthrough = {
+      ...seed,
+      id: 'path-s1',
+      scenarioName: 'Curtain Call',
+    }
+
+    render(
+      <PlaythroughForm
+        open
+        onOpenChange={vi.fn()}
+        onSave={vi.fn()}
+        seedPlaythrough={seed}
+        campaignHistory={[seed, priorScenario]}
+      />,
+    )
+
+    expect(screen.getByRole('combobox', { name: 'Scenario' })).toHaveTextContent('The Last King')
+  })
+
+  it('reuses Path to Carcosa canonical progression for Return to The Path to Carcosa', () => {
+    render(
+      <PlaythroughForm
+        open
+        onOpenChange={vi.fn()}
+        onSave={vi.fn()}
+        seedPlaythrough={{
+          id: 'return-path-root',
+          date: '2026-08-13',
+          campaignName: 'Return to The Path to Carcosa',
+          campaignType: 'Full Campaign',
+          campaignSet: 'Return to The Path to Carcosa',
+          investigators: [{ playerName: 'Alice', investigatorName: 'Roland Banks', archetype: 'Guardian' }],
+        }}
+      />,
+    )
+
+    expect(screen.getByRole('combobox', { name: 'Scenario' })).toHaveTextContent('Curtain Call')
+  })
+
+  it('resolves the Return to the Circle Undone alias in the continuation dropdown', () => {
+    render(
+      <PlaythroughForm
+        open
+        onOpenChange={vi.fn()}
+        onSave={vi.fn()}
+        seedPlaythrough={{
+          id: 'return-circle-root',
+          date: '2026-08-13',
+          campaignName: 'Return to the Circle Undone',
+          campaignType: 'Full Campaign',
+          campaignSet: 'Return to The Circle Undone',
+          investigators: [{ playerName: 'Alice', investigatorName: 'Roland Banks', archetype: 'Guardian' }],
+        }}
+      />,
+    )
+
+    expect(screen.getByRole('combobox', { name: 'Scenario' })).toHaveTextContent('The Witching Hour')
+  })
+
+  it('uses the canonical progression contract for branch-capable campaigns instead of local fallback lists', async () => {
+    const user = userEvent.setup()
+    render(
+      <PlaythroughForm
+        open
+        onOpenChange={vi.fn()}
+        onSave={vi.fn()}
+        seedPlaythrough={{
+          id: 'dunwich-root',
+          date: '2026-08-12',
+          campaignName: 'The Dunwich Legacy',
+          campaignType: 'Full Campaign',
+          investigators: [{ playerName: 'Alice', investigatorName: 'Roland Banks', archetype: 'Guardian' }],
+        }}
+      />,
+    )
+
+    expect(screen.getByRole('combobox', { name: 'Scenario' })).toHaveTextContent('Extracurricular Activity')
+
+    await user.click(screen.getByRole('combobox', { name: 'Scenario' }))
+    const listbox = await screen.findByRole('listbox')
+    const options = within(listbox)
+      .getAllByRole('option')
+      .map(option => option.textContent ?? '')
+
+    expect(options[0]).toContain('Extracurricular Activity')
+    expect(options[1]).toContain('The House Always Wins')
+    expect(options).toContain('Lost in Time and Space')
+  })
+
+  it('resolves the seeded Core 2026 alias before progression lookup', () => {
+    render(
+      <PlaythroughForm
+        open
+        onOpenChange={vi.fn()}
+        onSave={vi.fn()}
+        seedPlaythrough={{
+          id: 'core-2026-gap-seed',
+          date: '2026-08-12',
+          campaignName: 'The Brethren of the Ash',
+          campaignSet: 'Core 2026',
+          campaignType: 'Unknown',
+          investigators: [{ playerName: 'Alice', investigatorName: 'Roland Banks', archetype: 'Guardian' }],
+        }}
+      />,
+    )
+
+    expect(screen.getByText('Small Campaign')).toBeInTheDocument()
+    expect(screen.getByLabelText('Campaign')).toHaveValue('Brethren of Ash')
+    expect(screen.queryByDisplayValue('Children of Blood')).toBeNull()
+    expect(screen.getByRole('combobox', { name: 'Scenario' })).toHaveTextContent('Spreading Flames')
+  })
+
+  it('offers the Drowned City east/west route choice after One Last Job', async () => {
+    const user = userEvent.setup()
+    const opening: Playthrough = {
+      id: 'drowned-city-opening',
+      date: '2026-08-12',
+      campaignName: 'The Drowned City',
+      campaignSet: 'The Drowned City',
+      campaignType: 'Full Campaign',
+      scenarioName: 'One Last Job',
+      investigators: [{ playerName: 'Alice', investigatorName: 'Roland Banks', archetype: 'Guardian' }],
+    }
+    render(
+      <PlaythroughForm
+        open
+        onOpenChange={vi.fn()}
+        onSave={vi.fn()}
+        seedPlaythrough={opening}
+        campaignHistory={[opening]}
+      />,
+    )
+
+    const scenario = screen.getByRole('combobox', { name: 'Scenario' })
+    expect(scenario).toHaveTextContent('The Western Wall')
+    await user.click(scenario)
+    const options = within(await screen.findByRole('listbox')).getAllByRole('option')
+      .map(option => option.textContent)
+    expect(options).toEqual(['The Western Wall', 'Obsidian Canyons'])
+  })
+
+  it('applies dark calendar control styling on the date input in continuation mode', () => {
+    render(
+      <PlaythroughForm
+        open
+        onOpenChange={vi.fn()}
+        onSave={vi.fn()}
+        seedPlaythrough={{
+          id: 'seed-dark-calendar',
+          date: '2026-08-12',
+          campaignName: 'The Path to Carcosa',
+          campaignType: 'Full Campaign',
+          investigators: [{ playerName: 'Alice', investigatorName: 'Roland Banks', archetype: 'Guardian' }],
+        }}
+      />,
+    )
+
+    const dateInput = screen.getByLabelText('Date')
+    expect(dateInput.className).toContain('[color-scheme:dark]')
+    expect(dateInput.className).toContain('[&::-webkit-calendar-picker-indicator]:invert')
+    expect(dateInput.className).toContain('[&::-webkit-calendar-picker-indicator]:brightness-0')
+    expect(dateInput.className).toContain('[-webkit-text-fill-color:currentColor]')
+
+    const lockedCampaignInput = screen.getByLabelText('Campaign')
+    expect(lockedCampaignInput).toHaveAttribute('readonly')
+    expect(lockedCampaignInput.className).toContain('text-foreground')
+    expect(lockedCampaignInput.className).toContain('opacity-100')
+
+    const scenarioTrigger = screen.getByRole('combobox', { name: 'Scenario' })
+    expect(scenarioTrigger.className).toContain('text-foreground')
+  })
+
+  it('defaults a new Drowned City continuation to its guide-backed opening scenario', () => {
+    render(
+      <PlaythroughForm
+        open
+        onOpenChange={vi.fn()}
+        onSave={vi.fn()}
+        seedPlaythrough={{
+          id: 'drowned-city-seed',
+          date: '2026-08-12',
+          campaignName: 'The Drowned City',
+          campaignType: 'Full Campaign',
+          investigators: [{ playerName: 'Alice', investigatorName: 'Roland Banks', archetype: 'Guardian' }],
+        }}
+      />,
+    )
+
+    expect(screen.getByRole('combobox', { name: 'Scenario' })).toHaveTextContent('One Last Job')
+    expect(screen.queryByText(/No local Drowned City/i)).not.toBeInTheDocument()
+  })
+})
+
+describe('PlaythroughForm campaign dropdown ordering', () => {
+  const SMALL_CAMPAIGN_SEED: Playthrough = {
+    id: 'small-campaign-seed',
+    date: '2026-01-01',
+    campaignName: '',
+    campaignType: 'Small Campaign',
+    investigators: [{ playerName: 'P1', investigatorName: 'Roland Banks', archetype: 'Guardian' }],
+  }
+
+  const getVisibleOptionTexts = () =>
+    screen
+      .getAllByRole('option')
+      .filter(option => !option.hasAttribute('hidden'))
+      .map(option => option.textContent ?? '')
+
+  it('orders short-campaign choices deterministically, preserving structured progression before alphabetical tie-breaks', async () => {
+    const user = userEvent.setup()
+    render(
+      <PlaythroughForm open onOpenChange={vi.fn()} onSave={vi.fn()} editPlaythrough={SMALL_CAMPAIGN_SEED} />,
+    )
+
+    await user.click(screen.getByText('Select campaign...'))
+    const optionTexts = getVisibleOptionTexts()
+
+    const brethrenIndex = optionTexts.findIndex(text => text.includes('Brethren of Ash'))
+    const childrenIndex = optionTexts.findIndex(text => text.includes('Children of Blood'))
+    const returnToIndex = optionTexts.findIndex(text => text.includes('Return to The Night of the Zealot'))
+    const zealotIndex = optionTexts.findIndex(
+      text => text.includes('The Night of the Zealot') && !text.includes('Return to The Night of the Zealot'),
+    )
+
+    expect(brethrenIndex).toBeGreaterThanOrEqual(0)
+    expect(childrenIndex).toBeGreaterThanOrEqual(0)
+    expect(returnToIndex).toBeGreaterThanOrEqual(0)
+    expect(zealotIndex).toBeGreaterThanOrEqual(0)
+
+    expect(childrenIndex).toBeLessThan(brethrenIndex)
+    expect(childrenIndex).toBeLessThan(returnToIndex)
+    expect(returnToIndex).toBeLessThan(zealotIndex)
+  })
+
+  it('preserves the same campaign order when filtering search results', async () => {
+    const user = userEvent.setup()
+    render(
+      <PlaythroughForm open onOpenChange={vi.fn()} onSave={vi.fn()} editPlaythrough={SMALL_CAMPAIGN_SEED} />,
+    )
+
+    await user.click(screen.getByText('Select campaign...'))
+    await user.type(screen.getByPlaceholderText('Search campaigns...'), 'the')
+
+    const optionTexts = getVisibleOptionTexts()
+    const returnToIndex = optionTexts.findIndex(text => text.includes('Return to The Night of the Zealot'))
+    const zealotIndex = optionTexts.findIndex(
+      text => text.includes('The Night of the Zealot') && !text.includes('Return to The Night of the Zealot'),
+    )
+
+    expect(returnToIndex).toBeGreaterThanOrEqual(0)
+    expect(zealotIndex).toBeGreaterThanOrEqual(0)
+    expect(returnToIndex).toBeLessThan(zealotIndex)
   })
 })
 
@@ -230,6 +574,50 @@ describe('PlaythroughForm — Traces To Nowhere (chapter 2 scenario)', () => {
     await user.click(await screen.findByText('Traces To Nowhere'))
     // The combobox trigger must now display the selected name
     expect(screen.getByText('Traces To Nowhere')).toBeInTheDocument()
+  })
+
+  it('hides side-story controls and persists rich per-investigator standalone results', async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn().mockResolvedValue(undefined)
+    render(
+      <PlaythroughForm
+        open
+        onOpenChange={vi.fn()}
+        onSave={onSave}
+        editPlaythrough={{
+          ...SCENARIO_PACK_SEED,
+          campaignName: 'Traces To Nowhere',
+          scenarioName: 'Traces To Nowhere',
+          sideStories: ['Legacy imported side story'],
+        }}
+      />,
+    )
+
+    expect(screen.queryByRole('button', { name: /side stories/i })).toBeNull()
+    expect(screen.getByText('Scenario Results')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('combobox', { name: 'Resolution' }))
+    await user.click(await screen.findByRole('option', { name: 'Named' }))
+    await user.type(screen.getByLabelText('Resolution Detail'), 'Resolution A')
+    await user.type(screen.getByLabelText('XP earned for Roland Banks'), '5')
+    await user.type(screen.getByLabelText('Physical trauma for Roland Banks'), '1')
+    await user.type(screen.getByLabelText('Mental trauma for Roland Banks'), '2')
+    await user.click(screen.getByRole('button', { name: 'Update Playthrough' }))
+
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
+      id: 'seed',
+      campaignType: 'Scenario Pack',
+      scenarioName: 'Traces To Nowhere',
+      scenarioType: 'standard',
+      sideStories: ['Legacy imported side story'],
+      resolution: { type: 'named', value: 'Resolution A' },
+      investigatorOutcomes: [expect.objectContaining({
+        investigatorName: 'Roland Banks',
+        xpEarned: 5,
+        traumaGainedPhysical: 1,
+        traumaGainedMental: 2,
+      })],
+    }))
   })
 
   it('shows the chapter 2 badge next to Traces To Nowhere in the campaign combobox (D1 / Dallas)', async () => {

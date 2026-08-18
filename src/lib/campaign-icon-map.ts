@@ -135,20 +135,26 @@ const CAMPAIGN_ICONS: Record<string, string> = {
   'Standalone':                        normalise(elderSignRaw),
 }
 
-// ── Standalone scenario icons (keyed by canonical campaign name) ──────────────
+// ── Standalone scenario icons (keyed by canonical campaign name or guide-backed
+//    standalone selection alias) ───────────────────────────────────────────────
 const STANDALONE_ICONS: Record<string, string> = {
-  'Carnevale of Horrors':                            normalise(veniceRaw),
-  'Curse of the Rougarou':                           normalise(rougarouRaw),
-  'Film Fatale':                                     normalise(filmFataleRaw),
-  'Fortune and Folly':                               normalise(fortuneFollyRaw),
-  'Guardians of the Abyss':                          normalise(guardiansScenarioRaw),
-  'Murder at the Excelsior Hotel':                   normalise(murderRaw),
-  'The Blob That Ate Everything':                    normalise(blobRaw),
-  'Machinations Through Time':                       normalise(mttRaw),
-  'The Midwinter Gala':                              normalise(galaRaw),
-  'The Labyrinths of Lunacy':                        normalise(lolRaw),
-  // Alias: scenario name → same asset as canonical campaign entry
-  'Barkham Horror: The Meddling of Meowlathotep':   normalise(barkhamRaw),
+  'Carnevale of Horrors': normalise(veniceRaw),
+  'Curse of the Rougarou': normalise(rougarouRaw),
+  'The Curse of the Rougarou': normalise(rougarouRaw),
+  'Film Fatale': normalise(filmFataleRaw),
+  'Fortune and Folly': normalise(fortuneFollyRaw),
+  'Fortune and Folly, Part I': normalise(fortuneFollyRaw),
+  'Fortune and Folly, Part II': normalise(fortuneFollyRaw),
+  'Guardians of the Abyss': normalise(guardiansScenarioRaw),
+  'The Eternal Slumber': normalise(guardiansScenarioRaw),
+  "The Night's Usurper": normalise(guardiansScenarioRaw),
+  'Murder at the Excelsior Hotel': normalise(murderRaw),
+  'The Blob That Ate Everything': normalise(blobRaw),
+  'Machinations Through Time': normalise(mttRaw),
+  'The Midwinter Gala': normalise(galaRaw),
+  'The Labyrinths of Lunacy': normalise(lolRaw),
+  'Barkham Horror: The Meddling of Meowlathotep': normalise(barkhamRaw),
+  'The Meddling of Meowlathotep': normalise(barkhamRaw),
 }
 
 // ── Starter investigator deck icons (keyed by both short key AND full name) ────
@@ -210,7 +216,7 @@ export function getBrandSvgRaw(key: 'codex' | 'log'): string {
   return BRAND_ICONS[key]
 }
 
-/** Returns the SVG for a standalone scenario by its canonical campaign name. */
+/** Returns the SVG for a standalone scenario by its canonical name or alias. */
 export function getStandaloneSvgRaw(scenarioName: string): string {
   return STANDALONE_ICONS[scenarioName] ?? FALLBACK
 }

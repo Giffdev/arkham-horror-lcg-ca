@@ -14,6 +14,7 @@ A campaign playthrough tracker for Arkham Horror: The Card Game that allows play
 ## Tech Stack
 
 - **Framework**: React 19 + TypeScript + Vite
+- **Server runtime**: Firebase Functions v2 + Firebase Admin on Node 22
 - **Styling**: TailwindCSS 4, class-variance-authority, tailwind-merge
 - **UI Components**: Radix UI primitives (Dialog, Tabs, Select, Popover, AlertDialog, DropdownMenu, Toast, etc.)
 - **Icons**: Phosphor Icons (`@phosphor-icons/react`)
@@ -25,10 +26,10 @@ A campaign playthrough tracker for Arkham Horror: The Card Game that allows play
 
 ## Data Architecture
 
-- **Per-user data**: Each authenticated user's playthroughs are stored in `users/{uid}/playthroughs` subcollection in Firestore
-- **Community stats**: Aggregated stats document rebuilt client-side from a `collectionGroup` query across all users' playthroughs
+- **Per-user data**: Each authenticated user's playthroughs and campaign runs are stored in `users/{uid}/playthroughs` and `users/{uid}/campaignRuns` subcollections in Firestore
+- **Community stats**: Server-owned aggregate published to `community-stats/global`; owner-authored source writes queue exact-schema durable outbox events, Firebase Functions rebuild from one consistent snapshot across `users`, `playthroughs`, and `campaignRuns`, and the public document is read-only to clients
 - **User document**: Created on first sign-in at `users/{uid}` with email, createdAt, authProvider, displayName
-- **Real-time sync**: Playthrough list uses Firestore `onSnapshot` for live updates
+- **Real-time sync**: Playthrough and campaign-run lists use Firestore `onSnapshot` for live updates
 
 ## Authentication
 
@@ -94,11 +95,18 @@ A campaign playthrough tracker for Arkham Horror: The Card Game that allows play
   3. **Investigator Pairing Heatmap**: Interactive NxN matrix showing how often investigators are paired together across games. Supports community and personal view modes. Desktop shows full grid with hover tooltips and row/column highlighting. Mobile shows a searchable investigator picker with ranked pairings. Investigators link to ArkhamDB. oklch-based dynamic color scale with 5-step legend.
 - **Success criteria**: Community data loads from shared Firestore document, heatmap renders responsively, personal/community toggle works, investigator names link to ArkhamDB
 
-### Community Stats Sync
-- **Functionality**: When an authenticated user's playthroughs change, community stats are rebuilt client-side with a debounced 60-second cooldown to avoid excessive writes
-- **Purpose**: Keep community statistics up-to-date without requiring Cloud Functions infrastructure
-- **Implementation**: `useCommunityStatsSync` hook watches playthrough changes, queries all users' playthroughs via `collectionGroup`, aggregates stats, and writes to shared community-stats document
-- **Success criteria**: Stats stay reasonably fresh, no infinite rebuild loops, errors are caught silently
+### Community Stats Pipeline
+- **Functionality**: When a signed-in owner creates, edits, deletes, imports, promotes, or restores source data, that write atomically emits a durable outbox event. Firebase Functions coalesce pending outbox work, rebuild community statistics from one snapshot, and publish the result to the shared `community-stats/global` document.
+- **Purpose**: Keep community statistics current without exposing raw cross-user reads to clients or letting clients own aggregate writes.
+- **Implementation**: User-profile, playthrough, and campaign-run writes create unique outbox docs rather than contending on one control document. Client outbox docs must use the exact schema `{ mutationId, requestedAtMs, requestedBy: "client", reason, affectedDocuments }`, where the document id matches `mutationId`, `reason` is one of the approved mutation enums, and `affectedDocuments` stays within `1..499`. System outbox docs are admin-only bootstrap markers or manual wake events with their own exact schemas. Bootstrap marker ids must match `bootstrap-[a-z0-9]+(?:-[a-z0-9]+)*$`, manual wake ids must match `manual-[a-z0-9]+(?:-[a-z0-9]+)*$`, and both stay within **64 ASCII chars / 64 UTF-8 bytes**; the generated bootstrap form is `bootstrap-<13-digit-ms>-<uuid>` (60 chars). Atomic imports are capped at **499** source records because the transaction also writes one outbox doc. Firestore-triggered workers claim a lease, read a single consistent snapshot of the three source queries, reserve two writes for the aggregate + state docs, delete at most **498** outbox docs per publish pass, and keep non-PII bootstrap marker watermarks in worker state as `pendingBootstrapMarkers = { markerId, requestedAtMs }` plus retained `completedBootstrapMarkers = { markerId, requestedAtMs, completedAtMs }`. `completedAtMs` is a trusted server/worker completion timestamp; retention/pruning uses that trusted clock only, while `requestedAtMs` remains ordering metadata and cannot extend retention. Legacy markers missing `completedAtMs`, or carrying invalid/future completion data, are migrated conservatively onto one bounded completion window and then prune finitely instead of wedging capacity indefinitely. Completed markers stay queryable for **30 minutes** (**15 min** max bootstrap wait + **5 min** lease + **10 min** retry/grace) and prune deterministically on later worker / sweeper / bootstrap operations. Worker state fails closed at **1,024** retained marker ids or **110 KiB** serialized marker substate; that **110 KiB** reserve leaves **914 KiB** below Firestore’s 1 MiB document limit before encoding/property/other worker state, so it is treated as a conservative marker budget rather than exact headroom. A bootstrap marker is acknowledged only on a schema-current `ready` publish that has aggregated all work at or before that marker’s queue ordering and left no pending outbox work or active lease. Larger backlogs publish `stale` until that proof exists, overflow/duplicate bootstrap markers are explicitly rejected or quarantined instead of silently dropping visibility, and malformed admin outbox entries are quarantined + observable instead of retry-looping forever.
+- **Failure/staleness behavior**: `community-stats/global` is public read-only and can surface `refreshState: "stale"` or `refreshState: "failed"` when a newer snapshot has not been proven current yet. The client treats stale, failed, missing, or old-schema aggregates as non-current instead of silently claiming freshness.
+- **Retry/follow-up behavior**: The durable outbox remains the authoritative queued state. Transient rebuild failures and lease-active skips throw so Firestore/Eventarc `retry: true` requests another delivery with managed backoff rather than an immediate in-process wake. If cleanup spans multiple passes, the worker republishes stale until it proves the queue is current; the scheduled sweeper is a periodic best-effort crash / expired-lease fallback while durable work remains queued, but persistent configuration or operational failures stay explicit as `stale` / `failed` until fixed.
+- **Operational recovery**: When bootstrap markers are quarantined or the worker times out, inspect `community-stats/global`, `community-stats-internal/state`, and Functions logs together; fix the malformed bootstrap metadata / retained-marker-capacity / operational root cause; wait for eligible retained-marker expiry if that is the blocker; rerun bootstrap with a fresh marker; and verify the new exact marker appears in retained completed state while the outbox drains to empty. Never manually delete production playthrough/campaign source documents as a shortcut.
+- **Success criteria**: Stats update automatically after normal writes and atomic imports, 500-write bursts coalesce into bounded rebuild passes instead of 500 full scans, deletes and campaign-promotion suppression/restoration remain correct, poison outbox data is quarantined observably, and anonymous visitors can continue reading the last published aggregate.
+
+### Community Stats Rollout
+- **Rollout order**: Deploy Firestore rules and Firebase Functions first, run the explicit bootstrap script under Node 22 against the intended Firebase project, wait for schema version 3 plus an empty outbox and the exact bootstrap marker to appear in retained completed worker state, then ship the web client.
+- **Compatibility requirement**: Existing raw playthrough and campaign-run documents remain authoritative and readable throughout rollout; the aggregate is rebuilt from source data rather than migrated destructively.
 
 ### Data Export/Import
 - **Functionality**: Export all playthroughs as JSON file download; import playthroughs from a JSON file with validation
@@ -109,7 +117,7 @@ A campaign playthrough tracker for Arkham Horror: The Card Game that allows play
 ## Edge Case Handling
 
 - **First time user**: Show empty state with "Log Your First Game" call-to-action when no playthroughs exist
-- **Data isolation**: Each user's playthroughs are in their own Firestore subcollection (`users/{uid}/playthroughs`)
+- **Data isolation**: Each user's playthroughs and campaign runs are stored in their own Firestore subcollections (`users/{uid}/playthroughs`, `users/{uid}/campaignRuns`)
 - **Missing player names**: Players without names are excluded from the player statistics view; playthroughs still appear in main log
 - **Fan-made campaigns**: Allow free-text entry for campaign names when Fan-Made type is selected
 - **Unknown campaigns**: Allow logging playthroughs where campaign name isn't remembered by selecting Unknown campaign type

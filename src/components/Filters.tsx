@@ -114,7 +114,7 @@ function FilterContent({
 
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <p className="text-sm font-medium text-foreground">Campaign Type</p>
+          <p className="text-sm font-medium text-foreground">Campaign Scope</p>
           {selectedCampaignTypes.length > 0 && (
             <Button
               variant="ghost"
@@ -154,7 +154,7 @@ function FilterContent({
       {availableCampaigns.length > 0 && selectedCampaignTypes.length === 1 && (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-foreground">Specific Campaign</p>
+            <p className="text-sm font-medium text-foreground">Campaign</p>
             {selectedCampaigns.length > 0 && (
               <Button
                 variant="ghost"
@@ -230,7 +230,7 @@ export function Filters({
               <div className="flex items-center justify-between w-full">
                 <SheetTitle className="flex items-center gap-2">
                   <Funnel size={20} />
-                  Filter Games
+                  Filter Campaign Logs
                 </SheetTitle>
                 {hasActiveFilters && (
                   <Button 
@@ -324,7 +324,7 @@ export function Filters({
     <div className="space-y-4">
       <div className="flex items-center gap-2">
         <Funnel size={16} className="text-muted-foreground" />
-        <span className="text-sm text-muted-foreground">Filter by:</span>
+        <span className="text-sm text-muted-foreground">Filter campaign logs by:</span>
         {hasActiveFilters && (
           <Button
             variant="ghost"

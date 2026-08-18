@@ -4,12 +4,17 @@ import { Button } from '@/components/ui/button'
 import { SignIn, Users, ChartBar, Sparkle, Trophy, GameController, Shield } from '@phosphor-icons/react'
 import { AuthDialog } from '@/components/AuthDialog'
 import { User } from '@/lib/auth'
-import { getCommunityStats, CommunityStats } from '@/lib/community-stats'
+import {
+  getCommunityStats,
+  getCommunityStatsAvailability,
+  type CommunityStats,
+  type CommunityStatsAvailability,
+} from '@/lib/community-stats'
 import { ArchetypeBadge } from '@/components/ArchetypeBadge'
 import { StatsListCard } from '@/components/StatsListCard'
 import { ALL_CAMPAIGNS, campaignTypeLabel } from '@/lib/campaign-data'
 import { CampaignSvgIcon } from '@/components/CampaignSvgIcon'
-import { getBrandSvgRaw } from '@/lib/campaign-icon-map'
+import { getBrandSvgRaw, hasDedicatedCampaignIcon } from '@/lib/campaign-icon-map'
 import { cn } from '@/lib/utils'
 
 function injectSize(svgString: string, size: number): string {
@@ -41,9 +46,21 @@ function campaignSetKey(name: string): string {
   return c?.set ?? name
 }
 
+function standaloneIconKey(s: { name: string; set?: string }): string {
+  if (hasDedicatedCampaignIcon(s.name)) return s.name
+  if (s.set && hasDedicatedCampaignIcon(s.set)) return s.set
+  return s.name
+}
+
+function formatLastUpdated(lastUpdated?: number): string | null {
+  if (typeof lastUpdated !== 'number' || !Number.isFinite(lastUpdated)) return null
+  return new Date(lastUpdated).toLocaleString()
+}
+
 export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
   const [authDialogOpen, setAuthDialogOpen] = useState(false)
   const [communityStats, setCommunityStats] = useState<CommunityStats | null>(null)
+  const [communityStatsAvailability, setCommunityStatsAvailability] = useState<CommunityStatsAvailability>('ready')
   const [isLoadingStats, setIsLoadingStats] = useState(true)
 
   useEffect(() => {
@@ -51,8 +68,10 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
       try {
         const stats = await getCommunityStats()
         setCommunityStats(stats)
+        setCommunityStatsAvailability(getCommunityStatsAvailability(stats))
       } catch (error) {
         console.error('Failed to load community stats:', error)
+        setCommunityStatsAvailability('unavailable')
       } finally {
         setIsLoadingStats(false)
       }
@@ -125,7 +144,7 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
       <div>
         <span className="inline-flex items-center gap-1.5 min-w-0">
           <CampaignSvgIcon
-            campaignSet={s.name}
+            campaignSet={standaloneIconKey(s)}
             size={14}
             aria-hidden="true"
             className="flex-shrink-0 text-primary/60"
@@ -140,6 +159,22 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
       </div>
     ),
   }))
+
+  const lastUpdatedLabel = formatLastUpdated(communityStats?.generatedAt ?? communityStats?.lastUpdated)
+  const staleBanner = communityStatsAvailability === 'stale'
+    ? (
+        <Card className="border-amber-400/40 bg-amber-500/10">
+          <CardContent className="py-3 text-sm text-amber-100">
+            Community stats may be stale. Showing the last published aggregate{lastUpdatedLabel ? ` from ${lastUpdatedLabel}` : ''}.
+          </CardContent>
+        </Card>
+      )
+    : null
+
+  const showCommunitySection = !isLoadingStats && (
+    communityStatsAvailability === 'unavailable' ||
+    communityStats !== null
+  )
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -175,98 +210,124 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
             </div>
           </div>
 
-          {!isLoadingStats && communityStats && communityStats.totalGames > 0 && (
+          {showCommunitySection && (
             <div className="space-y-6">
               <div className="text-center">
                 <h3 className="text-2xl font-bold text-foreground mb-2">Community Stats</h3>
                 <p className="text-muted-foreground">See what the community is playing</p>
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 items-start md:items-stretch">
-                <Card className="md:h-full">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center gap-2">
-                      <GameController size={20} className="text-primary" weight="duotone" />
-                      <CardTitle className="text-sm text-muted-foreground">Total Campaigns Logged</CardTitle>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-3xl font-bold text-foreground">{communityStats.totalGames}</div>
-                  </CardContent>
+              {communityStatsAvailability === 'old-schema' ? (
+                <Card className="p-8 text-center">
+                  <p className="text-muted-foreground">
+                    Community stats are refreshing after a backend upgrade. Please check back in a moment.
+                  </p>
                 </Card>
-
-                <Card className="md:h-full">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center gap-2">
-                      <Users size={20} className="text-primary" weight="duotone" />
-                      <CardTitle className="text-sm text-muted-foreground">Community Members</CardTitle>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-3xl font-bold text-foreground">{communityStats.registeredUsers}</div>
-                  </CardContent>
+              ) : communityStatsAvailability === 'unavailable' ? (
+                <Card className="p-8 text-center">
+                  <p className="text-muted-foreground">
+                    Community stats are unavailable right now. The trusted aggregate has not been published yet.
+                  </p>
                 </Card>
+              ) : !communityStats || communityStats.totalGames === 0 ? (
+                <div className="space-y-4">
+                  {staleBanner}
+                  <Card className="p-8 text-center">
+                    <p className="text-muted-foreground">
+                      No community data available yet. Be the first to log a playthrough!
+                    </p>
+                  </Card>
+                </div>
+              ) : (
+                <>
+                  {staleBanner}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 items-start md:items-stretch">
+                    <Card className="md:h-full">
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center gap-2">
+                          <GameController size={20} className="text-primary" weight="duotone" />
+                          <CardTitle className="text-sm text-muted-foreground">Total Campaigns Logged</CardTitle>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-3xl font-bold text-foreground">{communityStats.totalGames}</div>
+                      </CardContent>
+                    </Card>
 
-                <Card className="md:h-full">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center gap-2">
-                      <Users size={20} className="text-primary" weight="duotone" />
-                      <CardTitle className="text-sm text-muted-foreground">Investigators Played</CardTitle>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-3xl font-bold text-foreground">{communityStats.totalInvestigatorsPlayed}</div>
-                  </CardContent>
-                </Card>
+                    <Card className="md:h-full">
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center gap-2">
+                          <Users size={20} className="text-primary" weight="duotone" />
+                          <CardTitle className="text-sm text-muted-foreground">Community Members</CardTitle>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-3xl font-bold text-foreground">{communityStats.registeredUsers}</div>
+                      </CardContent>
+                    </Card>
 
-                <Card className="md:h-full">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center gap-2">
-                      <BrandSvg brandKey="log" size={20} className="text-primary" />
-                      <CardTitle className="text-sm text-muted-foreground">Unique Campaigns</CardTitle>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-3xl font-bold text-foreground">{communityStats.topCampaigns.length}</div>
-                  </CardContent>
-                </Card>
-              </div>
+                    <Card className="md:h-full">
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center gap-2">
+                          <Users size={20} className="text-primary" weight="duotone" />
+                          <CardTitle className="text-sm text-muted-foreground">Investigators Played</CardTitle>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-3xl font-bold text-foreground">{communityStats.totalInvestigatorsPlayed}</div>
+                      </CardContent>
+                    </Card>
 
-              <StatsListCard
-                icon={Users}
-                title="Most Played Investigators"
-                items={investigatorItems}
-                totalCount={communityStats.totalInvestigatorsPlayed}
-              />
+                    <Card className="md:h-full">
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center gap-2">
+                          <BrandSvg brandKey="log" size={20} className="text-primary" />
+                          <CardTitle className="text-sm text-muted-foreground">Unique Campaigns</CardTitle>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-3xl font-bold text-foreground">{communityStats.topCampaigns.length}</div>
+                      </CardContent>
+                    </Card>
+                  </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6 items-stretch">
-                <StatsListCard
-                  icon={Trophy}
-                  title="Most Popular Campaigns"
-                  subtitle="Full & short campaigns"
-                  items={campaignItems}
-                  className="h-full"
-                />
-
-                {classItems.length > 0 && (
                   <StatsListCard
-                    icon={Shield}
-                    title="Class Ranking"
-                    items={classItems}
-                    className="h-full"
+                    icon={Users}
+                    title="Most Played Investigators"
+                    items={investigatorItems}
+                    totalCount={communityStats.totalInvestigatorsPlayed}
                   />
-                )}
 
-                {standaloneItems.length > 0 && (
-                  <StatsListCard
-                    icon={Sparkle}
-                    title="Popular Standalone Scenarios"
-                    subtitle="Includes plays as standalone and side story"
-                    items={standaloneItems}
-                    className="h-full"
-                  />
-                )}
-              </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6 items-stretch">
+                    <StatsListCard
+                      icon={Trophy}
+                      title="Most Popular Campaigns"
+                      subtitle="Full & short campaigns"
+                      items={campaignItems}
+                      className="h-full"
+                    />
+
+                    {classItems.length > 0 && (
+                      <StatsListCard
+                        icon={Shield}
+                        title="Class Ranking"
+                        items={classItems}
+                        className="h-full"
+                      />
+                    )}
+
+                    {standaloneItems.length > 0 && (
+                      <StatsListCard
+                        icon={Sparkle}
+                        title="Popular Standalone Scenarios"
+                        subtitle="Includes plays as standalone and side story"
+                        items={standaloneItems}
+                        className="h-full"
+                      />
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           )}
 

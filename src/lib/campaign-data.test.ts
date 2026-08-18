@@ -7,9 +7,15 @@ import {
   getCampaignChapter,
   getCampaignSet,
   getFullCampaignNames,
+  orderCampaignsForDisplay,
   getSmallCampaignNames,
   getScenarioPackCampaignNames,
   campaignTypeLabel,
+  getCampaignLineageId,
+  getCampaignProgressionEntries,
+  isContinuableCampaignLog,
+  resolveCampaignMetadata,
+  resolveCampaignType,
 } from './campaign-data'
 
 describe('campaign-data — Traces To Nowhere chapter annotation', () => {
@@ -71,14 +77,51 @@ describe('campaign-data — ordering stability (pinning current sort output)', (
     expect(idxDunwich).toBeLessThan(idxCarcosa)
   })
 
-  it('getSmallCampaignNames starts with The Night of the Zealot', () => {
+  it('getSmallCampaignNames preserves explicit progression ordering within structured series', () => {
     const names = getSmallCampaignNames()
-    expect(names[0]).toBe('The Night of the Zealot')
+    expect(names).toEqual([
+      'Children of Blood',
+      'Brethren of Ash',
+      'Return to The Night of the Zealot',
+      'The Night of the Zealot',
+    ])
   })
 
   it('getScenarioPackCampaignNames includes Traces To Nowhere', () => {
     const names = getScenarioPackCampaignNames()
     expect(names).toContain('Traces To Nowhere')
+  })
+})
+
+describe('campaign-data — explicit progression metadata precedence', () => {
+  it('preserves progression order for entries that share explicit series metadata', () => {
+    const ordered = orderCampaignsForDisplay([
+      {
+        name: 'Scenario Two',
+        set: 'Mini Campaign',
+        type: 'Small Campaign',
+        progressionSeriesId: 'mini-campaign',
+        progressionOrder: 2,
+      },
+      {
+        name: 'Scenario One',
+        set: 'Mini Campaign',
+        type: 'Small Campaign',
+        progressionSeriesId: 'mini-campaign',
+        progressionOrder: 1,
+      },
+      {
+        name: 'Alpha Side Story',
+        set: 'Scenario Pack',
+        type: 'Scenario Pack',
+      },
+    ])
+
+    expect(ordered.map(c => c.name)).toEqual([
+      'Alpha Side Story',
+      'Scenario One',
+      'Scenario Two',
+    ])
   })
 })
 
@@ -92,16 +135,7 @@ describe('campaign-data — completeness', () => {
 })
 
 describe('campaignTypeLabel — Return To badge taxonomy (regression)', () => {
-  /**
-   * Return To campaigns (returnTo: true) have a real type field.
-   * The badge must reflect the LENGTH of the campaign, not the release flavour.
-   * Previously a local `if (c.returnTo) return 'Return To'` branch in both
-   * CommunityStats.tsx and PublicHomepage.tsx caused ALL Return To campaigns
-   * to badge as "Return To" regardless of their actual type.
-   */
-
   it('Return To Full Campaign badges as "Full", not "Return To"', () => {
-    // Return to The Dunwich Legacy is the canonical regression case
     expect(campaignTypeLabel('Return to The Dunwich Legacy')).toBe('Full')
   })
 
@@ -117,7 +151,6 @@ describe('campaignTypeLabel — Return To badge taxonomy (regression)', () => {
   })
 
   it('Return To Small Campaign badges as "Short", not "Return To"', () => {
-    // Return to The Night of the Zealot: type=Small Campaign, returnTo=true
     expect(campaignTypeLabel('Return to The Night of the Zealot')).toBe('Short')
   })
 
@@ -140,5 +173,103 @@ describe('campaignTypeLabel — Return To badge taxonomy (regression)', () => {
 
   it('unknown campaign name returns empty string', () => {
     expect(campaignTypeLabel('__nonexistent__')).toBe('')
+  })
+})
+
+describe('campaign-data — canonical lookup for legacy/variant campaign records', () => {
+  it('prioritizes normalized campaign aliases over shared campaign-set fallback', () => {
+    const resolved = resolveCampaignMetadata({
+      campaignName: 'The Brethren of the Ash',
+      campaignSet: 'Core 2026',
+      campaignType: 'Unknown',
+    })
+
+    expect(resolved).toMatchObject({
+      name: 'Brethren of Ash',
+      type: 'Small Campaign',
+      set: 'Core 2026',
+    })
+  })
+
+  it('resolves a normalized campaign-name variant to Brethren of Ash metadata', () => {
+    const resolved = resolveCampaignMetadata({
+      campaignName: 'The Brethren of the Ash',
+      campaignType: 'Unknown',
+    })
+    expect(resolved).toMatchObject({
+      name: 'Brethren of Ash',
+      type: 'Small Campaign',
+      set: 'Core 2026',
+    })
+  })
+
+  it('keeps canonical/alias campaign-name resolution even when campaignSet is stale', () => {
+    expect(resolveCampaignMetadata({
+      campaignName: 'Brethren of Ash',
+      campaignSet: 'Core',
+      campaignType: 'Small Campaign',
+    })?.name).toBe('Brethren of Ash')
+
+    expect(resolveCampaignMetadata({
+      campaignName: 'The Brethren of the Ash',
+      campaignSet: 'Core',
+      campaignType: 'Unknown',
+    })?.name).toBe('Brethren of Ash')
+  })
+
+  it('falls back to campaignSet when campaignName is blank and set is usable', () => {
+    const resolved = resolveCampaignMetadata({
+      campaignName: '   ',
+      campaignSet: 'Return to The Path to Carcosa',
+      campaignType: 'Full Campaign',
+    })
+
+    expect(resolved).toMatchObject({
+      name: 'Return to The Path to Carcosa',
+      type: 'Full Campaign',
+      set: 'Return to The Path to Carcosa',
+    })
+  })
+
+  it('provides deterministic progression entries and lineage ids for chapter-series campaigns', () => {
+    const entries = getCampaignProgressionEntries({
+      campaignName: 'The Brethren of the Ash',
+      campaignType: 'Unknown',
+    })
+    expect(entries.map(entry => entry.name)).toEqual(['Children of Blood', 'Brethren of Ash'])
+
+    const lineageId = getCampaignLineageId({
+      campaignName: 'The Brethren of the Ash',
+      campaignType: 'Unknown',
+    })
+    expect(lineageId).toBe('series:core-2026-mini-campaign')
+  })
+
+  it('resolveCampaignType favors canonical metadata over stale campaignType values', () => {
+    const resolvedType = resolveCampaignType({
+      campaignName: 'The Brethren of the Ash',
+      campaignType: 'Fan-Made',
+    })
+    expect(resolvedType).toBe('Small Campaign')
+  })
+
+  it('isContinuableCampaignLog is true for Full/Small/Return To/Fan-Made and false for standalone Scenario Packs', () => {
+    expect(isContinuableCampaignLog({
+      campaignName: 'The Path to Carcosa',
+      campaignType: 'Full Campaign',
+    })).toBe(true)
+    expect(isContinuableCampaignLog({
+      campaignName: 'Return to The Night of the Zealot',
+      campaignType: 'Small Campaign',
+    })).toBe(true)
+    expect(isContinuableCampaignLog({
+      campaignName: 'Traces To Nowhere',
+      campaignType: 'Scenario Pack',
+    })).toBe(false)
+    expect(isContinuableCampaignLog({
+      campaignName: 'The Custom Mystery',
+      campaignType: 'Fan-Made',
+      customCampaignName: 'The Custom Mystery',
+    })).toBe(true)
   })
 })

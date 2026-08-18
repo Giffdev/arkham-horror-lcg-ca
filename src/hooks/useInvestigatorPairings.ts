@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
-import { Playthrough } from '@/lib/types'
+import { flattenGameLogs } from '@/lib/campaign-runs'
+import { CampaignRun, Playthrough } from '@/lib/types'
 import { getInvestigatorPairKey, resolveInvestigator } from '@/lib/investigator-data'
 
 export interface InvestigatorPairing {
@@ -55,12 +56,28 @@ function computePairings(playthroughs: Playthrough[], topN: number): Investigato
  */
 export function useInvestigatorPairings(
   personalPlaythroughs: Playthrough[] | undefined,
-  topN: number = 10
+  topN?: number,
+): { personal: InvestigatorPairing[] }
+export function useInvestigatorPairings(
+  personalPlaythroughs: Playthrough[] | undefined,
+  campaignRuns: CampaignRun[],
+  topN?: number,
+): { personal: InvestigatorPairing[] }
+export function useInvestigatorPairings(
+  personalPlaythroughs: Playthrough[] | undefined,
+  campaignRunsOrTopN?: CampaignRun[] | number,
+  topN: number = 10,
 ): { personal: InvestigatorPairing[] } {
+  const campaignRuns = Array.isArray(campaignRunsOrTopN) ? campaignRunsOrTopN : undefined
+  const resolvedTopN = typeof campaignRunsOrTopN === 'number' ? campaignRunsOrTopN : topN
+
   const personal = useMemo(() => {
     if (!personalPlaythroughs || personalPlaythroughs.length === 0) return []
-    return computePairings(personalPlaythroughs, topN)
-  }, [personalPlaythroughs, topN])
+    const flattened = campaignRuns && campaignRuns.length > 0
+      ? flattenGameLogs({ playthroughs: personalPlaythroughs, campaignRuns })
+      : personalPlaythroughs
+    return computePairings(flattened, resolvedTopN)
+  }, [campaignRuns, personalPlaythroughs, resolvedTopN])
 
   return { personal }
 }

@@ -1,14 +1,15 @@
 import { renderHook } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useCommunityStatsSync } from './useCommunityStatsSync'
-import { Playthrough } from '@/lib/types'
+import type { CommunityStats } from '@/lib/community-stats'
+import type { Playthrough } from '@/lib/types'
 
-// Mock the community-stats module
+const mockSubscribeToCommunityStats = vi.fn()
+const mockUnsubscribe = vi.fn()
+
 vi.mock('@/lib/community-stats', () => ({
-  rebuildCommunityStats: vi.fn(() => Promise.resolve()),
+  subscribeToCommunityStats: (...args: unknown[]) => mockSubscribeToCommunityStats(...args),
 }))
-
-import { rebuildCommunityStats } from '@/lib/community-stats'
-const mockRebuild = vi.mocked(rebuildCommunityStats)
 
 function makePlaythrough(id: string): Playthrough {
   return {
@@ -22,49 +23,65 @@ function makePlaythrough(id: string): Playthrough {
   }
 }
 
+function makeStats(overrides: Partial<CommunityStats> = {}): CommunityStats {
+  return {
+    totalGames: 3,
+    registeredUsers: 2,
+    totalInvestigatorsPlayed: 4,
+    topCampaigns: [],
+    topInvestigators: [],
+    topClasses: [],
+    topSideScenarios: [],
+    topStandalones: [],
+    lastUpdated: 1,
+    ...overrides,
+  }
+}
+
 describe('useCommunityStatsSync', () => {
   beforeEach(() => {
-    mockRebuild.mockClear()
+    mockSubscribeToCommunityStats.mockReset()
+    mockUnsubscribe.mockReset()
+    mockSubscribeToCommunityStats.mockReturnValue(mockUnsubscribe)
   })
 
-  it('calls rebuildCommunityStats when playthroughs are provided', () => {
-    const playthroughs = [makePlaythrough('pt-1')]
-    renderHook(() => useCommunityStatsSync(playthroughs))
-    expect(mockRebuild).toHaveBeenCalledWith(playthroughs)
+  it('subscribes to the published community aggregate on mount', () => {
+    const onSync = vi.fn()
+
+    renderHook(() => useCommunityStatsSync([makePlaythrough('pt-1')], onSync))
+
+    expect(mockSubscribeToCommunityStats).toHaveBeenCalledTimes(1)
+    expect(mockSubscribeToCommunityStats.mock.calls[0][0]).toEqual(expect.any(Function))
+    expect(mockSubscribeToCommunityStats.mock.calls[0][1]).toEqual(expect.any(Function))
   })
 
-  it('does not call rebuildCommunityStats when playthroughs is undefined', () => {
-    renderHook(() => useCommunityStatsSync(undefined))
-    expect(mockRebuild).not.toHaveBeenCalled()
+  it('forwards aggregate updates to the caller callback', () => {
+    const onSync = vi.fn()
+
+    renderHook(() => useCommunityStatsSync([makePlaythrough('pt-1')], onSync))
+
+    const handleStats = mockSubscribeToCommunityStats.mock.calls[0][0] as (stats: CommunityStats | null) => void
+    handleStats(makeStats({ totalGames: 7 }))
+
+    expect(onSync).toHaveBeenCalledWith(expect.objectContaining({ totalGames: 7 }))
   })
 
-  it('does not call rebuildCommunityStats when playthroughs is empty', () => {
-    renderHook(() => useCommunityStatsSync([]))
-    expect(mockRebuild).not.toHaveBeenCalled()
+  it('supports unavailable aggregate snapshots', () => {
+    const onSync = vi.fn()
+
+    renderHook(() => useCommunityStatsSync(undefined, onSync))
+
+    const handleStats = mockSubscribeToCommunityStats.mock.calls[0][0] as (stats: CommunityStats | null) => void
+    handleStats(null)
+
+    expect(onSync).toHaveBeenCalledWith(null)
   })
 
-  it('calls rebuildCommunityStats again when playthroughs reference changes', () => {
-    const playthroughs1 = [makePlaythrough('pt-1')]
-    const playthroughs2 = [makePlaythrough('pt-1'), makePlaythrough('pt-2')]
+  it('unsubscribes when the hook unmounts', () => {
+    const { unmount } = renderHook(() => useCommunityStatsSync([], vi.fn()))
 
-    const { rerender } = renderHook(
-      ({ data }) => useCommunityStatsSync(data),
-      { initialProps: { data: playthroughs1 } }
-    )
-    expect(mockRebuild).toHaveBeenCalledTimes(1)
+    unmount()
 
-    rerender({ data: playthroughs2 })
-    expect(mockRebuild).toHaveBeenCalledTimes(2)
-    expect(mockRebuild).toHaveBeenLastCalledWith(playthroughs2)
-  })
-
-  it('handles rebuildCommunityStats rejection gracefully (no throw)', async () => {
-    mockRebuild.mockRejectedValueOnce(new Error('network error'))
-    const playthroughs = [makePlaythrough('pt-1')]
-
-    // Should not throw — error is caught by .catch(console.error)
-    expect(() => {
-      renderHook(() => useCommunityStatsSync(playthroughs))
-    }).not.toThrow()
+    expect(mockUnsubscribe).toHaveBeenCalledTimes(1)
   })
 })

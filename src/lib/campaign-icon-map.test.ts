@@ -12,6 +12,7 @@ import { describe, expect, it } from 'vitest'
 import {
   getCampaignSvgRaw,
   getFactionSvgRaw,
+  getStandaloneSvgRaw,
   hasDedicatedCampaignIcon,
   CAMPAIGN_ICON_SETS,
 } from './campaign-icon-map'
@@ -113,6 +114,39 @@ describe('CAMPAIGN_ICON_SETS', () => {
   it('contains all expected canonical campaign sets', () => {
     for (const set of KNOWN_SETS) {
       expect(CAMPAIGN_ICON_SETS).toContain(set)
+    }
+  })
+})
+
+describe('guide-backed standalone aliases', () => {
+  it('maps Fortune and Folly chapter selections to the canonical standalone asset', () => {
+    expect(getStandaloneSvgRaw('Fortune and Folly, Part I')).toBe(getStandaloneSvgRaw('Fortune and Folly'))
+    expect(getStandaloneSvgRaw('Fortune and Folly, Part II')).toBe(getStandaloneSvgRaw('Fortune and Folly'))
+  })
+
+  it('maps Guardians sub-scenarios to the shared Guardians of the Abyss asset', () => {
+    expect(getStandaloneSvgRaw('The Eternal Slumber')).toBe(getStandaloneSvgRaw('Guardians of the Abyss'))
+    expect(getStandaloneSvgRaw("The Night's Usurper")).toBe(getStandaloneSvgRaw('Guardians of the Abyss'))
+  })
+
+  it('maps legacy/guide aliases to their confirmed standalone artwork', () => {
+    expect(getStandaloneSvgRaw('The Curse of the Rougarou')).toBe(getStandaloneSvgRaw('Curse of the Rougarou'))
+    expect(getStandaloneSvgRaw('The Meddling of Meowlathotep')).toBe(getCampaignSvgRaw('Barkham Horror'))
+    expect(getStandaloneSvgRaw('Barkham Horror: The Meddling of Meowlathotep')).toBe(getCampaignSvgRaw('Barkham Horror'))
+  })
+
+  it('treats guide-backed alias names as dedicated icon entries', () => {
+    const aliases = [
+      'Fortune and Folly, Part I',
+      'Fortune and Folly, Part II',
+      'The Eternal Slumber',
+      "The Night's Usurper",
+      'The Curse of the Rougarou',
+      'The Meddling of Meowlathotep',
+    ]
+
+    for (const alias of aliases) {
+      expect(hasDedicatedCampaignIcon(alias), `"${alias}" should resolve via the icon registry`).toBe(true)
     }
   })
 })

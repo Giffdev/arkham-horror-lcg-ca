@@ -1,16 +1,21 @@
 import { useEffect } from 'react'
-import { Playthrough } from '@/lib/types'
-import { rebuildCommunityStats, CommunityStats } from '@/lib/community-stats'
+import type { Playthrough } from '@/lib/types'
+import { type CommunityStats, subscribeToCommunityStats } from '@/lib/community-stats'
 
 export function useCommunityStatsSync(
-  playthroughs: Playthrough[] | undefined,
-  onRebuilt?: (stats: CommunityStats) => void
+  _playthroughs: Playthrough[] | undefined,
+  onSync?: (stats: CommunityStats | null) => void,
 ) {
   useEffect(() => {
-    if (playthroughs && playthroughs.length > 0) {
-      rebuildCommunityStats(playthroughs)
-        .then(stats => { if (stats && onRebuilt) onRebuilt(stats) })
-        .catch(console.error)
-    }
-  }, [playthroughs, onRebuilt])
+    const unsubscribe = subscribeToCommunityStats(
+      (stats) => {
+        if (onSync) onSync(stats)
+      },
+      (error) => {
+        console.error('Failed to sync community stats:', error)
+      },
+    )
+
+    return () => unsubscribe()
+  }, [onSync])
 }
