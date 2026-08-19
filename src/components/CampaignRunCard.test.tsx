@@ -694,7 +694,7 @@ describe('CampaignRunCard', () => {
               joinedAtScenarioIndex: 0,
               startedAtScenarioIndex: 0,
               endedAtScenarioIndex: 0,
-              endReason: 'killed',
+              endReason: 'driven_insane',
               xpTotal: 2,
               xpSpent: 0,
               physicalTrauma: 1,
@@ -800,19 +800,24 @@ describe('CampaignRunCard', () => {
     expect(rosterList.textContent).not.toContain('—')
     expect(rosterRows).toHaveLength(1)
     const seatRow = rosterRows[0]
-    expect(seatRow).toHaveClass('grid-cols-[7rem_minmax(0,1fr)]')
+    expect(seatRow).toHaveClass('grid-cols-1', 'sm:grid-cols-[7rem_minmax(0,1fr)]')
     expect(within(seatRow).getByText('Rogue')).toBeInTheDocument()
-    expect(within(seatRow).getAllByText('André Patel').length).toBeGreaterThan(0)
+    const currentName = within(seatRow).getAllByText('André Patel')[0]
+    expect(currentName).toHaveClass('break-words', '[overflow-wrap:anywhere]')
     expect(within(seatRow).getByText(/^·\s*Ch\. 2$/i)).toBeInTheDocument()
     expect(within(seatRow).getByText('Evergreen Starters (Ch. 2)')).toBeInTheDocument()
-    expect(within(seatRow).getByText('Alice')).toBeInTheDocument()
+    expect(within(seatRow).getByText('Alice')).toHaveClass('basis-full', 'sm:basis-auto')
     expect(seatRow).toHaveTextContent('XP 3')
     expect(seatRow).toHaveTextContent('Trauma P0/M0')
+    const tallyGroups = seatRow.querySelectorAll('[data-slot="campaign-roster-tallies"]')
+    expect(tallyGroups[0]).toHaveClass('flex', 'flex-wrap')
+    expect(tallyGroups[0].children[0]).toHaveClass('whitespace-nowrap')
+    expect(tallyGroups[0].children[1]).toHaveClass('whitespace-nowrap')
     expect(seatRow).toHaveTextContent('History:')
     const historicalName = within(seatRow).getByText('Roland Banks')
     const historicalRow = historicalName.closest('[data-testid^="campaign-roster-history-row-"]')
-    expect(historicalRow).toHaveClass('grid', 'grid-cols-[7rem_minmax(0,1fr)]', 'gap-x-3')
-    expect(within(historicalRow as HTMLElement).getByText('Killed')).toBeInTheDocument()
+    expect(historicalRow).toHaveClass('grid', 'grid-cols-1', 'sm:grid-cols-[7rem_minmax(0,1fr)]', 'gap-x-3')
+    expect(within(historicalRow as HTMLElement).getByText('Driven insane')).toHaveClass('whitespace-nowrap')
     expect(seatRow).toHaveTextContent('XP 2')
     expect(seatRow).toHaveTextContent('Trauma P1/M0')
 
@@ -879,6 +884,15 @@ describe('CampaignRunCard', () => {
     expect(rolandRow!).toHaveTextContent('Trauma P1/M0')
     expect(daisyRow!).toHaveTextContent('Trauma P0/M2')
     expect(daisyRow!).toHaveTextContent('Defeated (Mental)')
+    const daisyHeading = daisyRow!.querySelector('[data-slot="scenario-player-heading"]')
+    const daisyOutcome = daisyRow!.querySelector('[data-slot="scenario-player-outcome"]')
+    expect(daisyHeading).toHaveClass('flex-col', 'sm:flex-row')
+    expect(within(daisyHeading as HTMLElement).getByText('Daisy Walker'))
+      .toHaveClass('break-words', '[overflow-wrap:anywhere]')
+    expect(daisyOutcome).toHaveClass('flex', 'flex-wrap')
+    expect(Array.from(daisyOutcome!.children).every((child) =>
+      child.classList.contains('whitespace-nowrap'),
+    )).toBe(true)
     expect(screen.queryByText(/^6 XP$/)).not.toBeInTheDocument()
   })
 

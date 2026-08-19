@@ -191,7 +191,7 @@ export const CampaignRunCard = memo(function CampaignRunCard({
                     return (
                       <li
                         key={seat.playerKey}
-                        className="grid grid-cols-[7rem_minmax(0,1fr)] items-start gap-x-3 gap-y-2.5 text-sm text-foreground"
+                        className="grid grid-cols-1 items-start gap-x-3 gap-y-1.5 text-sm text-foreground sm:grid-cols-[7rem_minmax(0,1fr)] sm:gap-y-2.5"
                         data-testid={`campaign-roster-seat-${seat.playerKey}`}
                         aria-label={[
                           `Player seat ${seat.playerName || 'Unknown player'}`,
@@ -206,7 +206,7 @@ export const CampaignRunCard = memo(function CampaignRunCard({
                           status && !investigator.isCurrent ? `status ${status}` : null,
                         ].filter(Boolean).join(', ')}
                       >
-                        <div className="flex w-28 items-center pt-0.5">
+                        <div className="flex w-fit items-center pt-0.5 sm:w-28">
                           <ArchetypeBadge
                             archetype={investigator.archetype}
                             investigatorId={resolved?.id ?? investigator.investigatorId}
@@ -217,7 +217,7 @@ export const CampaignRunCard = memo(function CampaignRunCard({
                         </div>
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                            <span className="font-medium text-foreground break-words">
+                            <span className="min-w-0 break-words font-medium text-foreground [overflow-wrap:anywhere]">
                               {investigator.investigatorName}
                             </span>
                             {chapterLabel && (
@@ -237,25 +237,32 @@ export const CampaignRunCard = memo(function CampaignRunCard({
                                 {sourceLabel}
                               </Badge>
                             )}
-                            <span className="text-muted-foreground truncate">
+                            <span className="basis-full text-muted-foreground sm:basis-auto sm:truncate">
                               {seat.playerName || 'Unknown player'}
                             </span>
                             {!investigator.isCurrent && status && (
-                              <span className={cn('text-xs', statusBadgeClasses(investigator.state))}>
+                              <span className={cn('whitespace-nowrap text-xs', statusBadgeClasses(investigator.state))}>
                                 {status}
                               </span>
                             )}
                           </div>
                           {investigator.hasTallyEvidence && (
-                            <p className="mt-0.5 text-xs text-muted-foreground">
-                              XP {investigator.xpTotal}
-                              {investigator.xpSpent > 0 && ` (${investigator.xpSpent} spent)`}
-                              {' '}· Trauma P{investigator.physicalTrauma}/M{investigator.mentalTrauma}
-                            </p>
+                            <div
+                              className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-muted-foreground"
+                              data-slot="campaign-roster-tallies"
+                            >
+                              <span className="whitespace-nowrap">
+                                XP {investigator.xpTotal}
+                                {investigator.xpSpent > 0 && ` (${investigator.xpSpent} spent)`}
+                              </span>
+                              <span className="whitespace-nowrap">
+                                · Trauma P{investigator.physicalTrauma}/M{investigator.mentalTrauma}
+                              </span>
+                            </div>
                           )}
                         </div>
                         {history.length > 0 && (
-                          <div className="col-span-2 space-y-2" data-testid={`campaign-roster-history-${seat.playerKey}`}>
+                          <div className="space-y-2 sm:col-span-2" data-testid={`campaign-roster-history-${seat.playerKey}`}>
                             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">History:</p>
                             {history.map((historical) => {
                               const historicalStatus = statusLabel(historical.state)
@@ -273,10 +280,10 @@ export const CampaignRunCard = memo(function CampaignRunCard({
                               return (
                                 <div
                                   key={historical.key}
-                                  className="grid grid-cols-[7rem_minmax(0,1fr)] items-start gap-x-3"
+                                  className="grid grid-cols-1 items-start gap-x-3 gap-y-1.5 sm:grid-cols-[7rem_minmax(0,1fr)]"
                                   data-testid={`campaign-roster-history-row-${historical.key}`}
                                 >
-                                  <div className="flex w-28 items-center pt-0.5">
+                                  <div className="flex w-fit items-center pt-0.5 sm:w-28">
                                     <ArchetypeBadge
                                       archetype={historical.archetype}
                                       investigatorId={historicalResolved?.id ?? historical.investigatorId}
@@ -287,7 +294,7 @@ export const CampaignRunCard = memo(function CampaignRunCard({
                                   </div>
                                   <div className="min-w-0">
                                     <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                                      <span className="font-medium text-foreground/85 break-words">
+                                      <span className="min-w-0 break-words font-medium text-foreground/85 [overflow-wrap:anywhere]">
                                         {historical.investigatorName}
                                       </span>
                                       {historicalSourceLabel && (
@@ -296,17 +303,24 @@ export const CampaignRunCard = memo(function CampaignRunCard({
                                         </Badge>
                                       )}
                                       {historicalStatus && (
-                                        <span className={cn('text-xs', statusBadgeClasses(historical.state))}>
+                                        <span className={cn('whitespace-nowrap text-xs', statusBadgeClasses(historical.state))}>
                                           {historicalStatus}
                                         </span>
                                       )}
                                     </div>
                                     {historical.hasTallyEvidence && (
-                                      <p className="mt-0.5 text-xs text-muted-foreground">
-                                        XP {historical.xpTotal}
-                                        {historical.xpSpent > 0 && ` (${historical.xpSpent} spent)`}
-                                        {' '}· Trauma P{historical.physicalTrauma}/M{historical.mentalTrauma}
-                                      </p>
+                                      <div
+                                        className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-muted-foreground"
+                                        data-slot="campaign-roster-tallies"
+                                      >
+                                        <span className="whitespace-nowrap">
+                                          XP {historical.xpTotal}
+                                          {historical.xpSpent > 0 && ` (${historical.xpSpent} spent)`}
+                                        </span>
+                                        <span className="whitespace-nowrap">
+                                          · Trauma P{historical.physicalTrauma}/M{historical.mentalTrauma}
+                                        </span>
+                                      </div>
                                     )}
                                   </div>
                                 </div>
