@@ -1,11 +1,30 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const mocks = vi.hoisted(() => ({
-  ensureFirebaseAdminApp: vi.fn(),
-  verifyIdToken: vi.fn(),
-  pendingGet: vi.fn(),
-  rebuildUserContribution: vi.fn(),
-}))
+const mocks = vi.hoisted(() => {
+  class Timestamp {
+    constructor(private readonly millis: number) {}
+
+    static fromMillis(millis: number) {
+      return new Timestamp(millis)
+    }
+
+    toMillis() {
+      return this.millis
+    }
+  }
+
+  return {
+    DELETE_FIELD: Symbol('delete-field'),
+    Timestamp,
+    ensureFirebaseAdminApp: vi.fn(),
+    verifyIdToken: vi.fn(),
+    ownerPendingGet: vi.fn(),
+    rebuildUserContribution: vi.fn(),
+    recoveryDocs: [] as Array<{ ref: { path: string } }>,
+    recoveryQueryCursors: [] as Array<string | null>,
+    cursorState: {} as Record<string, unknown>,
+  }
+})
 
 vi.mock('./firebase-admin', () => ({
   ensureFirebaseAdminApp: mocks.ensureFirebaseAdminApp,
@@ -17,20 +36,52 @@ vi.mock('firebase-admin/auth', () => ({
   }),
 }))
 
-vi.mock('firebase-admin/firestore', () => ({
-  getFirestore: () => ({
-    collection: vi.fn(() => ({
-      limit: vi.fn(() => ({
-        get: mocks.pendingGet,
+vi.mock('firebase-admin/firestore', () => {
+  const applyCursorWrite = (value: Record<string, unknown>) => {
+    for (const [key, fieldValue] of Object.entries(value)) {
+      if (fieldValue === mocks.DELETE_FIELD) delete mocks.cursorState[key]
+      else mocks.cursorState[key] = fieldValue
+    }
+  }
+  const recoveryQuery = (cursor: string | null = null) => ({
+    startAfter: (nextCursor: string) => recoveryQuery(nextCursor),
+    limit: (count: number) => ({
+      get: async () => {
+        mocks.recoveryQueryCursors.push(cursor)
+        const docs = mocks.recoveryDocs
+          .filter((entry) => !cursor || entry.ref.path > cursor)
+          .slice(0, count)
+        return { empty: docs.length === 0, docs }
+      },
+    }),
+  })
+  const cursorRef = { path: 'community-stats-internal/recovery-cursor' }
+  return {
+    FieldPath: { documentId: () => '__name__' },
+    FieldValue: { delete: () => mocks.DELETE_FIELD },
+    Timestamp: mocks.Timestamp,
+    getFirestore: () => ({
+      collection: vi.fn(() => ({
+        limit: vi.fn(() => ({
+          get: mocks.ownerPendingGet,
+        })),
       })),
-    })),
-    collectionGroup: vi.fn(() => ({
-      limit: vi.fn(() => ({
-        get: mocks.pendingGet,
+      collectionGroup: vi.fn(() => ({
+        orderBy: vi.fn(() => recoveryQuery()),
       })),
-    })),
-  }),
-}))
+      doc: vi.fn(() => cursorRef),
+      runTransaction: async (
+        callback: (transaction: {
+          get: () => Promise<{ data: () => Record<string, unknown> }>
+          set: (_ref: unknown, value: Record<string, unknown>) => void
+        }) => Promise<unknown>,
+      ) => callback({
+        get: async () => ({ data: () => ({ ...mocks.cursorState }) }),
+        set: (_ref, value) => applyCursorWrite(value),
+      }),
+    }),
+  }
+})
 
 vi.mock('./community-stats-contributions', () => ({
   COMMUNITY_STATS_OUTBOX_COLLECTION: 'communityStatsOutbox',
@@ -60,13 +111,32 @@ function responseMock() {
   }
 }
 
+function recoveryRequest(): CommunityStatsProcessRequest {
+  return {
+    method: 'GET',
+    headers: { authorization: ['Bearer', 'test-cron-secret'].join(' ') },
+  }
+}
+
+function ownerRequest(): CommunityStatsProcessRequest {
+  return {
+    method: 'POST',
+    headers: { authorization: ['Bearer', 'firebase-id-token'].join(' ') },
+  }
+}
+
 describe('Vercel community stats process handler', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     process.env.COMMUNITY_STATS_BACKEND_ENABLED = 'true'
     process.env.CRON_SECRET = 'test-cron-secret'
+    mocks.cursorState = {}
+    mocks.recoveryDocs = [
+      { ref: { path: 'users/owner-1/communityStatsOutbox/event-1' } },
+    ]
+    mocks.recoveryQueryCursors = []
     mocks.verifyIdToken.mockResolvedValue({ uid: 'owner-1' })
-    mocks.pendingGet.mockResolvedValue({
+    mocks.ownerPendingGet.mockResolvedValue({
       empty: false,
       docs: [{ ref: { path: 'users/owner-1/communityStatsOutbox/event-1' } }],
     })
@@ -81,10 +151,7 @@ describe('Vercel community stats process handler', () => {
     process.env.COMMUNITY_STATS_BACKEND_ENABLED = 'false'
     const output = responseMock()
 
-    await handleCommunityStatsProcess(
-      { method: 'GET', headers: { authorization: 'Bearer test-cron-secret' } },
-      output.response,
-    )
+    await handleCommunityStatsProcess(recoveryRequest(), output.response)
 
     expect(output.result()).toEqual({
       statusCode: 503,
@@ -97,7 +164,7 @@ describe('Vercel community stats process handler', () => {
     const output = responseMock()
 
     await handleCommunityStatsProcess(
-      { method: 'POST', headers: { authorization: 'Bearer firebase-id-token' } },
+      ownerRequest(),
       output.response,
     )
 
@@ -107,11 +174,11 @@ describe('Vercel community stats process handler', () => {
   })
 
   it('rejects owner wakes without an owner-scoped outbox event', async () => {
-    mocks.pendingGet.mockResolvedValue({ empty: true })
+    mocks.ownerPendingGet.mockResolvedValue({ empty: true })
     const output = responseMock()
 
     await handleCommunityStatsProcess(
-      { method: 'POST', headers: { authorization: 'Bearer firebase-id-token' } },
+      ownerRequest(),
       output.response,
     )
 
@@ -127,90 +194,100 @@ describe('Vercel community stats process handler', () => {
       pendingOutboxCount: 1,
     })
     const output = responseMock()
-    const request: CommunityStatsProcessRequest = {
-      method: 'GET',
-      headers: { authorization: 'Bearer test-cron-secret' },
-    }
 
-    await handleCommunityStatsProcess(request, output.response)
+    await handleCommunityStatsProcess(recoveryRequest(), output.response)
 
     expect(output.result().statusCode).toBe(503)
     expect(output.result().body).toMatchObject({ status: 'failed', shouldRetry: true })
+    expect(mocks.cursorState.afterPath).toBeUndefined()
   })
 
-  it('quarantines a poison owner and continues bounded recovery with a healthy owner', async () => {
-    mocks.pendingGet.mockResolvedValue({
-      empty: false,
-      docs: [
-        { ref: { path: 'users/poison-owner/communityStatsOutbox/event-1' } },
-        { ref: { path: 'users/healthy-owner/communityStatsOutbox/event-2' } },
-      ],
-    })
-    mocks.rebuildUserContribution
-      .mockResolvedValueOnce({
-        status: 'failed',
-        failureKind: 'poison',
-        refreshState: 'failed',
-        shouldRetry: false,
-      })
-      .mockResolvedValueOnce({
-        status: 'published',
-        refreshState: 'failed',
-        pendingOutboxCount: 0,
-      })
-    const output = responseMock()
+  it('persists bounded progress past more than 50 poison events to reach healthy work', async () => {
+    mocks.recoveryDocs = [
+      ...Array.from({ length: 55 }, (_, index) => ({
+        ref: {
+          path: `users/aaa-poison/communityStatsOutbox/event-${String(index).padStart(3, '0')}`,
+        },
+      })),
+      { ref: { path: 'users/zzz-healthy/communityStatsOutbox/event-healthy' } },
+    ]
+    mocks.rebuildUserContribution.mockImplementation(async (ownerUid: string) =>
+      ownerUid === 'aaa-poison'
+        ? {
+            status: 'failed',
+            failureKind: 'poison',
+            refreshState: 'failed',
+            shouldRetry: false,
+          }
+        : {
+            status: 'published',
+            refreshState: 'ready',
+            pendingOutboxCount: 0,
+          })
 
-    await handleCommunityStatsProcess({
-      method: 'GET',
-      headers: { authorization: 'Bearer test-cron-secret' },
-    }, output.response)
+    const first = responseMock()
+    await handleCommunityStatsProcess(recoveryRequest(), first.response)
+    const second = responseMock()
+    await handleCommunityStatsProcess(recoveryRequest(), second.response)
 
     expect(mocks.rebuildUserContribution.mock.calls).toEqual([
-      ['poison-owner'],
-      ['healthy-owner'],
+      ['aaa-poison'],
+      ['aaa-poison'],
+      ['zzz-healthy'],
     ])
-    expect(output.result()).toMatchObject({
+    expect(mocks.recoveryQueryCursors).toEqual([
+      null,
+      'users/aaa-poison/communityStatsOutbox/event-049',
+    ])
+    expect(mocks.cursorState.afterPath).toBe(
+      'users/zzz-healthy/communityStatsOutbox/event-healthy',
+    )
+    expect(second.result()).toMatchObject({
       statusCode: 200,
       body: {
         status: 'recovered',
         results: [
-          { ownerUid: 'poison-owner', failureKind: 'poison', shouldRetry: false },
-          { ownerUid: 'healthy-owner', status: 'published' },
+          { ownerUid: 'aaa-poison', failureKind: 'poison' },
+          { ownerUid: 'zzz-healthy', status: 'published' },
         ],
       },
     })
   })
 
-  it('does not repeat acknowledged poison work when recovery is invoked again', async () => {
-    mocks.pendingGet
-      .mockResolvedValueOnce({
-        empty: false,
-        docs: [{ ref: { path: 'users/poison-owner/communityStatsOutbox/event-1' } }],
-      })
-      .mockResolvedValueOnce({ empty: true, docs: [] })
-      .mockResolvedValueOnce({ empty: true, docs: [] })
-    mocks.rebuildUserContribution.mockResolvedValueOnce({
-      status: 'failed',
-      failureKind: 'poison',
-      refreshState: 'failed',
-      shouldRetry: false,
-    })
+  it('wraps a persisted cursor and advances from the beginning', async () => {
+    mocks.cursorState.afterPath = 'users/zzz/communityStatsOutbox/event-z'
+    const output = responseMock()
 
-    const first = responseMock()
-    await handleCommunityStatsProcess({
-      method: 'GET',
-      headers: { authorization: 'Bearer test-cron-secret' },
-    }, first.response)
-    const second = responseMock()
-    await handleCommunityStatsProcess({
-      method: 'GET',
-      headers: { authorization: 'Bearer test-cron-secret' },
-    }, second.response)
+    await handleCommunityStatsProcess(recoveryRequest(), output.response)
 
-    expect(mocks.rebuildUserContribution).toHaveBeenCalledTimes(1)
-    expect(second.result()).toEqual({
-      statusCode: 200,
-      body: { status: 'skipped', skipReason: 'no-pending-work' },
+    expect(mocks.recoveryQueryCursors).toEqual([
+      'users/zzz/communityStatsOutbox/event-z',
+      null,
+    ])
+    expect(mocks.rebuildUserContribution).toHaveBeenCalledWith('owner-1')
+    expect(mocks.cursorState.afterPath).toBe(
+      'users/owner-1/communityStatsOutbox/event-1',
+    )
+  })
+
+  it('serializes concurrent recovery invocations with a private cursor lease', async () => {
+    mocks.cursorState = {
+      leaseId: 'active-recovery',
+      leaseExpiresAt: mocks.Timestamp.fromMillis(Date.now() + 60_000),
+      afterPath: 'users/owner-0/communityStatsOutbox/event-1',
+    }
+    const output = responseMock()
+
+    await handleCommunityStatsProcess(recoveryRequest(), output.response)
+
+    expect(output.result()).toEqual({
+      statusCode: 202,
+      body: {
+        status: 'skipped',
+        skipReason: 'lease-active',
+        shouldRetry: true,
+      },
     })
+    expect(mocks.rebuildUserContribution).not.toHaveBeenCalled()
   })
 })

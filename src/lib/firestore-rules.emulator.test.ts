@@ -264,6 +264,11 @@ describeWithEmulator('firestore rules emulator', () => {
     await assertFails(setDoc(doc(ownerDb, 'community-stats-internal', 'state'), {
       leaseId: 'forbidden',
     }))
+    await assertFails(getDoc(doc(ownerDb, 'community-stats-internal', 'recovery-cursor')))
+    await assertFails(setDoc(doc(ownerDb, 'community-stats-internal', 'recovery-cursor'), {
+      afterPath: 'users/owner-1/communityStatsOutbox/event-playthrough-write',
+      leaseId: 'forbidden',
+    }))
     await assertFails(getDoc(doc(ownerDb, 'community-stats-contributions', 'owner-1')))
     await assertFails(setDoc(doc(ownerDb, 'community-stats-contributions', 'owner-1'), {
       totalGames: 999,

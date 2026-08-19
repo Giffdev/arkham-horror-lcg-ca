@@ -1,7 +1,12 @@
-import { timingSafeEqual } from 'node:crypto'
+import { randomUUID, timingSafeEqual } from 'node:crypto'
 
 import { getAuth } from 'firebase-admin/auth'
-import { getFirestore } from 'firebase-admin/firestore'
+import {
+  FieldPath,
+  FieldValue,
+  getFirestore,
+  Timestamp,
+} from 'firebase-admin/firestore'
 
 import {
   COMMUNITY_STATS_OUTBOX_COLLECTION,
@@ -23,6 +28,13 @@ export type CommunityStatsProcessResponse = {
 
 const MAX_RECOVERY_OWNERS_PER_INVOCATION = 3
 const MAX_RECOVERY_CANDIDATE_EVENTS = 50
+const RECOVERY_CURSOR_DOC_PATH = 'community-stats-internal/recovery-cursor'
+const RECOVERY_CURSOR_LEASE_MS = 75_000
+
+type RecoveryLease = {
+  leaseId: string
+  afterPath: string | null
+}
 
 function headerValue(
   headers: CommunityStatsProcessRequest['headers'],
@@ -64,25 +76,88 @@ function authorizeRecoveryWake(request: CommunityStatsProcessRequest): boolean {
     timingSafeEqual(expectedBytes, providedBytes)
 }
 
-async function findRecoveryOwners(excludedOwners: Set<string>): Promise<string[]> {
-  const pending = await getFirestore()
+async function claimRecoveryLease(): Promise<RecoveryLease | ContributionProcessResult> {
+  const db = getFirestore()
+  const cursorRef = db.doc(RECOVERY_CURSOR_DOC_PATH)
+  const nowMs = Date.now()
+
+  return db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(cursorRef)
+    const state = snapshot.data() ?? {}
+    const leaseExpiresAt = state.leaseExpiresAt instanceof Timestamp
+      ? state.leaseExpiresAt.toMillis()
+      : 0
+    if (typeof state.leaseId === 'string' && leaseExpiresAt > nowMs) {
+      return {
+        status: 'skipped',
+        skipReason: 'lease-active',
+        shouldRetry: true,
+      } satisfies ContributionProcessResult
+    }
+
+    const lease: RecoveryLease = {
+      leaseId: randomUUID(),
+      afterPath: typeof state.afterPath === 'string' ? state.afterPath : null,
+    }
+    transaction.set(cursorRef, {
+      leaseId: lease.leaseId,
+      leaseExpiresAt: Timestamp.fromMillis(nowMs + RECOVERY_CURSOR_LEASE_MS),
+      lastStartedAt: Timestamp.fromMillis(nowMs),
+    }, { merge: true })
+    return lease
+  })
+}
+
+async function finishRecoveryLease(
+  lease: RecoveryLease,
+  afterPath: string | null,
+): Promise<void> {
+  const db = getFirestore()
+  const cursorRef = db.doc(RECOVERY_CURSOR_DOC_PATH)
+  await db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(cursorRef)
+    if (snapshot.data()?.leaseId !== lease.leaseId) return
+    transaction.set(cursorRef, {
+      afterPath: afterPath ?? FieldValue.delete(),
+      leaseId: FieldValue.delete(),
+      leaseExpiresAt: FieldValue.delete(),
+      lastCompletedAt: Timestamp.fromMillis(Date.now()),
+    }, { merge: true })
+  })
+}
+
+async function loadRecoveryCandidates(afterPath: string | null): Promise<{
+  candidates: Array<{ ownerUid: string; afterPath: string }>
+}> {
+  const ordered = getFirestore()
     .collectionGroup(COMMUNITY_STATS_OUTBOX_COLLECTION)
-    .limit(MAX_RECOVERY_CANDIDATE_EVENTS)
-    .get()
-  const owners: string[] = []
+    .orderBy(FieldPath.documentId())
+  const loadPage = (cursor: string | null) => cursor
+    ? ordered.startAfter(cursor).limit(MAX_RECOVERY_CANDIDATE_EVENTS).get()
+    : ordered.limit(MAX_RECOVERY_CANDIDATE_EVENTS).get()
+
+  let pending = await loadPage(afterPath)
+  if (pending.empty && afterPath) pending = await loadPage(null)
+
+  const candidates: Array<{ ownerUid: string; afterPath: string }> = []
+  let scannedAfterPath: string | null = null
   for (const entry of pending.docs) {
+    scannedAfterPath = entry.ref.path
     const match = entry.ref.path.match(/^users\/([^/]+)\/communityStatsOutbox\/[^/]+$/)
     const ownerUid = match?.[1]
-    if (
-      ownerUid &&
-      !excludedOwners.has(ownerUid) &&
-      !owners.includes(ownerUid)
-    ) {
-      owners.push(ownerUid)
-      if (owners.length >= MAX_RECOVERY_OWNERS_PER_INVOCATION) break
+    if (ownerUid && !candidates.some((candidate) => candidate.ownerUid === ownerUid)) {
+      candidates.push({ ownerUid, afterPath: scannedAfterPath })
+      if (candidates.length >= MAX_RECOVERY_OWNERS_PER_INVOCATION) break
     }
   }
-  return owners
+  if (
+    scannedAfterPath &&
+    candidates.length > 0 &&
+    candidates.length < MAX_RECOVERY_OWNERS_PER_INVOCATION
+  ) {
+    candidates[candidates.length - 1].afterPath = scannedAfterPath
+  }
+  return { candidates }
 }
 
 function responseStatus(result: ContributionProcessResult): number {
@@ -97,24 +172,36 @@ async function processRecoveryWake(): Promise<
     results: Array<ContributionProcessResult & { ownerUid: string }>
   }
 > {
-  const excludedOwners = new Set<string>()
+  const claim = await claimRecoveryLease()
+  if (!('leaseId' in claim)) return claim
+
   const results: Array<ContributionProcessResult & { ownerUid: string }> = []
+  let nextAfterPath = claim.afterPath
 
-  while (results.length < MAX_RECOVERY_OWNERS_PER_INVOCATION) {
-    const [ownerUid] = await findRecoveryOwners(excludedOwners)
-    if (!ownerUid) break
-    excludedOwners.add(ownerUid)
-    const result = await rebuildUserContribution(ownerUid)
-    results.push({ ownerUid, ...result })
+  try {
+    const { candidates } = await loadRecoveryCandidates(claim.afterPath)
+    for (const { ownerUid, afterPath } of candidates) {
+      const result = await rebuildUserContribution(ownerUid)
+      results.push({ ownerUid, ...result })
 
-    if (result.status === 'failed' && result.failureKind === 'transient') return result
-    if (!(result.status === 'failed' && result.failureKind === 'poison')) return results.length === 1
-      ? result
-      : { status: 'recovered', results }
+      if (
+        (result.status === 'failed' && result.failureKind === 'transient') ||
+        result.skipReason === 'lease-active'
+      ) {
+        nextAfterPath = claim.afterPath
+        return result
+      }
+      nextAfterPath = afterPath
+      if (!(result.status === 'failed' && result.failureKind === 'poison')) break
+    }
+  } finally {
+    await finishRecoveryLease(claim, nextAfterPath)
   }
 
   if (results.length === 0) return { status: 'skipped', skipReason: 'no-pending-work' }
-  return { status: 'recovered', results }
+  return results.length === 1 && results[0].status !== 'failed'
+    ? results[0]
+    : { status: 'recovered', results }
 }
 
 export async function handleCommunityStatsProcess(

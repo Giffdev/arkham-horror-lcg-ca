@@ -625,6 +625,10 @@ Verify all of the following:
   - `generatedAt` is recent
 - `community-stats-internal/contribution-publisher`
   - no active lease remains (`leaseId` absent, or no unexpired lease)
+- `community-stats-internal/recovery-cursor`
+  - no active recovery lease remains (`leaseId` absent, or no unexpired lease)
+  - `afterPath`, when present, is a server-owned outbox document cursor; clients
+    cannot read or write it
 - `community-stats-contributions`
   - one server-only contribution exists per Firebase Authentication user, including
     users with zero games
