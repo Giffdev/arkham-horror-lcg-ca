@@ -87,26 +87,39 @@ New-Item -ItemType Directory -Force -Path $AuditDir | Out-Null
 
 Now create a **read-only** local helper that fingerprints both
 `users/*/playthroughs/*` and `users/*/campaignRuns/*`. It aborts on ADC/project
-mismatch, performs **reads only**, canonicalizes object keys and timestamp-like
-values before hashing, and writes **only** `{ path, updateTime, hash }` records
-to a local ignored JSONL file:
+mismatch, performs **reads only**, canonicalizes supported Admin SDK values
+(timestamps, document references, GeoPoints, and bytes) plus arrays/maps before
+hashing, rejects unsupported functions/symbols/cycles, and writes **only**
+`{ path, updateTime, hash }` records to a local ignored JSONL file:
 
 ```powershell
 @'
+import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 import { GoogleAuth } from 'google-auth-library'
 import { applicationDefault, getApps, initializeApp } from 'firebase-admin/app'
-import { getFirestore } from 'firebase-admin/firestore'
+import {
+  DocumentReference,
+  Firestore,
+  GeoPoint,
+  Timestamp,
+  getFirestore,
+} from 'firebase-admin/firestore'
 
 function parseArgs(argv) {
   let projectId
   let outFile
   let label = 'snapshot'
+  let selfTest = false
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index]
+    if (arg === '--self-test') {
+      selfTest = true
+      continue
+    }
     if (arg === '--project') {
       projectId = argv[index + 1]
       index += 1
@@ -123,16 +136,10 @@ function parseArgs(argv) {
     }
   }
 
-  if (!projectId?.trim()) {
-    throw new Error('Pass --project <firebase-project-id>. Refusing ambiguous Firestore reads.')
-  }
-  if (!outFile?.trim()) {
-    throw new Error('Pass --out <path>. Refusing to stream fingerprints to stdout.')
-  }
-
   return {
-    projectId: projectId.trim(),
-    outFile: outFile.trim(),
+    selfTest,
+    projectId: projectId?.trim() || null,
+    outFile: outFile?.trim() || null,
     label: label.trim() || 'snapshot',
   }
 }
@@ -148,96 +155,237 @@ function padNanos(value) {
   return String(value).padStart(9, '0')
 }
 
-function normalizeTimestampLike(value) {
-  if (
-    value &&
-    typeof value === 'object' &&
-    typeof value.seconds === 'number' &&
-    typeof value.nanoseconds === 'number' &&
-    typeof value.toDate === 'function'
-  ) {
-    return {
-      __type: 'Timestamp',
-      value: `${value.seconds}.${padNanos(value.nanoseconds)}`,
-    }
+function normalizeTimestamp(value) {
+  return {
+    __type: 'Timestamp',
+    seconds: value.seconds,
+    nanoseconds: value.nanoseconds,
   }
-
-  return null
 }
 
-function normalize(value) {
+function normalize(value, path = '$', seen = new WeakSet()) {
   if (value === null || typeof value === 'string' || typeof value === 'boolean') {
     return value
   }
   if (typeof value === 'number') {
     if (!Number.isFinite(value)) {
-      throw new Error(`Non-finite number encountered: ${value}`)
+      throw new Error(`Non-finite number encountered at ${path}: ${value}`)
     }
     return value
   }
   if (typeof value === 'bigint') {
     return { __type: 'BigInt', value: value.toString() }
   }
+  if (typeof value === 'undefined') {
+    throw new Error(`Unsupported Firestore value at ${path}: undefined`)
+  }
+  if (typeof value === 'function') {
+    throw new Error(`Unsupported Firestore value at ${path}: function`)
+  }
+  if (typeof value === 'symbol') {
+    throw new Error(`Unsupported Firestore value at ${path}: symbol`)
+  }
   if (value instanceof Date) {
     return { __type: 'Date', value: value.toISOString() }
   }
-  if (Array.isArray(value)) {
-    return value.map((entry) => normalize(entry))
+  if (value instanceof Timestamp) {
+    return normalizeTimestamp(value)
   }
-
-  const timestampValue = normalizeTimestampLike(value)
-  if (timestampValue) {
-    return timestampValue
-  }
-
-  if (
-    value &&
-    typeof value === 'object' &&
-    typeof value.path === 'string' &&
-    Object.prototype.hasOwnProperty.call(value, 'firestore')
-  ) {
+  if (value instanceof DocumentReference) {
     return { __type: 'DocumentReference', path: value.path }
   }
-
-  if (value instanceof Uint8Array || Buffer.isBuffer(value)) {
+  if (value instanceof GeoPoint) {
+    return {
+      __type: 'GeoPoint',
+      latitude: value.latitude,
+      longitude: value.longitude,
+    }
+  }
+  if (Buffer.isBuffer(value) || value instanceof Uint8Array) {
     return { __type: 'Bytes', value: Buffer.from(value).toString('base64') }
+  }
+  if (Array.isArray(value)) {
+    if (seen.has(value)) {
+      throw new Error(`Cycle detected at ${path}`)
+    }
+    seen.add(value)
+    try {
+      return value.map((entry, index) => normalize(entry, `${path}[${index}]`, seen))
+    } finally {
+      seen.delete(value)
+    }
   }
 
   if (!value || typeof value !== 'object') {
-    throw new Error(`Unsupported Firestore value type: ${typeof value}`)
+    throw new Error(`Unsupported Firestore value at ${path}: ${typeof value}`)
   }
 
-  return Object.fromEntries(
-    Object.entries(value)
-      .sort(([left], [right]) => left.localeCompare(right))
-      .map(([key, entry]) => [key, normalize(entry)]),
-  )
+  if (seen.has(value)) {
+    throw new Error(`Cycle detected at ${path}`)
+  }
+
+  seen.add(value)
+  try {
+    if (value instanceof Map) {
+      return Object.fromEntries(
+        Array.from(value.entries())
+          .map(([key, entry]) => {
+            if (typeof key !== 'string') {
+              throw new Error(`Unsupported Firestore map key at ${path}: ${String(key)}`)
+            }
+            return [key, normalize(entry, `${path}.${key}`, seen)]
+          })
+          .sort(([left], [right]) => left.localeCompare(right)),
+      )
+    }
+
+    const prototype = Object.getPrototypeOf(value)
+    if (prototype === Object.prototype || prototype === null) {
+      return Object.fromEntries(
+        Object.keys(value)
+          .sort((left, right) => left.localeCompare(right))
+          .map((key) => [key, normalize(value[key], `${path}.${key}`, seen)]),
+      )
+    }
+
+    const constructorName = prototype?.constructor?.name || 'object'
+    throw new Error(`Unsupported Firestore value at ${path}: ${constructorName}`)
+  } finally {
+    seen.delete(value)
+  }
+}
+
+function hashCanonicalValue(value) {
+  return createHash('sha256').update(JSON.stringify(normalize(value))).digest('hex')
+}
+
+function formatTimestamp(value) {
+  if (!(value instanceof Timestamp)) {
+    throw new Error('Expected Firestore Timestamp for updateTime.')
+  }
+
+  return `${value.seconds}.${padNanos(value.nanoseconds)}`
 }
 
 function formatUpdateTime(updateTime) {
-  if (!updateTime) {
-    return null
-  }
-
-  if (
-    typeof updateTime.seconds === 'number' &&
-    typeof updateTime.nanoseconds === 'number'
-  ) {
-    return `${updateTime.seconds}.${padNanos(updateTime.nanoseconds)}`
-  }
-
-  return updateTime.toDate().toISOString()
+  return updateTime ? formatTimestamp(updateTime) : null
 }
 
 function toFingerprint(doc) {
-  const normalized = normalize(doc.data())
-  const hash = createHash('sha256').update(JSON.stringify(normalized)).digest('hex')
+  if (!(doc.ref instanceof DocumentReference)) {
+    throw new Error('Expected Firestore DocumentReference for snapshot fingerprinting.')
+  }
 
   return {
     path: doc.ref.path,
     updateTime: formatUpdateTime(doc.updateTime),
-    hash,
+    hash: hashCanonicalValue(doc.data()),
   }
+}
+
+function expectFailure(label, fn, pattern) {
+  try {
+    fn()
+  } catch (error) {
+    if (!pattern.test(error.message)) {
+      throw new Error(`${label} failed with unexpected message: ${error.message}`)
+    }
+    return
+  }
+
+  throw new Error(`${label} should have failed.`)
+}
+
+async function runSelfTest() {
+  const firestore = new Firestore({ projectId: 'demo-snapshot-self-test' })
+  const sharedRef = firestore.doc('users/self-test/playthroughs/reference-doc')
+  const sharedTimestamp = new Timestamp(1763141234, 456000789)
+  const updateTime = new Timestamp(1763142234, 111222333)
+  const sharedGeoPoint = new GeoPoint(47.6062, -122.3321)
+  const sharedBytes = Uint8Array.from([0, 1, 2, 3, 252, 253, 254, 255])
+  const sharedDate = new Date('2026-01-02T03:04:05.678Z')
+
+  const firstValue = {
+    bytes: Buffer.from(sharedBytes),
+    createdAt: sharedDate,
+    flags: [true, false, null],
+    nested: {
+      alpha: new Map([
+        ['timestamp', sharedTimestamp],
+        ['reference', sharedRef],
+        ['geo', sharedGeoPoint],
+      ]),
+      beta: [
+        { k2: 'value', k1: 7 },
+        new Map([
+          ['arr', [Buffer.from('Arkham', 'utf8'), sharedTimestamp]],
+          ['stamp', sharedTimestamp],
+        ]),
+      ],
+    },
+  }
+
+  const secondValue = {
+    nested: {
+      beta: [
+        { k1: 7, k2: 'value' },
+        new Map([
+          ['stamp', new Timestamp(1763141234, 456000789)],
+          ['arr', [Uint8Array.from(Buffer.from('Arkham', 'utf8')), new Timestamp(1763141234, 456000789)]],
+        ]),
+      ],
+      alpha: new Map([
+        ['geo', new GeoPoint(47.6062, -122.3321)],
+        ['reference', firestore.doc('users/self-test/playthroughs/reference-doc')],
+        ['timestamp', new Timestamp(1763141234, 456000789)],
+      ]),
+    },
+    flags: [true, false, null],
+    createdAt: new Date('2026-01-02T03:04:05.678Z'),
+    bytes: Uint8Array.from(sharedBytes),
+  }
+
+  const changedValue = {
+    ...firstValue,
+    nested: {
+      ...firstValue.nested,
+      beta: [
+        firstValue.nested.beta[0],
+        new Map([
+          ['arr', [Buffer.from('Arkham', 'utf8'), sharedTimestamp]],
+          ['stamp', new Timestamp(1763141234, 456000790)],
+        ]),
+      ],
+    },
+  }
+
+  const firstHash = hashCanonicalValue(firstValue)
+  const secondHash = hashCanonicalValue(secondValue)
+  const changedHash = hashCanonicalValue(changedValue)
+
+  assert.equal(
+    firstHash,
+    secondHash,
+    'Canonical hashes should be stable across object and map key reordering.',
+  )
+  assert.notEqual(firstHash, changedHash, 'Canonical hashes should change when content changes.')
+
+  const fingerprint = toFingerprint({
+    data: () => firstValue,
+    ref: sharedRef,
+    updateTime,
+  })
+  assert.equal(fingerprint.path, 'users/self-test/playthroughs/reference-doc')
+  assert.equal(fingerprint.updateTime, '1763142234.111222333')
+  assert.equal(fingerprint.hash, firstHash)
+
+  expectFailure('function rejection', () => normalize({ bad: () => {} }), /function/)
+  expectFailure('symbol rejection', () => normalize({ bad: Symbol('bad') }), /symbol/)
+  const cyclic = {}
+  cyclic.self = cyclic
+  expectFailure('cycle rejection', () => normalize(cyclic), /Cycle detected/)
+
+  console.log(`self-test: ok stableHash=${firstHash} changedHash=${changedHash}`)
 }
 
 async function readCollectionGroup(db, collectionId) {
@@ -246,7 +394,20 @@ async function readCollectionGroup(db, collectionId) {
 }
 
 async function main() {
-  const { projectId, outFile, label } = parseArgs(process.argv.slice(2))
+  const { selfTest, projectId, outFile, label } = parseArgs(process.argv.slice(2))
+
+  if (selfTest) {
+    await runSelfTest()
+    return
+  }
+
+  if (!projectId) {
+    throw new Error('Pass --project <firebase-project-id>. Refusing ambiguous Firestore reads.')
+  }
+  if (!outFile) {
+    throw new Error('Pass --out <path>. Refusing to stream fingerprints to stdout.')
+  }
+
   const authenticatedProjectId = await resolveAuthenticatedProjectId()
 
   if (!authenticatedProjectId?.trim()) {
@@ -297,6 +458,7 @@ main().catch((error) => {
 '@ | Set-Content -Path $SnapshotScript -Encoding UTF8
 
 node --check $SnapshotScript
+node $SnapshotScript --self-test
 node $SnapshotScript --project $FirebaseProject --out $BeforeSnapshot --label before-bootstrap
 ```
 
@@ -306,6 +468,8 @@ Snapshot invariants:
   and `campaignRuns`
 - it writes **only** local ignored files under `.\.vercel\release-audit\`
 - it never prints document bodies or field values to the console
+- `node $SnapshotScript --self-test` uses only synthetic local Admin SDK values
+  and does **not** connect to production before release reads begin
 - keep the snapshot and diff files local; they contain document paths and must
   not be pasted into PRs, chat, or shared logs
 - it aborts on project mismatch, auth ambiguity, or query failure
