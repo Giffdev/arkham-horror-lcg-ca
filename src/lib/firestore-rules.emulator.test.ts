@@ -268,6 +268,10 @@ describeWithEmulator('firestore rules emulator', () => {
     await assertFails(setDoc(doc(ownerDb, 'community-stats-contributions', 'owner-1'), {
       totalGames: 999,
     }))
+    await assertFails(getDoc(doc(ownerDb, 'community-stats-quarantine', 'owner-1')))
+    await assertFails(setDoc(doc(ownerDb, 'community-stats-quarantine', 'owner-1'), {
+      failureKind: 'poison',
+    }))
   }, EMULATOR_TEST_TIMEOUT_MS)
 
   it('denies forged marker, extra-field, pii, wrong-requestedBy, invalid-reason, invalid-type, and id-mismatch client outbox writes', async () => {

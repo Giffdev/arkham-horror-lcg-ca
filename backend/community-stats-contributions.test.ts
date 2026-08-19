@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
-import { buildCommunityStatsContribution } from './community-stats-contributions'
+import {
+  buildCommunityStatsContribution,
+  mergeCommunityStatsContributions,
+} from './community-stats-contributions'
 import type { CampaignRun, Playthrough } from '../src/lib/types'
 
 const investigator = {
@@ -101,5 +104,40 @@ describe('community stats per-user contributions', () => {
     })
 
     expect(contribution.hasSourceRecords).toBe(false)
+  })
+
+  it('counts an empty registered owner and preserves that count across contribution replacement', () => {
+    const empty = buildCommunityStatsContribution({
+      playthroughs: [],
+      campaignRuns: [],
+      generatedAt: 1,
+    })
+    const aggregate = mergeCommunityStatsContributions([empty], 2)
+
+    expect(aggregate).toMatchObject({
+      registeredUsers: 1,
+      totalGames: 0,
+    })
+
+    const withGame = buildCommunityStatsContribution({
+      playthroughs: [{
+        id: 'game-1',
+        date: '2026-08-01',
+        campaignName: 'The Path to Carcosa',
+        campaignType: 'Full Campaign',
+        investigators: [investigator],
+      }],
+      campaignRuns: [],
+      generatedAt: 3,
+    })
+
+    expect(mergeCommunityStatsContributions([withGame], 4)).toMatchObject({
+      registeredUsers: 1,
+      totalGames: 1,
+    })
+    expect(mergeCommunityStatsContributions([empty], 5)).toMatchObject({
+      registeredUsers: 1,
+      totalGames: 0,
+    })
   })
 })

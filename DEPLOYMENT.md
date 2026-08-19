@@ -606,9 +606,11 @@ npm run backend:bootstrap -- --project $FirebaseProject
 
 The bootstrap script is `backend/scripts/bootstrap-community-stats.mjs`. It
 refuses ambiguous targeting and requires the requested `--project` to match the
-authenticated Application Default Credentials project. It reads each user's source
-collections independently, writes only server-private privacy-filtered contribution
-documents, and publishes the aggregate. It does not modify source documents.
+authenticated Application Default Credentials project. It enumerates Firebase
+Authentication accounts, reads each account's source collections independently,
+writes an empty contribution when the account has no games, removes stale
+contributions for deleted Auth accounts, and publishes the aggregate. It writes only
+server-private privacy-filtered state and does not modify source documents.
 
 ### 5. Verify backend rollout
 
@@ -624,9 +626,14 @@ Verify all of the following:
 - `community-stats-internal/contribution-publisher`
   - no active lease remains (`leaseId` absent, or no unexpired lease)
 - `community-stats-contributions`
-  - one server-only contribution exists per user
+  - one server-only contribution exists per Firebase Authentication user, including
+    users with zero games
   - contribution documents contain counts/canonical dimensions only, never raw
     player names, notes, dates, or custom text
+- `community-stats-quarantine`
+  - empty after a clean bootstrap
+  - any entry keeps the aggregate `refreshState` at `"failed"` until that owner
+    produces a valid replacement contribution
 
 The bootstrap command is expected to finish with:
 

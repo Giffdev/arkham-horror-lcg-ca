@@ -137,4 +137,80 @@ describe('Vercel community stats process handler', () => {
     expect(output.result().statusCode).toBe(503)
     expect(output.result().body).toMatchObject({ status: 'failed', shouldRetry: true })
   })
+
+  it('quarantines a poison owner and continues bounded recovery with a healthy owner', async () => {
+    mocks.pendingGet.mockResolvedValue({
+      empty: false,
+      docs: [
+        { ref: { path: 'users/poison-owner/communityStatsOutbox/event-1' } },
+        { ref: { path: 'users/healthy-owner/communityStatsOutbox/event-2' } },
+      ],
+    })
+    mocks.rebuildUserContribution
+      .mockResolvedValueOnce({
+        status: 'failed',
+        failureKind: 'poison',
+        refreshState: 'failed',
+        shouldRetry: false,
+      })
+      .mockResolvedValueOnce({
+        status: 'published',
+        refreshState: 'failed',
+        pendingOutboxCount: 0,
+      })
+    const output = responseMock()
+
+    await handleCommunityStatsProcess({
+      method: 'GET',
+      headers: { authorization: 'Bearer test-cron-secret' },
+    }, output.response)
+
+    expect(mocks.rebuildUserContribution.mock.calls).toEqual([
+      ['poison-owner'],
+      ['healthy-owner'],
+    ])
+    expect(output.result()).toMatchObject({
+      statusCode: 200,
+      body: {
+        status: 'recovered',
+        results: [
+          { ownerUid: 'poison-owner', failureKind: 'poison', shouldRetry: false },
+          { ownerUid: 'healthy-owner', status: 'published' },
+        ],
+      },
+    })
+  })
+
+  it('does not repeat acknowledged poison work when recovery is invoked again', async () => {
+    mocks.pendingGet
+      .mockResolvedValueOnce({
+        empty: false,
+        docs: [{ ref: { path: 'users/poison-owner/communityStatsOutbox/event-1' } }],
+      })
+      .mockResolvedValueOnce({ empty: true, docs: [] })
+      .mockResolvedValueOnce({ empty: true, docs: [] })
+    mocks.rebuildUserContribution.mockResolvedValueOnce({
+      status: 'failed',
+      failureKind: 'poison',
+      refreshState: 'failed',
+      shouldRetry: false,
+    })
+
+    const first = responseMock()
+    await handleCommunityStatsProcess({
+      method: 'GET',
+      headers: { authorization: 'Bearer test-cron-secret' },
+    }, first.response)
+    const second = responseMock()
+    await handleCommunityStatsProcess({
+      method: 'GET',
+      headers: { authorization: 'Bearer test-cron-secret' },
+    }, second.response)
+
+    expect(mocks.rebuildUserContribution).toHaveBeenCalledTimes(1)
+    expect(second.result()).toEqual({
+      statusCode: 200,
+      body: { status: 'skipped', skipReason: 'no-pending-work' },
+    })
+  })
 })

@@ -13,8 +13,10 @@ This project follows the spirit of [Keep a Changelog](https://keepachangelog.com
   while a Firebase-authenticated Vercel Function publishes the
   server-owned aggregate. Each wake rebuilds only that owner's bounded, privacy-
   filtered contribution instead of rescanning every user's raw records. Raw user
-  documents remain owner-only, failed wakes remain retryable, and daily free-tier
-  recovery handles abandoned work.
+  documents remain owner-only. Empty registered accounts remain represented,
+  transient failures remain retryable, deterministic bad-owner work is quarantined
+  without replacing valid totals, and bounded daily free-tier recovery continues to
+  other owners.
 
 - **"Most Popular Campaigns" no longer includes Scenario Pack one-shots.**
   Scenario Pack playthroughs (e.g. Curse of the Rougarou) are excluded from the campaigns

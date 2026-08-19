@@ -20,13 +20,21 @@
   `users/{uid}/communityStatsOutbox/{eventId}`. Clients can create only the exact,
   validated outbox schema and cannot read, update, or delete queued events.
 - `community-stats/global` is public read-only aggregate data.
-- `community-stats-internal/**` and `community-stats-contributions/**` are denied to clients.
+- `community-stats-internal/**`, `community-stats-contributions/**`, and
+  `community-stats-quarantine/**` are denied to clients.
 - The Vercel Function reads only the authenticated owner's raw source collections.
   It writes a compact, privacy-filtered document under
   `community-stats-contributions/{uid}` and publishes from those server-only
   contributions; ordinary client wakes never scan another user's raw records.
 - The lease, bounded owner reads, contribution replacement, bounded outbox deletion,
   and aggregate publication logic lives in `backend/community-stats-contributions.ts`.
+- Every Firebase Authentication account has one contribution, including accounts
+  with no games. Bootstrap enumerates Auth accounts, rebuilds empty contributions,
+  and removes contributions for deleted Auth accounts.
+- Deterministic source failures are acknowledged into server-only quarantine without
+  replacing the last valid contribution. The published snapshot reports `failed`
+  until a later valid owner event clears quarantine. Firestore/runtime failures remain
+  retryable, and daily recovery continues with other owners within a three-owner bound.
 - Nested campaign scenario logs are flattened by the shared campaign adapter. Side
   scenarios count as game nights but do not add campaigns or progression.
 

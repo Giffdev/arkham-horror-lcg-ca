@@ -85,5 +85,9 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    match /community-stats-quarantine/{userId} {
+      allow read, write: if false;
+    }
+
   }
 }

@@ -1,6 +1,6 @@
 import { deleteApp, getApps, initializeApp } from 'firebase-admin/app'
 import { getFirestore } from 'firebase-admin/firestore'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { rebuildUserContribution } from './community-stats-contributions'
 
@@ -11,10 +11,14 @@ describeEmulator('community stats contributions against Firestore emulator', () 
   beforeAll(async () => {
     for (const app of getApps()) await deleteApp(app)
     initializeApp({ projectId: 'demo-arkham-horror-lcg-ca' })
+  })
+
+  beforeEach(async () => {
     const db = getFirestore()
     await Promise.all([
       db.recursiveDelete(db.collection('users')),
       db.recursiveDelete(db.collection('community-stats-contributions')),
+      db.recursiveDelete(db.collection('community-stats-quarantine')),
       db.recursiveDelete(db.collection('community-stats')),
       db.recursiveDelete(db.collection('community-stats-internal')),
     ])
@@ -82,5 +86,128 @@ describeEmulator('community stats contributions against Firestore emulator', () 
       expect.objectContaining({ name: 'The Path to Carcosa', count: 1 }),
       expect.objectContaining({ name: 'The Dunwich Legacy', count: 1 }),
     ]))
+  })
+
+  it('keeps an empty registered owner through game creation and deletion replacements', async () => {
+    const db = getFirestore()
+    await db.doc('users/empty/communityStatsOutbox/create').set({
+      mutationId: 'create',
+      requestedAtMs: 1,
+      requestedBy: 'client',
+      reason: 'user-create',
+      affectedDocuments: 1,
+    })
+
+    expect(await rebuildUserContribution('empty')).toMatchObject({
+      status: 'published',
+      refreshState: 'ready',
+    })
+    expect((await db.doc('community-stats/global').get()).data()).toMatchObject({
+      registeredUsers: 1,
+      totalGames: 0,
+    })
+
+    await db.doc('users/empty/playthroughs/game-1').set({
+      date: '2026-08-18',
+      campaignName: 'The Path to Carcosa',
+      campaignType: 'Full Campaign',
+      investigators: [],
+    })
+    await db.doc('users/empty/communityStatsOutbox/write').set({
+      mutationId: 'write',
+      requestedAtMs: 2,
+      requestedBy: 'client',
+      reason: 'playthrough-write',
+      affectedDocuments: 1,
+    })
+    await rebuildUserContribution('empty')
+    expect((await db.doc('community-stats/global').get()).data()).toMatchObject({
+      registeredUsers: 1,
+      totalGames: 1,
+    })
+
+    await db.doc('users/empty/playthroughs/game-1').delete()
+    await db.doc('users/empty/communityStatsOutbox/delete').set({
+      mutationId: 'delete',
+      requestedAtMs: 3,
+      requestedBy: 'client',
+      reason: 'playthrough-delete',
+      affectedDocuments: 1,
+    })
+    await rebuildUserContribution('empty')
+    expect((await db.doc('community-stats/global').get()).data()).toMatchObject({
+      registeredUsers: 1,
+      totalGames: 0,
+      refreshState: 'ready',
+    })
+  })
+
+  it('quarantines deterministic source failures without replacing contributions or totals', async () => {
+    const db = getFirestore()
+    for (const uid of ['poison', 'healthy']) {
+      await db.doc(`users/${uid}/playthroughs/game-1`).set({
+        date: '2026-08-18',
+        campaignName: 'The Path to Carcosa',
+        campaignType: 'Full Campaign',
+        investigators: [],
+      })
+      await db.doc(`users/${uid}/communityStatsOutbox/initial`).set({
+        mutationId: 'initial',
+        requestedAtMs: 1,
+        requestedBy: 'client',
+        reason: 'playthrough-write',
+        affectedDocuments: 1,
+      })
+      await rebuildUserContribution(uid)
+    }
+
+    await db.doc('users/poison/playthroughs/game-1').set({
+      date: '2026-08-18',
+      campaignName: 'The Path to Carcosa',
+      campaignType: 'Full Campaign',
+      investigators: null,
+    })
+    await db.doc('users/poison/communityStatsOutbox/malformed').set({
+      mutationId: 'malformed',
+      requestedAtMs: 2,
+      requestedBy: 'client',
+      reason: 'playthrough-write',
+      affectedDocuments: 1,
+    })
+
+    expect(await rebuildUserContribution('poison')).toMatchObject({
+      status: 'failed',
+      failureKind: 'poison',
+      processedOutboxCount: 1,
+      shouldRetry: false,
+    })
+    expect((await db.doc('community-stats-contributions/poison').get()).data())
+      .toMatchObject({ totalGames: 1 })
+    expect((await db.doc('community-stats/global').get()).data()).toMatchObject({
+      registeredUsers: 2,
+      totalGames: 2,
+      refreshState: 'failed',
+    })
+    expect((await db.doc('community-stats-quarantine/poison').get()).exists).toBe(true)
+    expect((await db.doc('users/poison/communityStatsOutbox/malformed').get()).exists).toBe(false)
+
+    expect(await rebuildUserContribution('poison')).toEqual({
+      status: 'skipped',
+      skipReason: 'no-pending-work',
+    })
+
+    await db.doc('users/healthy/communityStatsOutbox/recovery').set({
+      mutationId: 'recovery',
+      requestedAtMs: 3,
+      requestedBy: 'client',
+      reason: 'playthrough-write',
+      affectedDocuments: 1,
+    })
+    await rebuildUserContribution('healthy')
+    expect((await db.doc('community-stats/global').get()).data()).toMatchObject({
+      registeredUsers: 2,
+      totalGames: 2,
+      refreshState: 'failed',
+    })
   })
 })

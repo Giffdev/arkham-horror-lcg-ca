@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto'
 
+import { getAuth } from 'firebase-admin/auth'
 import { FieldValue, getFirestore, Timestamp } from 'firebase-admin/firestore'
 
 import { ALL_CAMPAIGNS } from '../src/lib/campaign-data'
@@ -16,6 +17,7 @@ import type { Archetype, CampaignRun, Playthrough } from '../src/lib/types'
 
 export const COMMUNITY_STATS_OUTBOX_COLLECTION = 'communityStatsOutbox'
 export const COMMUNITY_STATS_CONTRIBUTIONS_COLLECTION = 'community-stats-contributions'
+export const COMMUNITY_STATS_QUARANTINE_COLLECTION = 'community-stats-quarantine'
 export const COMMUNITY_STATS_DOC_PATH = 'community-stats/global'
 export const COMMUNITY_STATS_STATE_DOC_PATH = 'community-stats-internal/contribution-publisher'
 export const COMMUNITY_STATS_LEASE_MS = 75_000
@@ -23,6 +25,7 @@ export const COMMUNITY_STATS_LEASE_MS = 75_000
 const MAX_USER_SOURCE_DOCUMENTS = 5_000
 const MAX_CONTRIBUTIONS = 10_000
 const MAX_OUTBOX_DELETES = 498
+const MAX_QUARANTINE_OUTBOX_DELETES = 497
 const CANONICAL_CAMPAIGNS = new Set(ALL_CAMPAIGNS.map((campaign) => campaign.name))
 
 type CountedCampaign = CommunityStats['topCampaigns'][number]
@@ -53,12 +56,20 @@ export interface ContributionProcessResult {
   processedOutboxCount?: number
   pendingOutboxCount?: number
   refreshState?: 'ready' | 'stale' | 'failed'
+  failureKind?: 'poison' | 'transient'
   shouldRetry?: boolean
 }
 
 type Lease = {
   leaseId: string
   uid: string
+}
+
+class DeterministicContributionError extends Error {
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options)
+    this.name = 'DeterministicContributionError'
+  }
 }
 
 function withId<T>(id: string, data: FirebaseFirestore.DocumentData): T {
@@ -128,7 +139,9 @@ async function loadUserSource(uid: string): Promise<{
     playthroughSnapshot.size > MAX_USER_SOURCE_DOCUMENTS ||
     campaignRunSnapshot.size > MAX_USER_SOURCE_DOCUMENTS
   ) {
-    throw new Error(`User source exceeds the ${MAX_USER_SOURCE_DOCUMENTS}-document processing bound.`)
+    throw new DeterministicContributionError(
+      `User source exceeds the ${MAX_USER_SOURCE_DOCUMENTS}-document processing bound.`,
+    )
   }
   return {
     playthroughs: playthroughSnapshot.docs.map((entry) =>
@@ -218,11 +231,11 @@ export function buildCommunityStatsContribution(input: {
   }
 }
 
-function mergeContributions(
+export function mergeCommunityStatsContributions(
   contributions: CommunityStatsContribution[],
   generatedAt = Date.now(),
   generation = 1,
-  refreshState: 'ready' | 'stale' = 'ready',
+  refreshState: 'ready' | 'stale' | 'failed' = 'ready',
 ): CommunityStats {
   const campaignCounts = new Map<string, CountedCampaign>()
   const investigatorCounts = new Map<string, CountedInvestigator>()
@@ -242,7 +255,7 @@ function mergeContributions(
   let registeredUsers = 0
 
   for (const contribution of contributions) {
-    if (contribution.hasSourceRecords !== false) registeredUsers++
+    registeredUsers++
     totalGames += contribution.totalGames
     campaignRunsPlayedCount += contribution.campaignRunsPlayedCount
     contribution.campaignFamilyHashes.forEach((key) => campaignFamilies.add(key))
@@ -333,6 +346,7 @@ async function persistContribution(
   const db = getFirestore()
   const stateRef = db.doc(COMMUNITY_STATS_STATE_DOC_PATH)
   const contributionRef = db.doc(`${COMMUNITY_STATS_CONTRIBUTIONS_COLLECTION}/${lease.uid}`)
+  const quarantineRef = db.doc(`${COMMUNITY_STATS_QUARANTINE_COLLECTION}/${lease.uid}`)
 
   return db.runTransaction(async (transaction) => {
     const stateSnapshot = await transaction.get(stateRef)
@@ -340,6 +354,7 @@ async function persistContribution(
       throw new Error('Community stats contribution lease was lost.')
     }
     transaction.set(contributionRef, contribution)
+    transaction.delete(quarantineRef)
     for (const path of queuedOutbox.paths) transaction.delete(db.doc(path))
     return {
       processed: queuedOutbox.paths.length,
@@ -350,11 +365,12 @@ async function persistContribution(
 
 async function publishWithLease(lease: Lease): Promise<CommunityStats> {
   const db = getFirestore()
-  const [snapshot, pendingOutbox] = await Promise.all([
+  const [snapshot, pendingOutbox, quarantineSnapshot] = await Promise.all([
     db.collection(COMMUNITY_STATS_CONTRIBUTIONS_COLLECTION)
       .limit(MAX_CONTRIBUTIONS + 1)
       .get(),
     db.collectionGroup(COMMUNITY_STATS_OUTBOX_COLLECTION).limit(1).get(),
+    db.collection(COMMUNITY_STATS_QUARANTINE_COLLECTION).limit(1).get(),
   ])
   if (snapshot.size > MAX_CONTRIBUTIONS) {
     throw new Error(`Community contributions exceed the ${MAX_CONTRIBUTIONS}-document bound.`)
@@ -373,11 +389,11 @@ async function publishWithLease(lease: Lease): Promise<CommunityStats> {
     const generation = typeof state.pipelineGeneration === 'number'
       ? state.pipelineGeneration + 1
       : 1
-    const aggregate = mergeContributions(
+    const aggregate = mergeCommunityStatsContributions(
       contributions,
       Date.now(),
       generation,
-      pendingOutbox.empty ? 'ready' : 'stale',
+      quarantineSnapshot.empty ? pendingOutbox.empty ? 'ready' : 'stale' : 'failed',
     )
     transaction.set(aggregateRef, aggregate)
     transaction.set(stateRef, {
@@ -387,11 +403,60 @@ async function publishWithLease(lease: Lease): Promise<CommunityStats> {
       leaseId: FieldValue.delete(),
       leaseOwnerUid: FieldValue.delete(),
       leaseExpiresAt: FieldValue.delete(),
-      lastErrorAt: FieldValue.delete(),
-      lastErrorMessage: FieldValue.delete(),
+      ...(quarantineSnapshot.empty ? {
+        lastErrorAt: FieldValue.delete(),
+        lastErrorMessage: FieldValue.delete(),
+      } : {}),
     }, { merge: true })
     return aggregate
   })
+}
+
+async function quarantinePoisonContribution(
+  lease: Lease,
+  queuedOutbox: { paths: string[]; hasMore: boolean },
+  error: DeterministicContributionError,
+): Promise<ContributionProcessResult> {
+  const db = getFirestore()
+  const stateRef = db.doc(COMMUNITY_STATS_STATE_DOC_PATH)
+  const aggregateRef = db.doc(COMMUNITY_STATS_DOC_PATH)
+  const quarantineRef = db.doc(`${COMMUNITY_STATS_QUARANTINE_COLLECTION}/${lease.uid}`)
+  const paths = queuedOutbox.paths.slice(0, MAX_QUARANTINE_OUTBOX_DELETES)
+  const pending = queuedOutbox.hasMore || queuedOutbox.paths.length > paths.length ? 1 : 0
+
+  await db.runTransaction(async (transaction) => {
+    const stateSnapshot = await transaction.get(stateRef)
+    if (stateSnapshot.data()?.leaseId !== lease.leaseId) {
+      throw new Error('Community stats contribution lease was lost during quarantine.')
+    }
+    transaction.set(quarantineRef, {
+      ownerUid: lease.uid,
+      failureKind: 'poison',
+      lastErrorAt: Timestamp.now(),
+      lastErrorMessage: error.message.slice(0, 512),
+      acknowledgedOutboxCount: paths.length,
+    }, { merge: true })
+    for (const path of paths) transaction.delete(db.doc(path))
+    transaction.set(stateRef, {
+      lastErrorAt: Timestamp.now(),
+      lastErrorMessage: error.message.slice(0, 512),
+      lastFailureKind: 'poison',
+      pendingOutboxCount: pending,
+      leaseId: FieldValue.delete(),
+      leaseOwnerUid: FieldValue.delete(),
+      leaseExpiresAt: FieldValue.delete(),
+    }, { merge: true })
+    transaction.set(aggregateRef, { refreshState: 'failed' }, { merge: true })
+  })
+
+  return {
+    status: 'failed',
+    failureKind: 'poison',
+    refreshState: 'failed',
+    processedOutboxCount: paths.length,
+    pendingOutboxCount: pending,
+    shouldRetry: false,
+  }
 }
 
 async function failLease(lease: Lease, error: unknown): Promise<void> {
@@ -404,6 +469,7 @@ async function failLease(lease: Lease, error: unknown): Promise<void> {
     transaction.set(stateRef, {
       lastErrorAt: Timestamp.now(),
       lastErrorMessage: error instanceof Error ? error.message.slice(0, 512) : String(error).slice(0, 512),
+      lastFailureKind: 'transient',
       leaseId: FieldValue.delete(),
       leaseOwnerUid: FieldValue.delete(),
       leaseExpiresAt: FieldValue.delete(),
@@ -433,12 +499,21 @@ export async function rebuildUserContribution(
   const claim = await claimLease(uid, options.force === true)
   if (!('leaseId' in claim)) return claim
 
+  let queuedOutbox: { paths: string[]; hasMore: boolean } | undefined
   try {
     // Snapshot the queue first. Source writes that commit after this watermark leave a
     // newer outbox event behind and cannot be accidentally acknowledged by this pass.
-    const queuedOutbox = await loadQueuedOutbox(uid)
+    queuedOutbox = await loadQueuedOutbox(uid)
     const source = await loadUserSource(uid)
-    const contribution = buildCommunityStatsContribution(source)
+    let contribution: CommunityStatsContribution
+    try {
+      contribution = buildCommunityStatsContribution(source)
+    } catch (error) {
+      throw new DeterministicContributionError(
+        'User source could not be converted into a community stats contribution.',
+        { cause: error },
+      )
+    }
     const persisted = await persistContribution(claim, contribution, queuedOutbox)
     if (options.publish === false) {
       await releaseLease(claim)
@@ -457,28 +532,69 @@ export async function rebuildUserContribution(
       shouldRetry: persisted.pending > 0,
     }
   } catch (error) {
+    if (error instanceof DeterministicContributionError && queuedOutbox) {
+      console.error('Quarantining deterministic community stats contribution failure.', error)
+      return quarantinePoisonContribution(claim, queuedOutbox, error)
+    }
     await failLease(claim, error)
     console.error('Failed to rebuild a community stats contribution.', error)
-    return { status: 'failed', refreshState: 'failed', shouldRetry: true }
+    return {
+      status: 'failed',
+      failureKind: 'transient',
+      refreshState: 'failed',
+      shouldRetry: true,
+    }
+  }
+}
+
+async function listFirebaseAuthUserIds(): Promise<string[]> {
+  const auth = getAuth()
+  const userIds: string[] = []
+  let pageToken: string | undefined
+  do {
+    const page = await auth.listUsers(1_000, pageToken)
+    userIds.push(...page.users.map((user) => user.uid))
+    if (userIds.length > MAX_CONTRIBUTIONS) {
+      throw new Error(`Auth user count exceeds the ${MAX_CONTRIBUTIONS}-user bootstrap bound.`)
+    }
+    pageToken = page.pageToken
+  } while (pageToken)
+  return userIds
+}
+
+async function removeDeletedAuthUserState(activeUserIds: Set<string>): Promise<void> {
+  const db = getFirestore()
+  const snapshots = await Promise.all([
+    db.collection(COMMUNITY_STATS_CONTRIBUTIONS_COLLECTION).limit(MAX_CONTRIBUTIONS + 1).get(),
+    db.collection(COMMUNITY_STATS_QUARANTINE_COLLECTION).limit(MAX_CONTRIBUTIONS + 1).get(),
+  ])
+  for (const snapshot of snapshots) {
+    if (snapshot.size > MAX_CONTRIBUTIONS) {
+      throw new Error(`Community stats server state exceeds the ${MAX_CONTRIBUTIONS}-document bound.`)
+    }
+  }
+  const stale = snapshots.flatMap((snapshot) =>
+    snapshot.docs.filter((entry) => !activeUserIds.has(entry.id)))
+  for (let offset = 0; offset < stale.length; offset += 500) {
+    const batch = db.batch()
+    for (const entry of stale.slice(offset, offset + 500)) batch.delete(entry.ref)
+    await batch.commit()
   }
 }
 
 export async function bootstrapCommunityStatsContributions(): Promise<number> {
-  const db = getFirestore()
-  const users = await db.collection('users').limit(MAX_CONTRIBUTIONS + 1).get()
-  if (users.size > MAX_CONTRIBUTIONS) {
-    throw new Error(`User count exceeds the ${MAX_CONTRIBUTIONS}-user bootstrap bound.`)
-  }
-  for (const user of users.docs) {
-    const result = await rebuildUserContribution(user.id, { force: true, publish: false })
+  const userIds = await listFirebaseAuthUserIds()
+  for (const uid of userIds) {
+    const result = await rebuildUserContribution(uid, { force: true, publish: false })
     if (result.status === 'failed') {
-      throw new Error(`Failed to build contribution for user ${user.id}.`)
+      throw new Error(`Failed to build contribution for user ${uid}.`)
     }
   }
+  await removeDeletedAuthUserState(new Set(userIds))
   const bootstrapLease = await claimLease('__bootstrap__', true)
   if (!('leaseId' in bootstrapLease)) {
     throw new Error('Unable to claim the final bootstrap publish lease.')
   }
   await publishWithLease(bootstrapLease)
-  return users.size
+  return userIds.length
 }

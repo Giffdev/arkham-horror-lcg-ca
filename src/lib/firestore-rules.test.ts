@@ -64,6 +64,7 @@ describe('firestore repository contract', () => {
     expect(firestoreRules).toMatch(/match \/community-stats\/\{docId\}\s*\{\s*allow read: if docId == 'global';\s*allow write: if false;/s)
     expect(firestoreRules).toMatch(/match \/community-stats-internal\/\{docId\}\s*\{\s*allow read, write: if false;/s)
     expect(firestoreRules).toMatch(/match \/community-stats-contributions\/\{userId\}\s*\{\s*allow read, write: if false;/s)
+    expect(firestoreRules).toMatch(/match \/community-stats-quarantine\/\{userId\}\s*\{\s*allow read, write: if false;/s)
   })
 
   it('defines a Firestore emulator port for rules tests', () => {

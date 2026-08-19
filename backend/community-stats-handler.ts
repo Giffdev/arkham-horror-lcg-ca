@@ -21,6 +21,9 @@ export type CommunityStatsProcessResponse = {
   json(value: unknown): void
 }
 
+const MAX_RECOVERY_OWNERS_PER_INVOCATION = 3
+const MAX_RECOVERY_CANDIDATE_EVENTS = 50
+
 function headerValue(
   headers: CommunityStatsProcessRequest['headers'],
   name: string,
@@ -61,20 +64,57 @@ function authorizeRecoveryWake(request: CommunityStatsProcessRequest): boolean {
     timingSafeEqual(expectedBytes, providedBytes)
 }
 
-async function findRecoveryOwner(): Promise<string | null> {
+async function findRecoveryOwners(excludedOwners: Set<string>): Promise<string[]> {
   const pending = await getFirestore()
     .collectionGroup(COMMUNITY_STATS_OUTBOX_COLLECTION)
-    .limit(1)
+    .limit(MAX_RECOVERY_CANDIDATE_EVENTS)
     .get()
-  const path = pending.docs[0]?.ref.path
-  const match = path?.match(/^users\/([^/]+)\/communityStatsOutbox\/[^/]+$/)
-  return match?.[1] ?? null
+  const owners: string[] = []
+  for (const entry of pending.docs) {
+    const match = entry.ref.path.match(/^users\/([^/]+)\/communityStatsOutbox\/[^/]+$/)
+    const ownerUid = match?.[1]
+    if (
+      ownerUid &&
+      !excludedOwners.has(ownerUid) &&
+      !owners.includes(ownerUid)
+    ) {
+      owners.push(ownerUid)
+      if (owners.length >= MAX_RECOVERY_OWNERS_PER_INVOCATION) break
+    }
+  }
+  return owners
 }
 
 function responseStatus(result: ContributionProcessResult): number {
   if (result.status === 'failed') return result.shouldRetry ? 503 : 422
   if (result.skipReason === 'lease-active') return 202
   return 200
+}
+
+async function processRecoveryWake(): Promise<
+  ContributionProcessResult | {
+    status: 'recovered'
+    results: Array<ContributionProcessResult & { ownerUid: string }>
+  }
+> {
+  const excludedOwners = new Set<string>()
+  const results: Array<ContributionProcessResult & { ownerUid: string }> = []
+
+  while (results.length < MAX_RECOVERY_OWNERS_PER_INVOCATION) {
+    const [ownerUid] = await findRecoveryOwners(excludedOwners)
+    if (!ownerUid) break
+    excludedOwners.add(ownerUid)
+    const result = await rebuildUserContribution(ownerUid)
+    results.push({ ownerUid, ...result })
+
+    if (result.status === 'failed' && result.failureKind === 'transient') return result
+    if (!(result.status === 'failed' && result.failureKind === 'poison')) return results.length === 1
+      ? result
+      : { status: 'recovered', results }
+  }
+
+  if (results.length === 0) return { status: 'skipped', skipReason: 'no-pending-work' }
+  return { status: 'recovered', results }
 }
 
 export async function handleCommunityStatsProcess(
@@ -95,14 +135,20 @@ export async function handleCommunityStatsProcess(
 
   try {
     ensureFirebaseAdminApp()
-    const ownerUid = request.method === 'GET'
-      ? authorizeRecoveryWake(request) ? await findRecoveryOwner() : null
-      : await authorizeOwnerWake(request)
-    if (!ownerUid) {
-      if (request.method === 'GET' && authorizeRecoveryWake(request)) {
-        response.status(200).json({ status: 'skipped', skipReason: 'no-pending-work' })
+    if (request.method === 'GET') {
+      if (!authorizeRecoveryWake(request)) {
+        response.status(401).json({ error: 'unauthorized' })
         return
       }
+      const result = await processRecoveryWake()
+      response.status(responseStatus(result.status === 'recovered'
+        ? { status: 'published' }
+        : result)).json(result)
+      return
+    }
+
+    const ownerUid = await authorizeOwnerWake(request)
+    if (!ownerUid) {
       response.status(401).json({ error: 'unauthorized' })
       return
     }
