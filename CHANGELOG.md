@@ -10,7 +10,7 @@ This project follows the spirit of [Keep a Changelog](https://keepachangelog.com
 
 - **Community statistics now run on the existing Vercel deployment without paid
   Firebase services.** Owner writes still atomically enqueue durable Firestore work,
-  while a Firebase-authenticated, OIDC-backed Vercel Function publishes the
+  while a Firebase-authenticated Vercel Function publishes the
   server-owned aggregate. Each wake rebuilds only that owner's bounded, privacy-
   filtered contribution instead of rescanning every user's raw records. Raw user
   documents remain owner-only, failed wakes remain retryable, and daily free-tier

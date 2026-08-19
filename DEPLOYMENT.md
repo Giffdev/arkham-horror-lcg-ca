@@ -24,8 +24,8 @@ No Firebase Functions or paid Firebase services are used.
   - `.node-version`
 - Firebase CLI is available via the repo dev dependency (`firebase-tools` in
   `package.json`), so prefer `npx firebase-tools ...`.
-- The bootstrap/runtime dependency set includes `firebase-admin`,
-  `google-auth-library`, and `@vercel/oidc`; and
+- The bootstrap/runtime dependency set includes `firebase-admin` and
+  `google-auth-library`; and
   `backend/scripts/bootstrap-community-stats.mjs` enforces explicit
   `--project` targeting plus ADC project matching.
 - Authenticate before touching production:
@@ -37,8 +37,9 @@ No Firebase Functions or paid Firebase services are used.
   gitignored. It must **never** be committed.
 - The read-only release audit files below stay local-only under
   `.\.vercel\release-audit\`.
-- Configure Vercel OIDC and Google Workload Identity Federation exactly as described
-  in `SERVICES.md`; do not create or upload a service-account JSON private key.
+- Configure the dedicated least-privilege service account and encrypted,
+  production-only Vercel environment variables exactly as described in `SERVICES.md`.
+  The Spark Firebase project does not require Cloud Billing for this identity path.
 
 ## Canonical production rollout
 
@@ -562,9 +563,10 @@ COMMUNITY_STATS_BACKEND_ENABLED=true
 VITE_COMMUNITY_STATS_API_ENABLED=false
 ```
 
-Configure the remaining server-only OIDC/project variables from `.env.example`, set
-`CRON_SECRET` to a long random value, and verify the Vercel OIDC principal is limited
-to this project and production environment.
+Configure `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`,
+and `CRON_SECRET` interactively as production-only, sensitive server values using
+the commands in `SERVICES.md`. Do not populate a tracked or local project file with
+the real key. Confirm Preview and Development have no production credential.
 
 ```powershell
 npx vercel link --yes --non-interactive --team $VercelScope --project $VercelProject
@@ -574,9 +576,9 @@ npx vercel deploy --prod --yes --scope $VercelScope --project $VercelProject
 The first deployment publishes the API while the browser continues only writing the
 durable outbox. This prevents a new client from depending on an unverified backend.
 
-Before bootstrap, verify the deployed Vercel OIDC → Google WIF → Firebase Admin path
-with the cron-protected endpoint. Set the same `CRON_SECRET` in this release shell
-without writing it to disk:
+Before bootstrap, verify the deployed Firebase Admin certificate identity with the
+cron-protected endpoint. Set the same `CRON_SECRET` in this release shell without
+writing it to disk:
 
 ```powershell
 $Headers = @{ Authorization = "Bearer $env:CRON_SECRET" }
@@ -592,8 +594,9 @@ if (-not $WorkerCheck.status) {
 
 This call either reports no pending work or safely processes one queued owner. Stop
 before enabling client wakes if the request returns an authentication, identity, IAM,
-or Firestore error. Firestore REST is the documented fallback only if this check
-disproves the supported custom-Credential path.
+or Firestore error. Also exercise an owner-authenticated wake to verify revoked-token
+checking, then confirm audit logs name the dedicated service account. Never log the
+Firebase ID token or private key.
 
 ### 4. Bootstrap the community-stats pipeline against the explicit project
 

@@ -34,12 +34,12 @@ describe('firestore repository contract', () => {
     expect(rootPackageJson.scripts?.['backend:build']).toBe('tsc -p backend/tsconfig.json')
     expect(rootPackageJson.scripts?.['backend:typecheck']).toBe('tsc -p backend/tsconfig.typecheck.json')
     expect(rootPackageJson.scripts?.['backend:test']).toBe(
-      'vitest run backend/scripts/bootstrap-community-stats.test.ts backend/community-stats-contributions.test.ts backend/community-stats-handler.test.ts',
+      'vitest run backend/scripts/bootstrap-community-stats.test.ts backend/firebase-admin.test.ts backend/community-stats-contributions.test.ts backend/community-stats-handler.test.ts',
     )
     expect(rootPackageJson.scripts?.['backend:test:emulator']).toBe(
       'firebase emulators:exec --project demo-arkham-horror-lcg-ca --only firestore "vitest run --config vitest.firestore.config.ts backend/community-stats-contributions.emulator.test.ts"',
     )
-    expect(rootPackageJson.dependencies).toHaveProperty('@vercel/oidc')
+    expect(rootPackageJson.dependencies).not.toHaveProperty('@vercel/oidc')
     expect(rootPackageJson.dependencies).toHaveProperty('firebase-admin')
     expect(rootPackageJson.dependencies).toHaveProperty('google-auth-library')
     expect(rootPackageJson.devDependencies).not.toHaveProperty('firebase-functions')
