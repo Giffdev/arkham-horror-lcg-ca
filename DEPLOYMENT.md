@@ -4,8 +4,9 @@ This repo does **not** auto-deploy from GitHub. `git push` alone does nothing.
 Production release is a **manual two-stage rollout**:
 
 1. deploy Firebase backend changes first
-2. verify the community-stats pipeline is healthy
-3. only then deploy the Vercel web client
+2. bootstrap and verify the community-stats pipeline
+3. prove existing source documents were not rewritten
+4. only then deploy the Vercel web client
 
 Do **not** use a Vercel-only shortcut for changes that depend on Firestore rules,
 Functions, or aggregate-schema rollout.
@@ -23,14 +24,19 @@ Functions, or aggregate-schema rollout.
   - `.node-version`
 - Firebase CLI is available via the repo dev dependency (`firebase-tools` in
   `package.json`), so prefer `npx firebase-tools ...`.
+- The existing bootstrap/runtime dependency set already includes
+  `firebase-admin` plus `google-auth-library` (`functions\package.json`), and
+  `functions/scripts/bootstrap-community-stats.mjs` already enforces explicit
+  `--project` targeting plus ADC project matching.
 - Authenticate before touching production:
   - Firebase CLI authenticated to the intended account
+  - Application Default Credentials configured for the intended Firebase project
   - Vercel CLI authenticated to the intended account
-- Always target production explicitly:
-  - Firebase commands must pass `--project arkham-horror-tracker`
-  - Vercel deploys must go to `giffdevs-projects/arkham-horror-lcg-ca`
-- Deploy from the repo root. If Vercel tries to link or create a different
-  project, stop and fix the local linkage before deploying production.
+- Deploy from the release worktree root in **Windows PowerShell**.
+- `.vercel\project.json` is intentionally **local-only** because `.vercel` is
+  gitignored. It must **never** be committed.
+- The read-only release audit files below also stay local-only under
+  `.\.vercel\release-audit\`.
 
 ## Canonical production rollout
 
@@ -42,7 +48,7 @@ Functions bootstrap script.
 
 For code changes, validate locally before touching production:
 
-```bash
+```powershell
 npm run typecheck
 npm run test:firestore
 npm test
@@ -52,28 +58,281 @@ npm run build
 Documentation-only changes do not require this full suite unless a doc-specific
 consistency test is added later.
 
-### 1. Deploy Firestore rules and Functions first
+### 1. PowerShell preflight: fix the target values up front and capture a baseline snapshot
 
-```bash
-npx firebase-tools deploy --only firestore:rules,functions --project arkham-horror-tracker --non-interactive
+Open PowerShell in the release worktree root, then refuse to continue unless
+that shell is already using **Node 22**:
+
+```powershell
+$ReleaseRoot = (Get-Location).Path
+$FirebaseProject = 'arkham-horror-tracker'
+$VercelScope = 'giffdevs-projects'
+$VercelProject = 'arkham-horror-lcg-ca'
+$ExpectedVercelOrgId = 'team_qymLK9gugmE5lSs2mxC5XqRY'
+$ExpectedVercelProjectId = 'prj_1QDOJMBT5hM80DuyFzs2mWG4a4Aw'
+$AuditDir = Join-Path $ReleaseRoot '.vercel\release-audit'
+$SnapshotScript = Join-Path $AuditDir 'snapshot-source-docs.mjs'
+$BeforeSnapshot = Join-Path $AuditDir 'source.before.jsonl'
+$AfterSnapshot = Join-Path $AuditDir 'source.after.jsonl'
+$DiffPath = Join-Path $AuditDir 'source.diff.txt'
+
+Set-Location $ReleaseRoot
+
+if ((node -p "process.versions.node.split('.')[0]") -ne '22') {
+  throw 'Select Node 22 before running production release commands.'
+}
+
+New-Item -ItemType Directory -Force -Path $AuditDir | Out-Null
+```
+
+Now create a **read-only** local helper that fingerprints both
+`users/*/playthroughs/*` and `users/*/campaignRuns/*`. It aborts on ADC/project
+mismatch, performs **reads only**, canonicalizes object keys and timestamp-like
+values before hashing, and writes **only** `{ path, updateTime, hash }` records
+to a local ignored JSONL file:
+
+```powershell
+@'
+import { createHash } from 'node:crypto'
+import { mkdir, writeFile } from 'node:fs/promises'
+import { dirname, resolve } from 'node:path'
+import { GoogleAuth } from 'google-auth-library'
+import { applicationDefault, getApps, initializeApp } from 'firebase-admin/app'
+import { getFirestore } from 'firebase-admin/firestore'
+
+function parseArgs(argv) {
+  let projectId
+  let outFile
+  let label = 'snapshot'
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index]
+    if (arg === '--project') {
+      projectId = argv[index + 1]
+      index += 1
+      continue
+    }
+    if (arg === '--out') {
+      outFile = argv[index + 1]
+      index += 1
+      continue
+    }
+    if (arg === '--label') {
+      label = argv[index + 1]
+      index += 1
+    }
+  }
+
+  if (!projectId?.trim()) {
+    throw new Error('Pass --project <firebase-project-id>. Refusing ambiguous Firestore reads.')
+  }
+  if (!outFile?.trim()) {
+    throw new Error('Pass --out <path>. Refusing to stream fingerprints to stdout.')
+  }
+
+  return {
+    projectId: projectId.trim(),
+    outFile: outFile.trim(),
+    label: label.trim() || 'snapshot',
+  }
+}
+
+async function resolveAuthenticatedProjectId() {
+  const auth = new GoogleAuth({
+    scopes: ['https://www.googleapis.com/auth/cloud-platform'],
+  })
+  return auth.getProjectId()
+}
+
+function padNanos(value) {
+  return String(value).padStart(9, '0')
+}
+
+function normalizeTimestampLike(value) {
+  if (
+    value &&
+    typeof value === 'object' &&
+    typeof value.seconds === 'number' &&
+    typeof value.nanoseconds === 'number' &&
+    typeof value.toDate === 'function'
+  ) {
+    return {
+      __type: 'Timestamp',
+      value: `${value.seconds}.${padNanos(value.nanoseconds)}`,
+    }
+  }
+
+  return null
+}
+
+function normalize(value) {
+  if (value === null || typeof value === 'string' || typeof value === 'boolean') {
+    return value
+  }
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) {
+      throw new Error(`Non-finite number encountered: ${value}`)
+    }
+    return value
+  }
+  if (typeof value === 'bigint') {
+    return { __type: 'BigInt', value: value.toString() }
+  }
+  if (value instanceof Date) {
+    return { __type: 'Date', value: value.toISOString() }
+  }
+  if (Array.isArray(value)) {
+    return value.map((entry) => normalize(entry))
+  }
+
+  const timestampValue = normalizeTimestampLike(value)
+  if (timestampValue) {
+    return timestampValue
+  }
+
+  if (
+    value &&
+    typeof value === 'object' &&
+    typeof value.path === 'string' &&
+    Object.prototype.hasOwnProperty.call(value, 'firestore')
+  ) {
+    return { __type: 'DocumentReference', path: value.path }
+  }
+
+  if (value instanceof Uint8Array || Buffer.isBuffer(value)) {
+    return { __type: 'Bytes', value: Buffer.from(value).toString('base64') }
+  }
+
+  if (!value || typeof value !== 'object') {
+    throw new Error(`Unsupported Firestore value type: ${typeof value}`)
+  }
+
+  return Object.fromEntries(
+    Object.entries(value)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, entry]) => [key, normalize(entry)]),
+  )
+}
+
+function formatUpdateTime(updateTime) {
+  if (!updateTime) {
+    return null
+  }
+
+  if (
+    typeof updateTime.seconds === 'number' &&
+    typeof updateTime.nanoseconds === 'number'
+  ) {
+    return `${updateTime.seconds}.${padNanos(updateTime.nanoseconds)}`
+  }
+
+  return updateTime.toDate().toISOString()
+}
+
+function toFingerprint(doc) {
+  const normalized = normalize(doc.data())
+  const hash = createHash('sha256').update(JSON.stringify(normalized)).digest('hex')
+
+  return {
+    path: doc.ref.path,
+    updateTime: formatUpdateTime(doc.updateTime),
+    hash,
+  }
+}
+
+async function readCollectionGroup(db, collectionId) {
+  const snapshot = await db.collectionGroup(collectionId).get()
+  return snapshot.docs.map((doc) => toFingerprint(doc))
+}
+
+async function main() {
+  const { projectId, outFile, label } = parseArgs(process.argv.slice(2))
+  const authenticatedProjectId = await resolveAuthenticatedProjectId()
+
+  if (!authenticatedProjectId?.trim()) {
+    throw new Error(
+      'Unable to resolve the authenticated ADC project. Refusing ambiguous Firestore reads.',
+    )
+  }
+  if (authenticatedProjectId !== projectId) {
+    throw new Error(
+      `Requested project "${projectId}" does not match authenticated ADC project "${authenticatedProjectId}".`,
+    )
+  }
+
+  if (!getApps().length) {
+    initializeApp({
+      credential: applicationDefault(),
+      projectId,
+    })
+  }
+
+  const db = getFirestore()
+  const entries = [
+    ...(await readCollectionGroup(db, 'playthroughs')),
+    ...(await readCollectionGroup(db, 'campaignRuns')),
+  ].sort((left, right) => left.path.localeCompare(right.path))
+
+  const resolvedOutFile = resolve(outFile)
+  await mkdir(dirname(resolvedOutFile), { recursive: true })
+  await writeFile(
+    resolvedOutFile,
+    `${entries.map((entry) => JSON.stringify(entry)).join('\n')}\n`,
+    'utf8',
+  )
+
+  const playthroughCount = entries.filter((entry) => entry.path.includes('/playthroughs/')).length
+  const campaignRunCount = entries.filter((entry) => entry.path.includes('/campaignRuns/')).length
+
+  console.log(
+    `${label}: wrote ${entries.length} source-doc fingerprints ` +
+      `(${playthroughCount} playthroughs, ${campaignRunCount} campaignRuns) to ${resolvedOutFile}`,
+  )
+}
+
+main().catch((error) => {
+  console.error(error.stack ?? error.message)
+  process.exit(1)
+})
+'@ | Set-Content -Path $SnapshotScript -Encoding UTF8
+
+node --check $SnapshotScript
+node $SnapshotScript --project $FirebaseProject --out $BeforeSnapshot --label before-bootstrap
+```
+
+Snapshot invariants:
+
+- the helper reads **only** collection-group query results from `playthroughs`
+  and `campaignRuns`
+- it writes **only** local ignored files under `.\.vercel\release-audit\`
+- it never prints document bodies or field values to the console
+- keep the snapshot and diff files local; they contain document paths and must
+  not be pasted into PRs, chat, or shared logs
+- it aborts on project mismatch, auth ambiguity, or query failure
+
+### 2. Deploy Firestore rules and Functions first
+
+```powershell
+npx firebase-tools deploy --only firestore:rules,functions --project $FirebaseProject --non-interactive
 ```
 
 Why first:
+
 - `firebase.json` defines Firestore rules plus Functions deployment
 - Functions predeploy runs `npm run functions:build`
 - the web client must not ship before required backend/schema support is live
 
-### 2. Bootstrap the community-stats pipeline against the explicit project
+### 3. Bootstrap the community-stats pipeline against the explicit project
 
-```bash
-npm run functions:bootstrap -- --project arkham-horror-tracker
+```powershell
+npm run functions:bootstrap -- --project $FirebaseProject
 ```
 
 The bootstrap script is `functions/scripts/bootstrap-community-stats.mjs`. It
 refuses ambiguous targeting and requires the requested `--project` to match the
 authenticated Admin SDK project.
 
-### 3. Verify backend rollout before touching Vercel
+### 4. Verify backend rollout before touching Vercel
 
 Stop immediately if **any** item below fails.
 
@@ -102,30 +361,68 @@ Community stats bootstrap complete at pipeline generation ... (generatedAt=..., 
 Treat the printed `marker=bootstrap-...` value as the exact completed marker to
 check in retained completed worker state.
 
-### 4. Verify existing production source documents remain unchanged
+### 5. Prove source documents were not rewritten before shipping the client
 
-This rollout must **not** migrate, rewrite, or delete existing user source data.
+After step 4 succeeds, capture a second read-only snapshot and require an empty
+diff of `{ path, updateTime, hash }` across **both** collection groups:
 
-Expected mutable production docs during rollout:
-- `community-stats/global`
-- `community-stats-internal/state`
-- bootstrap/system outbox docs under `community-stats-system/system/...`
+```powershell
+node $SnapshotScript --project $FirebaseProject --out $AfterSnapshot --label after-bootstrap
 
-Existing source documents must remain authoritative and unchanged:
+& git --no-pager diff --no-index --exit-code --no-ext-diff -- $BeforeSnapshot $AfterSnapshot *> $DiffPath
+
+if ($LASTEXITCODE -ne 0) {
+  throw "Production source-document fingerprints changed. Hard stop. Inspect $DiffPath locally; do not deploy Vercel."
+}
+
+Remove-Item $DiffPath -ErrorAction SilentlyContinue
+```
+
+This is a **hard stop** if any source document count, path, `updateTime`, or
+stable content hash changes under either:
+
 - `users/{uid}/playthroughs/*`
 - `users/{uid}/campaignRuns/*`
 
-If you observe source-document rewrites as part of rollout, stop and
-investigate before deploying the client.
+Never auto-delete, auto-restore, or otherwise mutate production user data as a
+release step. If the diff is non-empty, stop and investigate before deploying
+the client.
 
-### 5. Deploy the Vercel web client only after backend verification passes
+### 6. Explicitly link this release worktree to the production Vercel project, then verify the generated linkage
 
-```bash
-npx vercel --prod --yes
+This clean branch intentionally does **not** commit `.vercel\project.json`
+because `.vercel` is ignored. Link the current worktree explicitly with the
+verified non-interactive Vercel CLI flags, then inspect the local ignored
+linkage file before deploying:
+
+```powershell
+npx vercel link --yes --non-interactive --team $VercelScope --project $VercelProject
+
+$VercelLink = Get-Content '.\.vercel\project.json' -Raw | ConvertFrom-Json
+
+if (
+  $VercelLink.projectName -ne $VercelProject -or
+  $VercelLink.orgId -ne $ExpectedVercelOrgId -or
+  $VercelLink.projectId -ne $ExpectedVercelProjectId
+) {
+  throw 'Unexpected .vercel\project.json identity. Stop before production deploy.'
+}
 ```
 
-This publishes the current working tree to the production Vercel project. Use
-it **only after** steps 1-4 are complete.
+If `.vercel\project.json` points anywhere else, fix the **local** linkage and
+re-run the verification. Do **not** commit that file.
+
+### 7. Deploy the Vercel web client only after backend verification, source comparison, and link verification pass
+
+Use the deploy command with the explicit scope/project flags supported by the
+current Vercel CLI:
+
+```powershell
+npx vercel deploy --prod --yes --scope $VercelScope --project $VercelProject
+```
+
+This publishes the current working tree to the intended production Vercel
+project. Do not run it until steps 1-6 are clean.
 
 ## Post-deploy smoke checks
 
@@ -145,12 +442,17 @@ After the Vercel deploy succeeds:
   rollout first, then rerun bootstrap against `arkham-horror-tracker`.
 - If backend verification fails: stop. Do not “test in prod” by shipping the
   newer client anyway.
+- If the source snapshot diff is non-empty: stop. Never delete/restore
+  production data automatically as a release shortcut.
+- If the Vercel link verification fails: stop and fix the local ignored linkage
+  before deploying production.
 - If the web client deploy succeeds but smoke checks fail:
   - roll back the **client** to the last known-good Vercel deployment or commit
   - keep the verified backend rollout in place unless there is a separate
     backend defect requiring a controlled fix
 
 Never delete user game data as a rollback tactic:
+
 - do **not** delete `users/{uid}/playthroughs/*`
 - do **not** delete `users/{uid}/campaignRuns/*`
 
@@ -159,9 +461,11 @@ User game logs are not.
 
 ## Still-valid Vercel notes
 
-- Manual production deploy command: `npx vercel --prod --yes`
+- Production deploy syntax verified locally with `npx vercel deploy --help`
+- Link syntax verified locally with `npx vercel link --help`
+- `.vercel\project.json` stays local/ignored and must never be committed
 - To generate a throwaway preview URL instead of production, run:
 
-```bash
-npx vercel
+```powershell
+npx vercel deploy --yes --scope giffdevs-projects --project arkham-horror-lcg-ca
 ```
