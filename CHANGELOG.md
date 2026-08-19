@@ -8,6 +8,12 @@ This project follows the spirit of [Keep a Changelog](https://keepachangelog.com
 
 ### Changed
 
+- **Community statistics now run on the existing Vercel deployment without paid
+  Firebase services.** Owner writes still atomically enqueue durable Firestore work,
+  while a Firebase-authenticated, OIDC-backed Vercel Function publishes the
+  server-owned aggregate. Raw user documents remain owner-only, failed wakes remain
+  retryable, and daily free-tier recovery handles abandoned work.
+
 - **"Most Popular Campaigns" no longer includes Scenario Pack one-shots.**
   Scenario Pack playthroughs (e.g. Curse of the Rougarou) are excluded from the campaigns
   ranking; they now appear in the dedicated "Most Played Standalones" card instead.

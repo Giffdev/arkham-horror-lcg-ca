@@ -58,6 +58,7 @@ beforeAll(() => {
 // ─── CommunityStats mock ──────────────────────────────────────────────────────
 vi.mock('@/lib/community-stats', () => ({
   getCommunityStats: vi.fn(),
+  getCommunityStatsAvailability: vi.fn((stats: unknown) => (stats ? 'ready' : 'unavailable')),
 }))
 import { getCommunityStats } from '@/lib/community-stats'
 const mockGetCommunityStats = vi.mocked(getCommunityStats)

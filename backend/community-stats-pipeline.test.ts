@@ -36,13 +36,6 @@ vi.mock('firebase-admin/firestore', () => ({
   getFirestore: firestoreAdminMocks.getFirestore,
 }))
 
-vi.mock('firebase-functions', () => ({
-  logger: {
-    error: vi.fn(),
-    info: vi.fn(),
-  },
-}))
-
 function clone<T>(value: T): T {
   return structuredClone(value)
 }

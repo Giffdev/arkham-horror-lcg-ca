@@ -1,7 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { getApps, initializeApp } from 'firebase-admin/app'
 import { FieldValue, getFirestore, Timestamp } from 'firebase-admin/firestore'
-import { logger } from 'firebase-functions'
 
 import {
   buildEmptyCommunityStats,
@@ -18,7 +17,7 @@ export const COMMUNITY_STATS_DOC_PATH = 'community-stats/global'
 export const COMMUNITY_STATS_STATE_DOC_PATH = 'community-stats-internal/state'
 export const COMMUNITY_STATS_OUTBOX_COLLECTION = 'communityStatsOutbox'
 export const COMMUNITY_STATS_SYSTEM_OUTBOX_PARENT_PATH = 'community-stats-system/system'
-export const COMMUNITY_STATS_LEASE_MS = 5 * 60_000
+export const COMMUNITY_STATS_LEASE_MS = 75_000
 export const COMMUNITY_STATS_BOOTSTRAP_TIMEOUT_MAX_MS = 15 * 60_000
 export const COMMUNITY_STATS_BOOTSTRAP_MARKER_RETENTION_MS =
   COMMUNITY_STATS_BOOTSTRAP_TIMEOUT_MAX_MS +
@@ -37,7 +36,7 @@ const COMMUNITY_STATS_PUBLISH_FIXED_WRITES = 2
 const COMMUNITY_STATS_OUTBOX_DELETE_BATCH_LIMIT = 500 - COMMUNITY_STATS_PUBLISH_FIXED_WRITES
 const COMMUNITY_STATS_QUARANTINE_FIXED_WRITES = 3
 const COMMUNITY_STATS_OUTBOX_QUARANTINE_DELETE_BATCH_LIMIT = 500 - COMMUNITY_STATS_QUARANTINE_FIXED_WRITES
-const MAX_PROCESS_PASSES_PER_INVOCATION = 8
+const MAX_PROCESS_PASSES_PER_INVOCATION = 2
 const CLIENT_OUTBOX_KEYS = [
   'mutationId',
   'requestedAtMs',
@@ -1497,15 +1496,15 @@ export async function publishClaimedCommunityStats(
     })
   } catch (error) {
     if (error instanceof CommunityStatsOutboxSchemaError) {
-      logger.error('Invalid community stats outbox data detected; quarantining malformed entries.', error)
+      console.error('Invalid community stats outbox data detected; quarantining malformed entries.', error)
       return quarantineMalformedOutboxEntries(claim, error, nowMs)
     }
     if (isBootstrapMarkerCapacityError(error) && error.overflowOutboxPaths.length > 0) {
-      logger.error('Bootstrap marker queue exceeded configured bounds; quarantining overflow markers.', error)
+      console.error('Bootstrap marker queue exceeded configured bounds; quarantining overflow markers.', error)
       return quarantineOverflowBootstrapMarkers(claim, error, nowMs)
     }
 
-    logger.error('Failed to rebuild community stats aggregate.', error)
+    console.error('Failed to rebuild community stats aggregate.', error)
     await markCommunityStatsRebuildFailed(claim, error, nowMs)
     return {
       status: 'failed',

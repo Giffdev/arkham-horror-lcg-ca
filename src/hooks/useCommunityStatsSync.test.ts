@@ -6,9 +6,14 @@ import type { Playthrough } from '@/lib/types'
 
 const mockSubscribeToCommunityStats = vi.fn()
 const mockUnsubscribe = vi.fn()
+const mockRequestCommunityStatsRefresh = vi.fn()
 
 vi.mock('@/lib/community-stats', () => ({
   subscribeToCommunityStats: (...args: unknown[]) => mockSubscribeToCommunityStats(...args),
+}))
+
+vi.mock('@/lib/community-stats-wake', () => ({
+  requestCommunityStatsRefresh: () => mockRequestCommunityStatsRefresh(),
 }))
 
 function makePlaythrough(id: string): Playthrough {
@@ -42,6 +47,7 @@ describe('useCommunityStatsSync', () => {
   beforeEach(() => {
     mockSubscribeToCommunityStats.mockReset()
     mockUnsubscribe.mockReset()
+    mockRequestCommunityStatsRefresh.mockReset()
     mockSubscribeToCommunityStats.mockReturnValue(mockUnsubscribe)
   })
 
@@ -51,6 +57,7 @@ describe('useCommunityStatsSync', () => {
     renderHook(() => useCommunityStatsSync([makePlaythrough('pt-1')], onSync))
 
     expect(mockSubscribeToCommunityStats).toHaveBeenCalledTimes(1)
+    expect(mockRequestCommunityStatsRefresh).toHaveBeenCalledTimes(1)
     expect(mockSubscribeToCommunityStats.mock.calls[0][0]).toEqual(expect.any(Function))
     expect(mockSubscribeToCommunityStats.mock.calls[0][1]).toEqual(expect.any(Function))
   })

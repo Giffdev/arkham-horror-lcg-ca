@@ -36,7 +36,7 @@ import {
 import { INVESTIGATORS, getInvestigatorById, getInvestigatorDisplayName, getChapterBadgeLabel, isChapterBadgeSpecial, type Investigator } from '@/lib/investigator-data'
 import { MAX_PLAYERS_PER_PLAYTHROUGH, getPlayerLimitError } from '@/lib/playthrough-validation'
 import { matchesSearchText } from '@/lib/search'
-import { toDateInputValue } from '@/lib/date-utils'
+import { toDateInputValue, todayDateInputValue } from '@/lib/date-utils'
 import { Check, CaretDown, X, Plus, Trash, Sparkle } from '@phosphor-icons/react'
 
 import { cn } from '@/lib/utils'
@@ -149,7 +149,7 @@ export function PlaythroughForm({
   const [campaignSet, setCampaignSet] = useState('')
   const [campaignLineageId, setCampaignLineageId] = useState('')
   const [scenarioName, setScenarioName] = useState('')
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0])
+  const [date, setDate] = useState(todayDateInputValue)
   const [investigators, setInvestigators] = useState<InvestigatorAssignment[]>([])
   const [sideStories, setSideStories] = useState<string[]>([])
   const [notes, setNotes] = useState('')
@@ -235,7 +235,7 @@ export function PlaythroughForm({
           ? seedPlaythrough.customCampaignName || seedPlaythrough.campaignName
           : '',
       )
-      setDate(new Date().toISOString().split('T')[0])
+      setDate(todayDateInputValue())
       setSideStories([])
       setNotes('')
       setResolutionType('no_resolution')
@@ -254,7 +254,7 @@ export function PlaythroughForm({
       setCampaignLineageId('')
       setScenarioName('')
       setCustomCampaignName('')
-      setDate(new Date().toISOString().split('T')[0])
+      setDate(todayDateInputValue())
       setSideStories([])
       setNotes('')
       setResolutionType('no_resolution')

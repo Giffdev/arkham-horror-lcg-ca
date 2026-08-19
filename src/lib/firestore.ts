@@ -31,6 +31,7 @@ import {
 } from './campaign-runs'
 import type { CommunityStats } from './community-stats-core'
 import { assertPlayerLimit } from './playthrough-validation'
+import { requestCommunityStatsRefresh } from './community-stats-wake'
 import type {
   CampaignRun,
   CampaignScenarioLog,
@@ -182,8 +183,17 @@ function queueCommunityStatsSignalInTransaction(
   return mutationId
 }
 
+async function runOwnerMutation<T>(
+  uid: string,
+  updateFunction: (transaction: Transaction) => Promise<T>,
+): Promise<T> {
+  const result = await runTransaction(db, updateFunction)
+  void requestCommunityStatsRefresh(uid)
+  return result
+}
+
 export async function ensureUserProfileDocument(input: UserProfileDocumentInput): Promise<void> {
-  await runTransaction(db, async (transaction) => {
+  await runOwnerMutation(input.id, async (transaction) => {
     const userRef = doc(db, 'users', input.id)
     const existing = await transaction.get(userRef)
     if (existing.exists()) {
@@ -261,7 +271,7 @@ export async function addPlaythrough(uid: string, data: Omit<Playthrough, 'id'>)
   }
   assertPlayerLimit(data)
   const playthroughId = createClientMutationId()
-  await runTransaction(db, async (transaction) => {
+  await runOwnerMutation(uid, async (transaction) => {
     transaction.set(
       playthroughDoc(uid, playthroughId),
       sanitizePlaythrough(data) as Record<string, unknown>,
@@ -280,7 +290,7 @@ export async function updatePlaythrough(uid: string, playthrough: Playthrough): 
   }
   assertPlayerLimit(playthrough)
   const { id, ...data } = playthrough
-  await runTransaction(db, async (transaction) => {
+  await runOwnerMutation(uid, async (transaction) => {
     transaction.update(playthroughDoc(uid, id), sanitizePlaythrough(data) as Record<string, unknown>)
     queueCommunityStatsSignalInTransaction(transaction, {
       uid,
@@ -295,7 +305,7 @@ export async function upsertPlaythrough(uid: string, playthrough: Playthrough): 
   }
   assertPlayerLimit(playthrough)
   const { id, ...data } = playthrough
-  await runTransaction(db, async (transaction) => {
+  await runOwnerMutation(uid, async (transaction) => {
     transaction.set(playthroughDoc(uid, id), sanitizePlaythrough(data) as Record<string, unknown>)
     queueCommunityStatsSignalInTransaction(transaction, {
       uid,
@@ -305,7 +315,7 @@ export async function upsertPlaythrough(uid: string, playthrough: Playthrough): 
 }
 
 export async function deletePlaythrough(uid: string, playthroughId: string): Promise<void> {
-  await runTransaction(db, async (transaction) => {
+  await runOwnerMutation(uid, async (transaction) => {
     transaction.delete(playthroughDoc(uid, playthroughId))
     queueCommunityStatsSignalInTransaction(transaction, {
       uid,
@@ -351,7 +361,7 @@ export async function addCampaignRun(uid: string, campaignRun: Omit<CampaignRun,
     startedAt: toCampaignStartTimestamp(campaignRun.startedAt, now),
     updatedAt: now,
   })
-  await runTransaction(db, async (transaction) => {
+  await runOwnerMutation(uid, async (transaction) => {
     transaction.set(campaignRunDoc(uid, campaignRunId), payload)
     queueCommunityStatsSignalInTransaction(transaction, {
       uid,
@@ -367,7 +377,7 @@ export async function upsertCampaignRun(uid: string, campaignRun: CampaignRun): 
     version: campaignRun.version === 1 ? 1 : 2,
     updatedAt: nowIso(),
   })
-  await runTransaction(db, async (transaction) => {
+  await runOwnerMutation(uid, async (transaction) => {
     transaction.set(campaignRunDoc(uid, campaignRun.id), payload)
     queueCommunityStatsSignalInTransaction(transaction, {
       uid,
@@ -381,7 +391,7 @@ export async function editCampaignRun(
   campaignRunId: string,
   updates: EditableCampaignRunFields,
 ): Promise<CampaignRun> {
-  return runTransaction(db, async (transaction) => {
+  return runOwnerMutation(uid, async (transaction) => {
     const runRef = campaignRunDoc(uid, campaignRunId)
     const runSnap = await transaction.get(runRef)
     if (!runSnap.exists()) {
@@ -404,7 +414,7 @@ export async function appendCampaignScenarioLog(
   campaignRunId: string,
   scenarioLog: NewCampaignScenarioLogInput,
 ): Promise<CampaignRun> {
-  return runTransaction(db, async (transaction) => {
+  return runOwnerMutation(uid, async (transaction) => {
     const runRef = campaignRunDoc(uid, campaignRunId)
     const runSnap = await transaction.get(runRef)
     if (!runSnap.exists()) {
@@ -430,7 +440,7 @@ export async function editCampaignScenarioLog(
   scenarioLogId: string,
   updates: EditableCampaignScenarioLogFields,
 ): Promise<CampaignRun> {
-  return runTransaction(db, async (transaction) => {
+  return runOwnerMutation(uid, async (transaction) => {
     const runRef = campaignRunDoc(uid, campaignRunId)
     const runSnap = await transaction.get(runRef)
     if (!runSnap.exists()) {
@@ -453,7 +463,7 @@ export async function deleteCampaignScenarioLog(
   campaignRunId: string,
   scenarioLogId: string,
 ): Promise<CampaignRun> {
-  return runTransaction(db, async (transaction) => {
+  return runOwnerMutation(uid, async (transaction) => {
     const runRef = campaignRunDoc(uid, campaignRunId)
     const runSnap = await transaction.get(runRef)
     if (!runSnap.exists()) {
@@ -475,7 +485,7 @@ export async function promotePlaythroughToCampaignRun(
   uid: string,
   sourcePlaythroughId: string,
 ): Promise<{ campaignRunId: string; status: 'created' | 'already-promoted' | 'recovered' }> {
-  return runTransaction(db, async (transaction) => {
+  return runOwnerMutation(uid, async (transaction) => {
     const sourceRef = playthroughDoc(uid, sourcePlaythroughId)
     const sourceSnap = await transaction.get(sourceRef)
     if (!sourceSnap.exists()) {
@@ -557,7 +567,7 @@ export async function unpromoteCampaignRun(
   ))
   const markedSourceIds = markedSourcesSnapshot.docs.map(entry => entry.id)
 
-  return runTransaction(db, async (transaction) => {
+  return runOwnerMutation(uid, async (transaction) => {
     const runRef = campaignRunDoc(uid, campaignRunId)
     const runSnap = await transaction.get(runRef)
 
@@ -650,7 +660,7 @@ export async function importNormalizedData(
     assertValidNewCampaignRun(campaignRun)
   }
 
-  return runTransaction(db, async (transaction) => {
+  return runOwnerMutation(uid, async (transaction) => {
     const playthroughTargets = payload.playthroughs.map((playthrough) => ({
       playthrough,
       ref: playthroughDoc(uid, playthrough.id),

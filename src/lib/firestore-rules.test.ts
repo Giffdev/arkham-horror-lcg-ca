@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs'
-import { dirname, relative, resolve } from 'node:path'
+import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { describe, expect, it } from 'vitest'
@@ -8,85 +8,48 @@ const currentDir = dirname(fileURLToPath(import.meta.url))
 const repoRoot = resolve(currentDir, '..', '..')
 const firebaseJson = JSON.parse(readFileSync(resolve(repoRoot, 'firebase.json'), 'utf8')) as {
   firestore?: { rules?: string }
-  functions?: { source?: string; predeploy?: string[] }
   emulators?: { firestore?: { port?: number } }
 }
 const rootPackageJson = JSON.parse(readFileSync(resolve(repoRoot, 'package.json'), 'utf8')) as {
   scripts?: Record<string, string>
+  dependencies?: Record<string, string>
+  devDependencies?: Record<string, string>
+  engines?: { node?: string }
+}
+const vercelJson = JSON.parse(readFileSync(resolve(repoRoot, 'vercel.json'), 'utf8')) as {
+  functions?: Record<string, { maxDuration?: number }>
+  crons?: Array<{ path?: string; schedule?: string }>
 }
 const nvmrc = readFileSync(resolve(repoRoot, '.nvmrc'), 'utf8').trim()
 const nodeVersionFile = readFileSync(resolve(repoRoot, '.node-version'), 'utf8').trim()
-const functionsPackageJson = JSON.parse(readFileSync(resolve(repoRoot, 'functions', 'package.json'), 'utf8')) as {
-  engines?: { node?: string }
-  name?: string
-  main?: string
-  scripts?: Record<string, string>
-  dependencies?: Record<string, string>
-  devDependencies?: Record<string, string>
-}
-const functionsPackageLock = JSON.parse(readFileSync(resolve(repoRoot, 'functions', 'package-lock.json'), 'utf8')) as {
-  name?: string
-  lockfileVersion?: number
-  packages?: Record<string, {
-    dependencies?: Record<string, string>
-    devDependencies?: Record<string, string>
-  }>
-}
-const functionsTsconfig = JSON.parse(readFileSync(resolve(repoRoot, 'functions', 'tsconfig.json'), 'utf8')) as {
-  compilerOptions?: { rootDir?: string; outDir?: string }
-}
 const firestoreRules = readFileSync(resolve(repoRoot, 'firestore.rules'), 'utf8')
 
-function expectedFunctionsMain(): string {
-  const functionsDir = resolve(repoRoot, 'functions')
-  const rootDir = resolve(functionsDir, functionsTsconfig.compilerOptions?.rootDir ?? '.')
-  const outDir = resolve(functionsDir, functionsTsconfig.compilerOptions?.outDir ?? 'lib')
-  const compiledEntry = resolve(
-    outDir,
-    relative(rootDir, resolve(functionsDir, 'index.ts')).replace(/\.ts$/, '.js'),
-  )
-  return relative(functionsDir, compiledEntry).replace(/\\/g, '/')
-}
-
 describe('firestore repository contract', () => {
-  it('points firebase config at the canonical firestore rules file and functions source', () => {
+  it('keeps Firebase limited to Firestore rules and emulation', () => {
     expect(firebaseJson.firestore?.rules).toBe('firestore.rules')
-    expect(firebaseJson.functions?.source).toBe('functions')
-    expect(firebaseJson.functions?.predeploy).toEqual(['npm run functions:build'])
+    expect(firebaseJson).not.toHaveProperty('functions')
   })
 
-  it('keeps Firebase Functions build wiring aligned with the compiled main entry', () => {
-    expect(rootPackageJson.scripts?.['functions:build']).toBe('tsc -p functions/tsconfig.json')
-    expect(rootPackageJson.scripts?.['functions:typecheck']).toBe('tsc -p functions/tsconfig.typecheck.json')
-    expect(rootPackageJson.scripts?.['functions:test']).toBe(
-      'vitest run functions/scripts/bootstrap-community-stats.test.ts functions/community-stats-pipeline.test.ts functions/index.test.ts',
+  it('wires the Vercel backend and daily Hobby-compatible recovery', () => {
+    expect(rootPackageJson.scripts?.['backend:build']).toBe('tsc -p backend/tsconfig.json')
+    expect(rootPackageJson.scripts?.['backend:typecheck']).toBe('tsc -p backend/tsconfig.typecheck.json')
+    expect(rootPackageJson.scripts?.['backend:test']).toBe(
+      'vitest run backend/scripts/bootstrap-community-stats.test.ts backend/community-stats-pipeline.test.ts backend/community-stats-handler.test.ts',
     )
-    expect(rootPackageJson.scripts?.['functions:test:emulator']).toBe(
-      'firebase emulators:exec --project demo-arkham-horror-lcg-ca --only firestore "vitest run --config vitest.firestore.config.ts functions/community-stats-pipeline.emulator.test.ts"',
+    expect(rootPackageJson.scripts?.['backend:test:emulator']).toBe(
+      'firebase emulators:exec --project demo-arkham-horror-lcg-ca --only firestore "vitest run --config vitest.firestore.config.ts backend/community-stats-pipeline.emulator.test.ts"',
     )
-    expect(rootPackageJson.scripts?.['test:firestore:unit']).toContain('functions/scripts/bootstrap-community-stats.test.ts')
-    expect(rootPackageJson.scripts?.['test:firestore:unit']).toContain('functions/index.test.ts')
-    expect(functionsPackageJson.scripts?.build).toBe('tsc -p tsconfig.json')
-    expect(functionsPackageJson.scripts?.typecheck).toBe('tsc -p tsconfig.typecheck.json')
-    expect(functionsPackageJson.engines?.node).toBe('22')
+    expect(rootPackageJson.dependencies).toHaveProperty('@vercel/oidc')
+    expect(rootPackageJson.dependencies).toHaveProperty('firebase-admin')
+    expect(rootPackageJson.dependencies).toHaveProperty('google-auth-library')
+    expect(rootPackageJson.devDependencies).not.toHaveProperty('firebase-functions')
+    expect(vercelJson.functions?.['api/community-stats/process.ts']?.maxDuration).toBe(60)
+    expect(vercelJson.crons).toEqual([
+      { path: '/api/community-stats/process', schedule: '17 4 * * *' },
+    ])
+    expect(rootPackageJson.engines?.node).toBe('22.x')
     expect(nvmrc).toBe('22.23.2')
     expect(nodeVersionFile).toBe('22.23.2')
-    expect(functionsPackageJson.main).toBe(expectedFunctionsMain())
-  })
-
-  it('pins functions deploy dependencies to exact versions', () => {
-    const pinnedVersions = {
-      ...functionsPackageJson.dependencies,
-      ...functionsPackageJson.devDependencies,
-    }
-
-    expect(
-      Object.values(pinnedVersions ?? {}).every((version) => !/^[~^]/.test(version)),
-    ).toBe(true)
-    expect(functionsPackageLock.name).toBe(functionsPackageJson.name)
-    expect(functionsPackageLock.lockfileVersion).toBeGreaterThanOrEqual(3)
-    expect(functionsPackageLock.packages?.['']?.dependencies).toEqual(functionsPackageJson.dependencies)
-    expect(functionsPackageLock.packages?.['']?.devDependencies).toEqual(functionsPackageJson.devDependencies)
   })
 
   it('keeps user playthrough and campaign-run access owner scoped', () => {

@@ -100,7 +100,7 @@ export function CommunityStats() {
     ? (
         <Card className="border-amber-400/40 bg-amber-500/10">
           <CardContent className="py-3 text-sm text-amber-100">
-            Community stats may be stale. Showing the last published aggregate{lastUpdatedLabel ? ` from ${lastUpdatedLabel}` : ''}.
+            Community stats are refreshing. Showing the last trusted aggregate{lastUpdatedLabel ? ` from ${lastUpdatedLabel}` : ''}.
           </CardContent>
         </Card>
       )

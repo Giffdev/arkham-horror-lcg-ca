@@ -498,6 +498,36 @@ function communityStatsSystemOutboxPath(markerId) {
   return `${COMMUNITY_STATS_SYSTEM_OUTBOX_PARENT_PATH}/${COMMUNITY_STATS_OUTBOX_COLLECTION}/${markerId}`
 }
 
+function releaseWorkerConfig() {
+  const processUrl = process.env.COMMUNITY_STATS_PROCESS_URL?.trim()
+  const cronSecret = process.env.CRON_SECRET?.trim()
+  if (!processUrl || !cronSecret) {
+    throw new Error(
+      'COMMUNITY_STATS_PROCESS_URL and CRON_SECRET are required to wake the deployed Vercel worker.',
+    )
+  }
+  const url = new URL(processUrl)
+  if (url.protocol !== 'https:' && url.hostname !== 'localhost' && url.hostname !== '127.0.0.1') {
+    throw new Error('COMMUNITY_STATS_PROCESS_URL must use HTTPS outside localhost.')
+  }
+  return { processUrl: url.toString(), cronSecret }
+}
+
+async function wakeVercelWorker(config) {
+  const response = await fetch(config.processUrl, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${config.cronSecret}`,
+    },
+  })
+  if (response.status === 401 || response.status === 403) {
+    throw new Error('Vercel community stats worker rejected the release operator credentials.')
+  }
+  if (![200, 202, 409, 422, 503].includes(response.status)) {
+    throw new Error(`Vercel community stats worker returned unexpected status ${response.status}.`)
+  }
+}
+
 function completedBootstrapMarkers(state, nowMs = Date.now()) {
   return trackedBootstrapMarkerStateFromWorkerState(state ?? {}, nowMs).completedBootstrapMarkers
 }
@@ -509,6 +539,7 @@ export function hasCompletedBootstrapMarker(state, markerId, nowMs = Date.now())
 
 async function main() {
   const { projectId, timeoutMs } = parseArgs(process.argv.slice(2))
+  const workerConfig = releaseWorkerConfig()
   const authenticatedProjectId = await resolveAuthenticatedProjectId()
 
   if (!authenticatedProjectId?.trim()) {
@@ -591,6 +622,7 @@ async function main() {
 
   const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
+    await wakeVercelWorker(workerConfig)
     const [stateSnapshot, aggregateSnapshot, outboxSnapshot] = await Promise.all([
       stateRef.get(),
       aggregateRef.get(),

@@ -100,8 +100,8 @@ export async function rebuildCommunityStats(_localPlaythroughs?: Playthrough[]):
     const generatedAt = Date.now()
     const stats = computeCommunityStats({
       playthroughs: source.playthroughs,
-      rootPlaythroughs: source.rootPlaythroughs,
-      campaignRuns: source.campaignRuns,
+      rootPlaythroughs: source.rootPlaythroughs ?? source.playthroughs,
+      campaignRuns: source.campaignRuns ?? [],
       userCount: source.userCount,
       generatedAt,
       snapshotReadAt: generatedAt,

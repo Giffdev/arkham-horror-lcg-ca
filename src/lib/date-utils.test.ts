@@ -1,4 +1,10 @@
-import { formatDate } from './date-utils'
+import { formatDate, todayDateInputValue } from './date-utils'
+
+describe('todayDateInputValue', () => {
+  it('formats the local calendar date without converting through UTC', () => {
+    expect(todayDateInputValue(new Date(2026, 7, 18, 19, 30))).toBe('2026-08-18')
+  })
+})
 
 describe('formatDate', () => {
   beforeEach(() => {

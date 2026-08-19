@@ -131,7 +131,7 @@ describe('CommunityStats', () => {
       render(<CommunityStats />)
 
       await waitFor(() =>
-        expect(screen.getByText(/community stats may be stale/i)).toBeVisible(),
+        expect(screen.getByText(/community stats are refreshing/i)).toBeVisible(),
       )
       expect(screen.getByText('42')).toBeVisible()
     })

@@ -1,15 +1,15 @@
 # Deployment
 
 This repo does **not** auto-deploy from GitHub. `git push` alone does nothing.
-Production release is a **manual two-stage rollout**:
+Production release is a **manual backend-first rollout**:
 
-1. deploy Firebase backend changes first
-2. bootstrap and verify the community-stats pipeline
-3. prove existing source documents were not rewritten
-4. only then deploy the Vercel web client
+1. deploy Firestore rules only
+2. deploy Vercel with the backend enabled and client wake flag disabled
+3. bootstrap and verify the community-stats pipeline
+4. prove existing source documents were not rewritten
+5. enable client wakes and deploy the same verified revision again
 
-Do **not** use a Vercel-only shortcut for changes that depend on Firestore rules,
-Functions, or aggregate-schema rollout.
+No Firebase Functions or paid Firebase services are used.
 
 ## Live targets
 
@@ -24,9 +24,9 @@ Functions, or aggregate-schema rollout.
   - `.node-version`
 - Firebase CLI is available via the repo dev dependency (`firebase-tools` in
   `package.json`), so prefer `npx firebase-tools ...`.
-- The existing bootstrap/runtime dependency set already includes
-  `firebase-admin` plus `google-auth-library` (`functions\package.json`), and
-  `functions/scripts/bootstrap-community-stats.mjs` already enforces explicit
+- The bootstrap/runtime dependency set includes `firebase-admin`,
+  `google-auth-library`, and `@vercel/oidc`; and
+  `backend/scripts/bootstrap-community-stats.mjs` enforces explicit
   `--project` targeting plus ADC project matching.
 - Authenticate before touching production:
   - Firebase CLI authenticated to the intended account
@@ -35,8 +35,12 @@ Functions, or aggregate-schema rollout.
 - Deploy from the release worktree root in **Windows PowerShell**.
 - `.vercel\project.json` is intentionally **local-only** because `.vercel` is
   gitignored. It must **never** be committed.
-- The read-only release audit files below also stay local-only under
+- The read-only release audit files below stay local-only under
   `.\.vercel\release-audit\`.
+- Configure Vercel OIDC and Google Workload Identity Federation exactly as described
+  in `SERVICES.md`; do not create or upload a service-account JSON private key.
+- Set `COMMUNITY_STATS_PROCESS_URL` and `CRON_SECRET` only in the release shell when
+  running bootstrap. Never commit either value.
 
 ## Canonical production rollout
 
@@ -541,29 +545,52 @@ Snapshot invariants:
   not be pasted into PRs, chat, or shared logs
 - it aborts on project mismatch, auth ambiguity, or query failure
 
-### 2. Deploy Firestore rules and Functions first
+### 2. Deploy Firestore rules only
 
 ```powershell
-npx firebase-tools deploy --only firestore:rules,functions --project $FirebaseProject --non-interactive
+npx firebase-tools deploy --only firestore:rules --project $FirebaseProject --non-interactive
 ```
 
-Why first:
+This preserves owner-only source access, write-only owner outboxes, and a server-owned
+read-only public aggregate. `firebase.json` intentionally has no Functions target.
 
-- `firebase.json` defines Firestore rules plus Functions deployment
-- Functions predeploy runs `npm run functions:build`
-- the web client must not ship before required backend/schema support is live
+### 3. Link and deploy the Vercel backend with client wakes disabled
 
-### 3. Bootstrap the community-stats pipeline against the explicit project
+Set these production values before the first deployment:
+
+```text
+COMMUNITY_STATS_BACKEND_ENABLED=true
+VITE_COMMUNITY_STATS_API_ENABLED=false
+```
+
+Configure the remaining server-only OIDC/project variables from `.env.example`, set
+`CRON_SECRET` to a long random value, and verify the Vercel OIDC principal is limited
+to this project and production environment.
 
 ```powershell
-npm run functions:bootstrap -- --project $FirebaseProject
+npx vercel link --yes --non-interactive --team $VercelScope --project $VercelProject
+npx vercel deploy --prod --yes --scope $VercelScope --project $VercelProject
 ```
 
-The bootstrap script is `functions/scripts/bootstrap-community-stats.mjs`. It
+The first deployment publishes the API while the browser continues only writing the
+durable outbox. This prevents a new client from depending on an unverified backend.
+
+### 4. Bootstrap the community-stats pipeline against the explicit project
+
+Set release-shell values without writing a secret file:
+
+```powershell
+$env:COMMUNITY_STATS_PROCESS_URL = 'https://arkham-horror-lcg-ca.vercel.app/api/community-stats/process'
+$env:CRON_SECRET = '<same value configured securely in Vercel>'
+npm run backend:bootstrap -- --project $FirebaseProject
+```
+
+The bootstrap script is `backend/scripts/bootstrap-community-stats.mjs`. It
 refuses ambiguous targeting and requires the requested `--project` to match the
-authenticated Admin SDK project.
+authenticated Admin SDK project. It creates only a system outbox marker, wakes the
+deployed Vercel worker, and waits for the exact ready acknowledgement.
 
-### 4. Verify backend rollout before touching Vercel
+### 5. Verify backend rollout
 
 Stop immediately if **any** item below fails.
 
@@ -592,7 +619,7 @@ Community stats bootstrap complete at pipeline generation ... (generatedAt=..., 
 Treat the printed `marker=bootstrap-...` value as the exact completed marker to
 check in retained completed worker state.
 
-### 5. Prove source documents were not rewritten before shipping the client
+### 6. Prove source documents were not rewritten before enabling the client
 
 After step 4 succeeds, capture a second read-only snapshot and require an empty
 diff of `{ path, updateTime, hash }` across **both** collection groups:
@@ -619,7 +646,7 @@ Never auto-delete, auto-restore, or otherwise mutate production user data as a
 release step. If the diff is non-empty, stop and investigate before deploying
 the client.
 
-### 6. Explicitly link this release worktree to the production Vercel project, then verify the generated linkage
+### 7. Verify the generated Vercel linkage
 
 This clean branch intentionally does **not** commit `.vercel\project.json`
 because `.vercel` is ignored. Link the current worktree explicitly with the
@@ -643,17 +670,23 @@ if (
 If `.vercel\project.json` points anywhere else, fix the **local** linkage and
 re-run the verification. Do **not** commit that file.
 
-### 7. Deploy the Vercel web client only after backend verification, source comparison, and link verification pass
+### 8. Enable client wakes and deploy the same revision
 
-Use the deploy command with the explicit scope/project flags supported by the
-current Vercel CLI:
+Change the Vercel production build variable:
+
+```text
+VITE_COMMUNITY_STATS_API_ENABLED=true
+```
+
+Then deploy the same commit:
 
 ```powershell
 npx vercel deploy --prod --yes --scope $VercelScope --project $VercelProject
 ```
 
-This publishes the current working tree to the intended production Vercel
-project. Do not run it until steps 1-6 are clean.
+Do not run the second deployment until steps 1-7 are clean. Source writes remain
+compatible if the wake request fails: the outbox is durable, signed-in clients retry,
+and the daily Hobby cron recovers abandoned work.
 
 ## Post-deploy smoke checks
 
@@ -668,7 +701,7 @@ After the Vercel deploy succeeds:
 
 ## Failure / rollback guidance
 
-- If the Firebase deploy fails: do **not** deploy Vercel.
+- If the Firestore rules deploy fails: do **not** deploy Vercel.
 - If bootstrap fails or times out: do **not** deploy Vercel. Fix backend
   rollout first, then rerun bootstrap against `arkham-horror-tracker`.
 - If backend verification fails: stop. Do not “test in prod” by shipping the
@@ -679,7 +712,7 @@ After the Vercel deploy succeeds:
   before deploying production.
 - If the web client deploy succeeds but smoke checks fail:
   - roll back the **client** to the last known-good Vercel deployment or commit
-  - keep the verified backend rollout in place unless there is a separate
+  - keep the verified Vercel backend rollout in place unless there is a separate
     backend defect requiring a controlled fix
 
 Never delete user game data as a rollback tactic:

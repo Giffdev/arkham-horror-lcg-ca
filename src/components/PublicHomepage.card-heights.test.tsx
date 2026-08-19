@@ -4,6 +4,7 @@ import { PublicHomepage } from './PublicHomepage'
 
 vi.mock('@/lib/community-stats', () => ({
   getCommunityStats: vi.fn(),
+  getCommunityStatsAvailability: vi.fn((stats: unknown) => (stats ? 'ready' : 'unavailable')),
 }))
 
 vi.mock('@/components/AuthDialog', () => ({
