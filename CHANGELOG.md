@@ -8,6 +8,29 @@ This project follows the spirit of [Keep a Changelog](https://keepachangelog.com
 
 ### Changed
 
+- **Ready community statistics remain visible between backend refreshes.** A trusted
+  aggregate marked `ready` no longer shows a refreshing warning solely because its
+  generation timestamp is older than 15 minutes.
+
+- **Community statistics bootstrap now uses Firestore-safe control IDs.** The final
+  aggregate publish lease uses the centralized strict ASCII marker
+  `bootstrap-publisher` instead of Firestore's reserved `__...__` document-ID format.
+
+- **Vercel owner authentication is Node 22 compatible.** The backend now verifies
+  Firebase ID tokens directly with Google's fixed Secure Token JWKS, an explicit
+  RS256/issuer/audience contract, and disabled/revoked-user checks. The incompatible
+  `firebase-admin`/`jwks-rsa` runtime chain has been removed.
+
+- **Community statistics now run on the existing Vercel deployment without paid
+  Firebase services.** Owner writes still atomically enqueue durable Firestore work,
+  while a Firebase-authenticated Vercel Function publishes the
+  server-owned aggregate. Each wake rebuilds only that owner's bounded, privacy-
+  filtered contribution instead of rescanning every user's raw records. Raw user
+  documents remain owner-only. Empty registered accounts remain represented,
+  transient failures remain retryable, deterministic bad-owner work is quarantined
+  without replacing valid totals, and bounded daily free-tier recovery continues to
+  other owners.
+
 - **"Most Popular Campaigns" no longer includes Scenario Pack one-shots.**
   Scenario Pack playthroughs (e.g. Curse of the Rougarou) are excluded from the campaigns
   ranking; they now appear in the dedicated "Most Played Standalones" card instead.

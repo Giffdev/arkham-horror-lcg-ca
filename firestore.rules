@@ -1,0 +1,93 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function clientOutboxKeys() {
+      return [
+        'mutationId',
+        'requestedAtMs',
+        'requestedBy',
+        'reason',
+        'affectedDocuments',
+      ];
+    }
+
+    function hasExactClientOutboxShape() {
+      return request.resource.data.keys().hasAll(clientOutboxKeys()) &&
+        request.resource.data.keys().hasOnly(clientOutboxKeys());
+    }
+
+    function isAllowedClientOutboxReason(reason) {
+      return reason == 'user-create' ||
+        reason == 'playthrough-write' ||
+        reason == 'playthrough-delete' ||
+        reason == 'campaign-run-write' ||
+        reason == 'campaign-run-delete' ||
+        reason == 'campaign-run-promotion' ||
+        reason == 'campaign-run-restoration' ||
+        reason == 'import';
+    }
+
+    function clientOutboxTimestampWithinBounds() {
+      return request.resource.data.requestedAtMs >= 1577836800000 &&
+        request.resource.data.requestedAtMs <= 4102444800000;
+    }
+
+    function isValidClientOutboxCreate(userId, eventId) {
+      return isOwner(userId) &&
+        hasExactClientOutboxShape() &&
+        request.resource.data.mutationId is string &&
+        request.resource.data.mutationId == eventId &&
+        request.resource.data.requestedBy == 'client' &&
+        request.resource.data.reason is string &&
+        isAllowedClientOutboxReason(request.resource.data.reason) &&
+        request.resource.data.requestedAtMs is int &&
+        clientOutboxTimestampWithinBounds() &&
+        request.resource.data.affectedDocuments is int &&
+        request.resource.data.affectedDocuments >= 1 &&
+        request.resource.data.affectedDocuments <= 499;
+    }
+
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+
+      match /playthroughs/{playthroughId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      match /campaignRuns/{campaignRunId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      match /communityStatsOutbox/{eventId} {
+        allow create: if isValidClientOutboxCreate(userId, eventId);
+        allow read, update, delete: if false;
+      }
+    }
+
+    match /community-stats/{docId} {
+      allow read: if docId == 'global';
+      allow write: if false;
+    }
+
+    match /community-stats-internal/{docId} {
+      allow read, write: if false;
+    }
+
+    match /community-stats-contributions/{userId} {
+      allow read, write: if false;
+    }
+
+    match /community-stats-quarantine/{userId} {
+      allow read, write: if false;
+    }
+
+  }
+}

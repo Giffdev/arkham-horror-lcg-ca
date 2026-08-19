@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
-import { Playthrough } from '@/lib/types'
+import { flattenGameLogs } from '@/lib/campaign-runs'
+import { CampaignRun, Playthrough } from '@/lib/types'
 import { getInvestigatorPairKey, resolveInvestigator } from '@/lib/investigator-data'
 
 export interface HeatmapData {
@@ -89,13 +90,17 @@ function extractPairings(playthroughs: Playthrough[]): { name1: string; name2: s
  * Use for personal data where raw playthroughs are available.
  */
 export function useInvestigatorHeatmap(
-  playthroughs: Playthrough[] | undefined
+  playthroughs: Playthrough[] | undefined,
+  campaignRuns: CampaignRun[] = [],
 ): HeatmapData {
   return useMemo(() => {
     if (!playthroughs || playthroughs.length === 0) {
       return { investigators: [], matrix: [], maxCount: 0 }
     }
-    const pairings = extractPairings(playthroughs)
+    const flattened = campaignRuns.length > 0
+      ? flattenGameLogs({ playthroughs, campaignRuns })
+      : playthroughs
+    const pairings = extractPairings(flattened)
     return buildHeatmapFromPairings(pairings)
-  }, [playthroughs])
+  }, [campaignRuns, playthroughs])
 }

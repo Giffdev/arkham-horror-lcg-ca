@@ -10,9 +10,8 @@ import {
   onAuthStateChanged,
   type User as FirebaseUser,
 } from 'firebase/auth'
-import { doc, setDoc, getDoc } from 'firebase/firestore'
-import { auth, db } from './firebase'
-import { incrementRegisteredUsers } from './firestore'
+import { auth } from './firebase'
+import { ensureUserProfileDocument } from './firestore'
 
 export interface User {
   id: string
@@ -41,18 +40,13 @@ function firebaseUserToUser(fbUser: FirebaseUser, provider: 'email' | 'google' =
 }
 
 async function ensureUserDoc(user: User): Promise<void> {
-  const userRef = doc(db, 'users', user.id)
-  const existing = await getDoc(userRef)
-  if (!existing.exists()) {
-    await setDoc(userRef, {
-      email: user.email,
-      createdAt: user.createdAt,
-      authProvider: user.authProvider,
-      displayName: user.displayName || null,
-    })
-    // Track total registered users in community-stats (no users collection read needed)
-    await incrementRegisteredUsers()
-  }
+  await ensureUserProfileDocument({
+    id: user.id,
+    email: user.email,
+    createdAt: user.createdAt,
+    authProvider: user.authProvider,
+    displayName: user.displayName || null,
+  })
 }
 
 export const createAccount = async (
@@ -196,4 +190,3 @@ export const resetPassword = async (
     return { success: false, error: error?.message || 'Failed to send reset email' }
   }
 }
-

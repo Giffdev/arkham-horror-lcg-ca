@@ -23,10 +23,12 @@ import { CommunityStats } from './CommunityStats'
 // ─── mock community-stats module ─────────────────────────────────────────────
 vi.mock('@/lib/community-stats', () => ({
   getCommunityStats: vi.fn(),
+  getCommunityStatsAvailability: vi.fn((stats: unknown) => (stats ? 'ready' : 'unavailable')),
 }))
 
-import { getCommunityStats } from '@/lib/community-stats'
+import { getCommunityStats, getCommunityStatsAvailability } from '@/lib/community-stats'
 const mockGetCommunityStats = vi.mocked(getCommunityStats)
+const mockGetCommunityStatsAvailability = vi.mocked(getCommunityStatsAvailability)
 
 // ─── test fixtures ────────────────────────────────────────────────────────────
 
@@ -91,6 +93,7 @@ async function renderAndWait(stats: unknown) {
 describe('CommunityStats', () => {
   beforeEach(() => {
     vi.resetAllMocks()
+    mockGetCommunityStatsAvailability.mockImplementation((stats: unknown) => (stats ? 'ready' : 'unavailable'))
   })
 
   describe('loading state', () => {
@@ -108,6 +111,43 @@ describe('CommunityStats', () => {
       await waitFor(() =>
         expect(screen.getByText(/no community data available/i)).toBeVisible(),
       )
+    })
+  })
+
+  describe('aggregate availability', () => {
+    it('renders an unavailable message when the trusted aggregate is missing', async () => {
+      mockGetCommunityStats.mockResolvedValueOnce(null as never)
+      mockGetCommunityStatsAvailability.mockReturnValueOnce('unavailable')
+      render(<CommunityStats />)
+
+      await waitFor(() =>
+        expect(screen.getByText(/community stats are unavailable right now/i)).toBeVisible(),
+      )
+    })
+
+    it('renders a stale warning while still showing the last published stats', async () => {
+      mockGetCommunityStats.mockResolvedValueOnce(FULL_STATS as never)
+      mockGetCommunityStatsAvailability.mockReturnValueOnce('stale')
+      render(<CommunityStats />)
+
+      await waitFor(() =>
+        expect(screen.getByText(/community stats are refreshing/i)).toBeVisible(),
+      )
+      expect(screen.getByText('42')).toBeVisible()
+    })
+
+    it('shows old ready stats without a refreshing warning', async () => {
+      const oldReadyStats = {
+        ...FULL_STATS,
+        generatedAt: Date.now() - (16 * 60_000),
+        refreshState: 'ready',
+      }
+      mockGetCommunityStats.mockResolvedValueOnce(oldReadyStats as never)
+      mockGetCommunityStatsAvailability.mockReturnValueOnce('ready')
+      render(<CommunityStats />)
+
+      await waitFor(() => expect(screen.getByText('42')).toBeVisible())
+      expect(screen.queryByText(/community stats are refreshing/i)).not.toBeInTheDocument()
     })
   })
 
@@ -371,6 +411,7 @@ describe('CommunityStats', () => {
   describe('StatsListCard grid — equal-height layout contract (items-stretch + h-full)', () => {
     it('grid wrapper carries items-stretch for equal row heights', async () => {
       await renderAndWait(FULL_STATS)
+      // The grid wrapper uses items-stretch so all cards in the same row are the same height.
       const grids = document.querySelectorAll('.items-stretch')
       expect(
         grids.length,
@@ -380,8 +421,10 @@ describe('CommunityStats', () => {
 
     it('StatsListCards inside the grid each carry h-full for cell-filling height', async () => {
       await renderAndWait(FULL_STATS)
+      // Locate the items-stretch grid and check that its direct children carry h-full.
       const grid = document.querySelector('.items-stretch')
       expect(grid).toBeInTheDocument()
+      // At least one card (Most Popular Campaigns) is always rendered.
       const hFullChildren = grid
         ? Array.from(grid.children).filter((child) =>
             (child as HTMLElement).className?.includes('h-full'),

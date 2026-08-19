@@ -8,7 +8,7 @@ export function EmptyState() {
       </div>
       <h3 className="text-2xl font-semibold mb-2 text-foreground">No Playthroughs Yet</h3>
       <p className="text-muted-foreground max-w-md">
-        Start logging your Arkham Horror adventures! Click "Log New Game" to record your first campaign playthrough.
+        Start logging your Arkham Horror adventures! Click "Log New Campaign" to record your first campaign playthrough.
       </p>
     </div>
   )

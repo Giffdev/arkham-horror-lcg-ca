@@ -1,6 +1,6 @@
 import { renderHook } from '@testing-library/react'
 import { useInvestigatorPairings } from './useInvestigatorPairings'
-import { Playthrough, InvestigatorAssignment } from '@/lib/types'
+import { Playthrough, CampaignRun, InvestigatorAssignment } from '@/lib/types'
 
 function makeInvestigator(name: string, overrides: Partial<InvestigatorAssignment> = {}): InvestigatorAssignment {
   return {
@@ -161,7 +161,7 @@ describe('useInvestigatorPairings', () => {
     expect(result.current.personal[1].investigators[0]).toBe('Daisy Walker')
   })
 
-  it('topN parameter limits results', () => {
+  it('legacy two-argument topN signature limits results', () => {
     const playthroughs = [makePlaythrough({
       investigators: [
         makeInvestigator('Agnes Baker'),
@@ -172,6 +172,117 @@ describe('useInvestigatorPairings', () => {
     })]
     // 4 investigators = 6 pairs, limit to 2
     const { result } = renderHook(() => useInvestigatorPairings(playthroughs, 2))
+    expect(result.current.personal).toHaveLength(2)
+  })
+
+  it('defaults topN to 10 when not provided', () => {
+    const playthroughs = [makePlaythrough({
+      investigators: [
+        makeInvestigator('Agnes Baker'),
+        makeInvestigator('Daisy Walker'),
+        makeInvestigator('Jenny Barnes'),
+        makeInvestigator('Roland Banks'),
+        makeInvestigator('Zoey Samaras'),
+        makeInvestigator('Rex Murphy'),
+      ],
+    })]
+    // 6 investigators = 15 unique pairs, default should cap to 10.
+    const { result } = renderHook(() => useInvestigatorPairings(playthroughs))
+    expect(result.current.personal).toHaveLength(10)
+  })
+
+  it('flattens campaign runs and suppresses promoted-source duplicate pairings', () => {
+    const promotedSource = makePlaythrough({
+      id: 'legacy-source',
+      campaignType: 'Full Campaign',
+      promotedToCampaignRunId: 'run-1',
+      scenarioName: 'Curtain Call',
+      investigators: [
+        makeInvestigator('Roland Banks'),
+        makeInvestigator('Daisy Walker'),
+      ],
+    })
+    const standalone = makePlaythrough({
+      id: 'standalone',
+      campaignType: 'Scenario Pack',
+      campaignName: 'Curse of the Rougarou',
+      scenarioName: 'Curse of the Rougarou',
+      investigators: [
+        makeInvestigator('Agnes Baker'),
+        makeInvestigator('Jenny Barnes'),
+      ],
+    })
+    const run: CampaignRun = {
+      id: 'run-1',
+      version: 1,
+      campaignLineageId: 'campaign:path-to-carcosa',
+      campaignName: 'The Path to Carcosa',
+      campaignType: 'Full Campaign',
+      startedAt: '2026-08-10',
+      updatedAt: '2026-08-12T00:00:00.000Z',
+      status: 'active',
+      sourcePlaythroughId: 'legacy-source',
+      setupSnapshot: {
+        date: '2026-08-10',
+        investigators: promotedSource.investigators,
+      },
+      scenarioLogs: [
+        {
+          id: 'scenario-1',
+          date: '2026-08-11',
+          scenarioName: 'Curtain Call',
+          investigators: promotedSource.investigators,
+        },
+      ],
+    }
+
+    const { result } = renderHook(() =>
+      useInvestigatorPairings([promotedSource, standalone], [run]),
+    )
+
+    expect(result.current.personal).toEqual([
+      { investigators: ['Agnes Baker', 'Jenny Barnes'], count: 1 },
+      { investigators: ['Daisy Walker', 'Roland Banks'], count: 1 },
+    ])
+  })
+
+  it('uses campaignRuns + topN overload when both are provided', () => {
+    const playthroughs = [makePlaythrough({
+      id: 'legacy-source',
+      promotedToCampaignRunId: 'run-1',
+      investigators: [
+        makeInvestigator('Roland Banks'),
+        makeInvestigator('Daisy Walker'),
+      ],
+    })]
+    const run: CampaignRun = {
+      id: 'run-1',
+      version: 1,
+      campaignLineageId: 'campaign:path-to-carcosa',
+      campaignName: 'The Path to Carcosa',
+      campaignType: 'Full Campaign',
+      startedAt: '2026-08-10',
+      updatedAt: '2026-08-12T00:00:00.000Z',
+      status: 'active',
+      setupSnapshot: {
+        date: '2026-08-10',
+        investigators: playthroughs[0].investigators,
+      },
+      scenarioLogs: [
+        {
+          id: 'scenario-1',
+          date: '2026-08-11',
+          scenarioName: 'Curtain Call',
+          investigators: [
+            makeInvestigator('Roland Banks'),
+            makeInvestigator('Daisy Walker'),
+            makeInvestigator('Agnes Baker'),
+          ],
+        },
+      ],
+    }
+
+    const { result } = renderHook(() => useInvestigatorPairings(playthroughs, [run], 2))
     expect(result.current.personal).toHaveLength(2)
   })
 

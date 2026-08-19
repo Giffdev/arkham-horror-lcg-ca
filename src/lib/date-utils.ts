@@ -22,6 +22,10 @@ export function toDateInputValue(raw: string | null | undefined): string {
   return raw
 }
 
+export function todayDateInputValue(now = new Date()): string {
+  return format(now, 'yyyy-MM-dd')
+}
+
 export function formatDate(dateString: string): string {
   const date = new Date(dateString)
   const now = new Date()

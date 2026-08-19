@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { onAuthStateChanged, type User as FirebaseUser } from 'firebase/auth'
 import { auth } from '@/lib/firebase'
 import { User as AuthUser, signOutUser } from '@/lib/auth'
-import { rebuildCommunityStats } from '@/lib/community-stats'
 import { toast } from 'sonner'
 
 export function useAuthState() {
@@ -18,10 +17,8 @@ export function useAuthState() {
           createdAt: Date.now(),
           authProvider: fbUser.providerData[0]?.providerId === 'google.com' ? 'google' : 'email',
         })
-        rebuildCommunityStats([]).catch(console.error)
       } else {
         setCurrentUser(null)
-        rebuildCommunityStats([]).catch(console.error)
       }
       setIsLoading(false)
     })

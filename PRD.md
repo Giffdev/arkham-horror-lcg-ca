@@ -14,6 +14,7 @@ A campaign playthrough tracker for Arkham Horror: The Card Game that allows play
 ## Tech Stack
 
 - **Framework**: React 19 + TypeScript + Vite
+- **Server runtime**: Vercel Functions + Google Cloud Firestore/Auth clients on Node 22, with Firebase ID tokens verified through `jose` and Google's fixed Secure Token JWKS; server credentials use a dedicated least-privilege service-account key stored only in encrypted, production-scoped Vercel environment variables
 - **Styling**: TailwindCSS 4, class-variance-authority, tailwind-merge
 - **UI Components**: Radix UI primitives (Dialog, Tabs, Select, Popover, AlertDialog, DropdownMenu, Toast, etc.)
 - **Icons**: Phosphor Icons (`@phosphor-icons/react`)
@@ -25,10 +26,10 @@ A campaign playthrough tracker for Arkham Horror: The Card Game that allows play
 
 ## Data Architecture
 
-- **Per-user data**: Each authenticated user's playthroughs are stored in `users/{uid}/playthroughs` subcollection in Firestore
-- **Community stats**: Aggregated stats document rebuilt client-side from a `collectionGroup` query across all users' playthroughs
+- **Per-user data**: Each authenticated user's playthroughs and campaign runs are stored in `users/{uid}/playthroughs` and `users/{uid}/campaignRuns` subcollections in Firestore
+- **Community stats**: Server-owned aggregate published to `community-stats/global`; owner-authored source writes queue exact-schema durable outbox events, a trusted Vercel Function rebuilds only that owner's bounded, privacy-filtered contribution, and the public document is read-only to clients
 - **User document**: Created on first sign-in at `users/{uid}` with email, createdAt, authProvider, displayName
-- **Real-time sync**: Playthrough list uses Firestore `onSnapshot` for live updates
+- **Real-time sync**: Playthrough and campaign-run lists use Firestore `onSnapshot` for live updates
 
 ## Authentication
 
@@ -94,11 +95,18 @@ A campaign playthrough tracker for Arkham Horror: The Card Game that allows play
   3. **Investigator Pairing Heatmap**: Interactive NxN matrix showing how often investigators are paired together across games. Supports community and personal view modes. Desktop shows full grid with hover tooltips and row/column highlighting. Mobile shows a searchable investigator picker with ranked pairings. Investigators link to ArkhamDB. oklch-based dynamic color scale with 5-step legend.
 - **Success criteria**: Community data loads from shared Firestore document, heatmap renders responsively, personal/community toggle works, investigator names link to ArkhamDB
 
-### Community Stats Sync
-- **Functionality**: When an authenticated user's playthroughs change, community stats are rebuilt client-side with a debounced 60-second cooldown to avoid excessive writes
-- **Purpose**: Keep community statistics up-to-date without requiring Cloud Functions infrastructure
-- **Implementation**: `useCommunityStatsSync` hook watches playthrough changes, queries all users' playthroughs via `collectionGroup`, aggregates stats, and writes to shared community-stats document
-- **Success criteria**: Stats stay reasonably fresh, no infinite rebuild loops, errors are caught silently
+### Community Stats Pipeline
+- **Functionality**: When a signed-in owner creates, edits, deletes, imports, promotes, or restores source data, that write atomically emits a durable outbox event. After commit, the client wakes a Firebase-ID-token-authenticated Vercel Function. The worker reads only that owner's bounded source collections, replaces that owner's server-only privacy-filtered contribution, and publishes the aggregate from contribution documents rather than rescanning every user's raw data.
+- **Purpose**: Keep community statistics current without exposing raw cross-user reads to clients or letting clients own aggregate writes.
+- **Implementation**: User-profile, playthrough, and campaign-run writes create unique outbox docs rather than contending on one control document. Client outbox docs retain the exact validated schema and imports remain capped at 499 source writes plus one outbox write. A 75-second server lease serializes contribution replacement and aggregate publication. Each owner read is capped at 5,000 playthroughs and 5,000 campaign runs; each pass deletes at most 498 queued events; aggregate publication reads at most 10,000 compact contribution documents. Contributions contain canonical counts, hashed campaign-family identities, and no player names, notes, dates, custom campaign names, custom investigator names, or custom side-story text. `community-stats-contributions/**`, `community-stats-internal/**`, and the aggregate write path are denied to clients.
+- **Failure/staleness behavior**: `community-stats/global` is public read-only and can surface `refreshState: "stale"` or `refreshState: "failed"` when a newer snapshot has not been proven current yet. The client treats stale, failed, missing, or old-schema aggregates as non-current instead of silently claiming freshness.
+- **Retry/follow-up behavior**: The durable outbox remains authoritative. Signed-in clients use bounded retries for retryable responses and token/fetch network failures, while permanent HTTP failures stop immediately. Later signed-in sessions opportunistically wake pending work. The Hobby-compatible daily Vercel Cron scans at most 50 ordered outbox events, processes at most three owners, and persists a server-only leased cursor so a noisy or quarantined owner cannot starve later owners. The cursor wraps after the end and does not advance on transient failures. A failed publish leaves the already-safe contribution available for the next retry; no retry rewrites raw source records.
+- **Operational recovery**: Inspect the Vercel worker logs, `community-stats/global`, `community-stats-internal/contribution-publisher`, `community-stats-internal/recovery-cursor`, and the affected owner's outbox. Rerun the explicit contribution bootstrap if contributions are absent or schema-incompatible. Never manually delete production playthrough/campaign source documents as a shortcut.
+- **Success criteria**: Stats update after normal writes and atomic imports without client-triggered cross-user raw scans; nested side scenarios count as game nights but not campaigns/progression; deletes and campaign-promotion suppression/restoration remain correct; anonymous visitors continue reading the last published aggregate.
+
+### Community Stats Rollout
+- **Rollout order**: Deploy Firestore rules, then deploy the Vercel backend with `VITE_COMMUNITY_STATS_API_ENABLED=false`. Run the explicit project-gated contribution bootstrap under Node 22, verify schema version 3 and representative totals, optionally prove source fingerprints are unchanged, then enable client wakes and redeploy the same revision.
+- **Compatibility requirement**: Existing raw playthrough and campaign-run documents remain authoritative and readable throughout rollout; the aggregate is rebuilt from source data rather than migrated destructively.
 
 ### Data Export/Import
 - **Functionality**: Export all playthroughs as JSON file download; import playthroughs from a JSON file with validation
@@ -109,7 +117,7 @@ A campaign playthrough tracker for Arkham Horror: The Card Game that allows play
 ## Edge Case Handling
 
 - **First time user**: Show empty state with "Log Your First Game" call-to-action when no playthroughs exist
-- **Data isolation**: Each user's playthroughs are in their own Firestore subcollection (`users/{uid}/playthroughs`)
+- **Data isolation**: Each user's playthroughs and campaign runs are stored in their own Firestore subcollections (`users/{uid}/playthroughs`, `users/{uid}/campaignRuns`)
 - **Missing player names**: Players without names are excluded from the player statistics view; playthroughs still appear in main log
 - **Fan-made campaigns**: Allow free-text entry for campaign names when Fan-Made type is selected
 - **Unknown campaigns**: Allow logging playthroughs where campaign name isn't remembered by selecting Unknown campaign type

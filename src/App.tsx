@@ -1,14 +1,21 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { usePlaythroughs } from '@/hooks/usePlaythroughs'
+import { useCampaignRuns } from '@/hooks/useCampaignRuns'
 import { useAuthState } from '@/hooks/useAuthState'
 import { usePlaythroughFilters } from '@/hooks/usePlaythroughFilters'
 import { usePasswordLink } from '@/hooks/usePasswordLink'
 import { useLegacyDataMigration } from '@/hooks/useLegacyDataMigration'
 import { useCommunityStatsSync } from '@/hooks/useCommunityStatsSync'
-import { Playthrough } from '@/lib/types'
+import { buildCampaignRunFromSourcePlaythrough, CampaignRunMutationError, flattenGameLogs } from '@/lib/campaign-runs'
+import { importNormalizedData, promotePlaythroughToCampaignRun } from '@/lib/firestore'
+import { Playthrough, CampaignRun, CampaignScenarioLog } from '@/lib/types'
 import { User as AuthUser } from '@/lib/auth'
+import { buildTopLevelGameRows } from '@/lib/top-level-game-rows'
+import { getActualCampaignScenarioLogs } from '@/lib/scenario-night-utils'
+import type { NormalizedImportPayload } from '@/lib/import-export'
 
 import { PlaythroughForm } from '@/components/PlaythroughForm'
+import { CampaignScenarioForm } from '@/components/CampaignScenarioForm'
 import { CommunityStats } from '@/components/CommunityStats'
 import { CompletionStatsPanel } from '@/components/CompletionStats'
 import { InvestigatorHeatmap } from '@/components/InvestigatorHeatmap'
@@ -23,31 +30,85 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { Toaster, toast } from 'sonner'
 import { PublicHomepage } from '@/components/PublicHomepage'
-import { rebuildCommunityStats, getCommunityStats, CommunityStats as CommunityStatsType } from '@/lib/community-stats'
+import { CommunityStats as CommunityStatsType, markCommunityStatsDirty } from '@/lib/community-stats'
 
 interface AuthenticatedAppProps {
   currentUser: AuthUser
   onSignOut: () => void
 }
 
+type DeleteTarget =
+  | { kind: 'playthrough'; id: string }
+  | { kind: 'campaign-run'; campaignRunId: string; campaignName: string }
+  | {
+      kind: 'campaign-scenario'
+      campaignRunId: string
+      scenarioLogId: string
+      scenarioName: string
+    }
+
+function mapCampaignRunSetupToPlaythrough(campaignRun: CampaignRun): Playthrough {
+  return {
+    id: campaignRun.id,
+    date: campaignRun.startedAt,
+    campaignName: campaignRun.campaignName,
+    campaignSet: campaignRun.campaignSet,
+    campaignType: campaignRun.campaignType,
+    campaignLineageId: campaignRun.campaignLineageId,
+    customCampaignName: campaignRun.customCampaignName,
+    investigators: campaignRun.setupSnapshot.investigators,
+    notes: campaignRun.setupSnapshot.notes,
+  }
+}
+
 function AuthenticatedApp({ currentUser, onSignOut }: AuthenticatedAppProps) {
   const [playthroughs, playthroughActions, isLoadingPlaythroughs] = usePlaythroughs(currentUser.id)
+  const [campaignRuns, campaignRunActions, isLoadingCampaignRuns] = useCampaignRuns(currentUser.id)
   const [formOpen, setFormOpen] = useState(false)
-  const [editingPlaythrough, setEditingPlaythrough] = useState<Playthrough | null>(null)
+  const [editingTarget, setEditingTarget] = useState<
+    | { kind: 'playthrough'; playthrough: Playthrough }
+    | { kind: 'campaign-run'; campaignRunId: string }
+    | { kind: 'campaign-scenario'; campaignRunId: string; scenarioLogId: string }
+    | null
+  >(null)
+  const [continuationCampaignRunId, setContinuationCampaignRunId] = useState<string | null>(null)
+  const [pendingContinuationRun, setPendingContinuationRun] = useState<CampaignRun | null>(null)
+  const [expandedCampaignRunIds, setExpandedCampaignRunIds] = useState<Set<string>>(() => new Set())
   const [isSaving, setIsSaving] = useState(false)
-  const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null)
   const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState("games")
+  const [activeTab, setActiveTab] = useState('games')
 
-  const { filters, handlers: filterHandlers, filteredPlaythroughs } = usePlaythroughFilters(playthroughs)
+  const flattenedPlaythroughs = useMemo(() => (
+    flattenGameLogs({
+      playthroughs,
+      campaignRuns,
+    })
+  ), [campaignRuns, playthroughs])
+
+  const topLevelRows = useMemo(() => (
+    buildTopLevelGameRows(playthroughs, campaignRuns)
+  ), [campaignRuns, playthroughs])
+  const isLoadingGames = isLoadingPlaythroughs || isLoadingCampaignRuns
+
+  const topLevelFilterPlaythroughs = useMemo(
+    () => topLevelRows.map((row) => row.filterPlaythrough),
+    [topLevelRows],
+  )
+
+  const { filters, handlers: filterHandlers, filteredPlaythroughs } = usePlaythroughFilters(topLevelFilterPlaythroughs)
+  const filteredTopLevelRows = useMemo(() => {
+    const allowedFilterIds = new Set(filteredPlaythroughs.map((playthrough) => playthrough.id))
+    return topLevelRows.filter((row) => allowedFilterIds.has(row.filterPlaythrough.id))
+  }, [filteredPlaythroughs, topLevelRows])
   const passwordLink = usePasswordLink(currentUser)
   useLegacyDataMigration(playthroughs, playthroughActions.update)
 
   const [communityStats, setCommunityStats] = useState<CommunityStatsType | null>(null)
-  useCommunityStatsSync(playthroughs, setCommunityStats)
-  useEffect(() => {
-    getCommunityStats().then(setCommunityStats).catch(() => {})
-  }, [])
+  useCommunityStatsSync(flattenedPlaythroughs, setCommunityStats)
+  const markCommunityStatsPending = () => {
+    markCommunityStatsDirty(communityStats?.lastUpdated)
+  }
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab)
@@ -55,18 +116,18 @@ function AuthenticatedApp({ currentUser, onSignOut }: AuthenticatedAppProps) {
   }
 
   const knownPlayerNames = useMemo(() => {
-    if (!playthroughs) return []
+    if (!flattenedPlaythroughs) return []
     const names = new Set<string>()
-    playthroughs.forEach(p => p.investigators.forEach(inv => {
+    flattenedPlaythroughs.forEach(p => p.investigators.forEach(inv => {
       if (inv.playerName?.trim()) names.add(inv.playerName.trim())
     }))
     return Array.from(names).sort((a, b) => a.localeCompare(b))
-  }, [playthroughs])
+  }, [flattenedPlaythroughs])
 
   const allPlayers = useMemo(() => {
-    if (!playthroughs) return []
+    if (!flattenedPlaythroughs) return []
     const playerSet = new Set<string>()
-    playthroughs.forEach(playthrough => {
+    flattenedPlaythroughs.forEach(playthrough => {
       playthrough.investigators.forEach(inv => {
         if (inv.playerName.trim()) {
           playerSet.add(inv.playerName)
@@ -74,19 +135,71 @@ function AuthenticatedApp({ currentUser, onSignOut }: AuthenticatedAppProps) {
       })
     })
     return Array.from(playerSet).sort((a, b) => a.localeCompare(b))
-  }, [playthroughs])
+  }, [flattenedPlaythroughs])
+
+  const editingCampaignRun = useMemo(() => {
+    if (editingTarget?.kind !== 'campaign-run') return null
+    return campaignRuns.find((campaignRun) => campaignRun.id === editingTarget.campaignRunId) ?? null
+  }, [campaignRuns, editingTarget])
+
+  const editingScenarioContext = useMemo(() => {
+    if (editingTarget?.kind !== 'campaign-scenario') return null
+    const campaignRun = campaignRuns.find((run) => run.id === editingTarget.campaignRunId)
+    if (!campaignRun) return null
+    const scenarioLog = campaignRun.scenarioLogs.find((log) => log.id === editingTarget.scenarioLogId)
+    if (!scenarioLog) return null
+    return { campaignRun, scenarioLog }
+  }, [campaignRuns, editingTarget])
+
+  const continuationCampaignRun = useMemo(() => {
+    if (!continuationCampaignRunId) return null
+    const liveRun = campaignRuns.find((campaignRun) => campaignRun.id === continuationCampaignRunId)
+    if (liveRun) return liveRun
+    if (pendingContinuationRun?.id === continuationCampaignRunId) return pendingContinuationRun
+    return null
+  }, [campaignRuns, continuationCampaignRunId, pendingContinuationRun])
+
+  const editPlaythroughForForm = useMemo(() => {
+    if (editingTarget?.kind === 'playthrough') return editingTarget.playthrough
+    if (editingCampaignRun) return mapCampaignRunSetupToPlaythrough(editingCampaignRun)
+    return null
+  }, [editingCampaignRun, editingTarget])
+
+  const activeScenarioFormRun = editingScenarioContext?.campaignRun ?? continuationCampaignRun
+  const activeScenarioLog = editingScenarioContext?.scenarioLog ?? undefined
+  const isScenarioFormOpen = formOpen && Boolean(activeScenarioFormRun) && (Boolean(editingScenarioContext) || Boolean(continuationCampaignRunId))
 
   const handleSavePlaythrough = async (playthrough: Omit<Playthrough, 'id'> | Playthrough) => {
     setIsSaving(true)
     try {
-      if ('id' in playthrough) {
+      if (editingCampaignRun) {
+        const payload = playthrough as Omit<Playthrough, 'id'> | Playthrough
+        await campaignRunActions.edit(editingCampaignRun.id, {
+          campaignName: payload.campaignName,
+          campaignSet: payload.campaignSet,
+          campaignType: payload.campaignType,
+          customCampaignName: payload.customCampaignName,
+          startedAt: payload.date,
+          setupSnapshot: {
+            date: payload.date,
+            investigators: payload.investigators,
+            notes: payload.notes,
+          },
+        })
+        markCommunityStatsPending()
+        toast.success('Campaign setup updated')
+      } else if ('id' in playthrough) {
         await playthroughActions.update(playthrough)
+        markCommunityStatsPending()
         toast.success('Playthrough updated successfully')
       } else {
         await playthroughActions.add(playthrough)
+        markCommunityStatsPending()
         toast.success('Playthrough logged successfully')
       }
-      setEditingPlaythrough(null)
+      setEditingTarget(null)
+      setContinuationCampaignRunId(null)
+      setPendingContinuationRun(null)
     } catch (error) {
       console.error('Failed to save playthrough:', error)
       const raw = error instanceof Error ? error.message : String(error)
@@ -98,28 +211,212 @@ function AuthenticatedApp({ currentUser, onSignOut }: AuthenticatedAppProps) {
     }
   }
 
-  const handleDeletePlaythrough = async () => {
-    if (deleteId) {
-      try {
-        await playthroughActions.remove(deleteId)
-        toast.success('Playthrough deleted')
-      } catch (error) {
-        console.error('Failed to delete playthrough:', error)
-        toast.error('Failed to delete playthrough')
+  const getScenarioMutationErrorMessage = (error: unknown): string => {
+    if (error instanceof CampaignRunMutationError) {
+      if (error.code === 'CAMPAIGN_SCENARIO_LOG_STATEFUL_EDIT_BLOCKED') {
+        return 'Only notes and metadata can be edited on non-latest scenario logs. Update the latest scenario for roster/outcome changes.'
       }
-      setDeleteId(null)
+      if (error.code === 'CAMPAIGN_SCENARIO_LOG_DELETE_BLOCKED') {
+        return 'Only the latest scenario log can be deleted to protect campaign history.'
+      }
+      if (error.code === 'CAMPAIGN_RUN_SETUP_INVESTIGATORS_LOCKED') {
+        return 'Campaign setup investigators are locked once scenario history exists. Continue the campaign to adjust roster state.'
+      }
+      return error.message
+    }
+    return error instanceof Error ? error.message : 'Failed to save campaign scenario log.'
+  }
+
+  const handleSaveCampaignScenario = async (payload: {
+    date: string
+    scenarioName: string
+    investigators?: Playthrough['investigators']
+    sideStories?: string[]
+    notes?: string
+    scenarioType?: CampaignScenarioLog['scenarioType']
+    resolution?: CampaignScenarioLog['resolution']
+    rosterBefore?: CampaignScenarioLog['rosterBefore']
+    investigatorOutcomes?: CampaignScenarioLog['investigatorOutcomes']
+    preScenarioAdjustments?: CampaignScenarioLog['preScenarioAdjustments']
+    rosterChanges?: CampaignScenarioLog['rosterChanges']
+    rosterAfter?: CampaignScenarioLog['rosterAfter']
+  }) => {
+    setIsSaving(true)
+    try {
+      if (editingScenarioContext) {
+        await campaignRunActions.editScenario(
+          editingScenarioContext.campaignRun.id,
+          editingScenarioContext.scenarioLog.id,
+          payload,
+        )
+        markCommunityStatsPending()
+        setExpandedCampaignRunIds((current) => {
+          const next = new Set(current)
+          next.add(editingScenarioContext.campaignRun.id)
+          return next
+        })
+        toast.success('Scenario log updated')
+      } else if (continuationCampaignRunId) {
+        if (!payload.investigators) {
+          throw new Error('Investigator participation is required when logging a new scenario.')
+        }
+        await campaignRunActions.appendScenario(continuationCampaignRunId, {
+          ...payload,
+          investigators: payload.investigators,
+        })
+        markCommunityStatsPending()
+        setExpandedCampaignRunIds((current) => {
+          const next = new Set(current)
+          next.add(continuationCampaignRunId)
+          return next
+        })
+        toast.success('Scenario logged to campaign run')
+      } else {
+        throw new Error('No campaign run is selected for this scenario log.')
+      }
+      setEditingTarget(null)
+      setContinuationCampaignRunId(null)
+      setPendingContinuationRun(null)
+    } catch (error) {
+      const message = getScenarioMutationErrorMessage(error)
+      toast.error(message)
+      throw new Error(message)
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleImportData = async (payload: NormalizedImportPayload) => {
+    await importNormalizedData(currentUser.id, payload)
+    markCommunityStatsPending()
+  }
+
+  const handleDeletePlaythrough = async () => {
+    if (!deleteTarget) return
+    try {
+      if (deleteTarget.kind === 'playthrough') {
+        await playthroughActions.remove(deleteTarget.id)
+        markCommunityStatsPending()
+        toast.success('Playthrough deleted')
+      } else if (deleteTarget.kind === 'campaign-run') {
+        await campaignRunActions.remove(deleteTarget.campaignRunId)
+        markCommunityStatsPending()
+        setExpandedCampaignRunIds((current) => {
+          const next = new Set(current)
+          next.delete(deleteTarget.campaignRunId)
+          return next
+        })
+        toast.success('Campaign run deleted')
+      } else if (deleteTarget.kind === 'campaign-scenario') {
+        await campaignRunActions.removeScenario(deleteTarget.campaignRunId, deleteTarget.scenarioLogId)
+        markCommunityStatsPending()
+        toast.success('Scenario log deleted')
+      }
+    } catch (error) {
+      console.error('Failed to delete record:', error)
+      toast.error(getScenarioMutationErrorMessage(error))
+    } finally {
+      setDeleteTarget(null)
     }
   }
 
   const handleEdit = (playthrough: Playthrough) => {
-    setEditingPlaythrough(playthrough)
+    setEditingTarget({ kind: 'playthrough', playthrough })
+    setContinuationCampaignRunId(null)
+    setPendingContinuationRun(null)
+    setFormOpen(true)
+  }
+
+  const handleContinueCampaign = async (playthrough: Playthrough) => {
+    try {
+      const promotion = await promotePlaythroughToCampaignRun(currentUser.id, playthrough.id)
+      if (promotion.status !== 'already-promoted') {
+        markCommunityStatsPending()
+      }
+      const promotedRun = campaignRuns.find((campaignRun) => campaignRun.id === promotion.campaignRunId)
+      setEditingTarget(null)
+      setContinuationCampaignRunId(promotion.campaignRunId)
+      setPendingContinuationRun(
+        promotedRun ??
+        buildCampaignRunFromSourcePlaythrough(playthrough, {
+          campaignRunId: promotion.campaignRunId,
+        }),
+      )
+      setFormOpen(true)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to continue campaign'
+      toast.error(message)
+    }
+  }
+
+  const handleContinueCampaignRun = (campaignRun: CampaignRun) => {
+    if (campaignRun.campaignType === 'Scenario Pack' && getActualCampaignScenarioLogs(campaignRun).length > 0) {
+      toast.error('Standalone Scenario Packs can record only one scenario result.')
+      return
+    }
+    setEditingTarget(null)
+    setContinuationCampaignRunId(campaignRun.id)
+    setPendingContinuationRun(campaignRun)
+    setFormOpen(true)
+  }
+
+  const handleEditCampaignRun = (campaignRun: CampaignRun) => {
+    setEditingTarget({ kind: 'campaign-run', campaignRunId: campaignRun.id })
+    setContinuationCampaignRunId(null)
+    setPendingContinuationRun(null)
+    setFormOpen(true)
+  }
+
+  const handleEditCampaignScenario = (campaignRun: CampaignRun, scenarioLog: CampaignScenarioLog) => {
+    setEditingTarget({
+      kind: 'campaign-scenario',
+      campaignRunId: campaignRun.id,
+      scenarioLogId: scenarioLog.id,
+    })
+    setContinuationCampaignRunId(null)
+    setPendingContinuationRun(null)
     setFormOpen(true)
   }
 
   const handleNewGame = () => {
-    setEditingPlaythrough(null)
+    setEditingTarget(null)
+    setContinuationCampaignRunId(null)
+    setPendingContinuationRun(null)
     setFormOpen(true)
   }
+
+  const handleFormOpenChange = (open: boolean) => {
+    setFormOpen(open)
+    if (!open) {
+      setEditingTarget(null)
+      setContinuationCampaignRunId(null)
+      setPendingContinuationRun(null)
+    }
+  }
+
+  const toggleCampaignRunExpanded = (campaignRunId: string) => {
+    setExpandedCampaignRunIds((current) => {
+      const next = new Set(current)
+      if (next.has(campaignRunId)) {
+        next.delete(campaignRunId)
+      } else {
+        next.add(campaignRunId)
+      }
+      return next
+    })
+  }
+
+  const deleteDialogTitle = deleteTarget?.kind === 'campaign-run'
+    ? 'Delete Campaign Run?'
+    : deleteTarget?.kind === 'campaign-scenario'
+      ? 'Delete Scenario Log?'
+      : 'Delete Playthrough?'
+
+  const deleteDialogDescription = deleteTarget?.kind === 'campaign-run'
+    ? `This action cannot be undone. "${deleteTarget.campaignName}" and its scenario logs will be removed from this view.`
+    : deleteTarget?.kind === 'campaign-scenario'
+      ? `This action cannot be undone. "${deleteTarget.scenarioName}" will be removed from this campaign run.`
+      : 'This action cannot be undone. This playthrough will be permanently removed from your log.'
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -132,6 +429,9 @@ function AuthenticatedApp({ currentUser, onSignOut }: AuthenticatedAppProps) {
         isGoogleUser={passwordLink.isGoogleUser}
         hasPasswordLinked={passwordLink.hasPasswordLinked}
         onOpenPasswordLink={() => passwordLink.setLinkPasswordOpen(true)}
+        playthroughs={playthroughs}
+        campaignRuns={campaignRuns}
+        onImportData={handleImportData}
       />
 
       <main className="container mx-auto px-6 py-8 md:pb-8 pb-24">
@@ -153,20 +453,44 @@ function AuthenticatedApp({ currentUser, onSignOut }: AuthenticatedAppProps) {
 
           <TabsContent value="games" className="space-y-6">
             <GamesTab
-              isLoading={isLoadingPlaythroughs}
+              isLoading={isLoadingGames}
               playthroughs={playthroughs}
-              filteredPlaythroughs={filteredPlaythroughs}
+              campaignRuns={campaignRuns}
+              topLevelRows={topLevelRows}
+              filteredTopLevelRows={filteredTopLevelRows}
+              filterPlaythroughs={topLevelFilterPlaythroughs}
               filters={filters}
               filterHandlers={filterHandlers}
               onEdit={handleEdit}
-              onDelete={setDeleteId}
+              onContinueCampaign={handleContinueCampaign}
+              onContinueCampaignRun={handleContinueCampaignRun}
+              onEditCampaignRun={handleEditCampaignRun}
+              onDeleteCampaignRun={(campaignRun) => {
+                setDeleteTarget({
+                  kind: 'campaign-run',
+                  campaignRunId: campaignRun.id,
+                  campaignName: campaignRun.customCampaignName || campaignRun.campaignName,
+                })
+              }}
+              onEditCampaignScenario={handleEditCampaignScenario}
+              onDeleteCampaignScenario={(campaignRun, scenarioLog) => {
+                setDeleteTarget({
+                  kind: 'campaign-scenario',
+                  campaignRunId: campaignRun.id,
+                  scenarioLogId: scenarioLog.id,
+                  scenarioName: scenarioLog.scenarioName,
+                })
+              }}
+              expandedCampaignRunIds={expandedCampaignRunIds}
+              onToggleCampaignRunExpanded={toggleCampaignRunExpanded}
+              onDelete={(id) => setDeleteTarget({ kind: 'playthrough', id })}
             />
           </TabsContent>
 
           <TabsContent value="players" className="space-y-6">
             <PlayersTab
-              isLoading={isLoadingPlaythroughs}
-              playthroughs={playthroughs}
+              isLoading={isLoadingGames}
+              playthroughs={flattenedPlaythroughs}
               allPlayers={allPlayers}
               selectedPlayer={selectedPlayer}
               onSelectPlayer={setSelectedPlayer}
@@ -176,12 +500,12 @@ function AuthenticatedApp({ currentUser, onSignOut }: AuthenticatedAppProps) {
           <TabsContent value="community" className="space-y-6">
             <CommunityStats />
             <CompletionStatsPanel
-              playthroughs={playthroughs}
+              playthroughs={flattenedPlaythroughs}
               communityBreakdown={communityStats?.completionBreakdown}
               communityTotal={communityStats?.totalGames}
             />
             <InvestigatorHeatmap
-              playthroughs={playthroughs}
+              playthroughs={flattenedPlaythroughs}
               communityPairings={communityStats?.topPairings}
             />
           </TabsContent>
@@ -189,20 +513,32 @@ function AuthenticatedApp({ currentUser, onSignOut }: AuthenticatedAppProps) {
       </main>
 
       <PlaythroughForm
-        open={formOpen}
-        onOpenChange={setFormOpen}
+        open={formOpen && !isScenarioFormOpen}
+        onOpenChange={handleFormOpenChange}
         onSave={handleSavePlaythrough}
-        editPlaythrough={editingPlaythrough}
+        editPlaythrough={editPlaythroughForForm}
         knownPlayerNames={knownPlayerNames}
         isSaving={isSaving}
       />
 
-      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+      {activeScenarioFormRun && (
+        <CampaignScenarioForm
+          open={isScenarioFormOpen}
+          onOpenChange={handleFormOpenChange}
+          campaignRun={activeScenarioFormRun}
+          mode={editingScenarioContext ? 'edit' : 'append'}
+          scenarioLog={activeScenarioLog}
+          onSave={handleSaveCampaignScenario}
+          isSaving={isSaving}
+        />
+      )}
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Playthrough?</AlertDialogTitle>
+            <AlertDialogTitle>{deleteDialogTitle}</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This playthrough will be permanently removed from your log.
+              {deleteDialogDescription}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -234,9 +570,7 @@ function AuthenticatedApp({ currentUser, onSignOut }: AuthenticatedAppProps) {
 function App() {
   const { currentUser, isLoading, signOut } = useAuthState()
 
-  const handleAuthSuccess = async (_user: AuthUser) => {
-    await rebuildCommunityStats([])
-  }
+  const handleAuthSuccess = async (_user: AuthUser) => {}
 
   if (isLoading) {
     return (

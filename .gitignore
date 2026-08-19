@@ -8,6 +8,7 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
+backend/lib/
 dist
 dist-ssr
 *-dist
@@ -41,3 +42,4 @@ pids
 .squad/.scratch/
 # Squad: SubSquad activation file (local to this machine)
 .squad-workstream
+.squad/.cache/

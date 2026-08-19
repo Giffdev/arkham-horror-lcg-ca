@@ -4,12 +4,15 @@ import { Card } from '@/components/ui/card'
 import { ArchetypeBadge } from './ArchetypeBadge'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { PencilSimple, Trash, Clock, UsersThree, Sparkle, Notepad } from '@phosphor-icons/react'
+import { PencilSimple, Trash, Clock, Sparkle, Notepad, Plus } from '@phosphor-icons/react'
 import { formatDate } from '@/lib/date-utils'
 import { getDisplaySetName, getArkhamDBUrl, getArkhamDBUrlById, resolveInvestigator, getChapterBadgeLabel, isChapterBadgeSpecial } from '@/lib/investigator-data'
 import type { InvestigatorAssignment } from '@/lib/types'
 import { CampaignSvgIcon } from './CampaignSvgIcon'
 import { hasDedicatedCampaignIcon } from '@/lib/campaign-icon-map'
+import { CardActionArea } from './CardActionArea'
+import { isContinuableCampaignLog } from '@/lib/campaign-data'
+import { isActualLegacyScenarioNight } from '@/lib/scenario-night-utils'
 
 /**
  * InvestigatorDisplay renders two sibling elements so the parent grid
@@ -92,11 +95,18 @@ function InvestigatorGrid({ children }: { children: React.ReactNode }) {
 interface PlaythroughCardProps {
   playthrough: Playthrough
   onEdit: (playthrough: Playthrough) => void
+  onContinueCampaign?: (playthrough: Playthrough) => void
   onDelete: (id: string) => void
   activeArchetypeFilters?: Archetype[]
 }
 
-export const PlaythroughCard = memo(function PlaythroughCard({ playthrough, onEdit, onDelete, activeArchetypeFilters = [] }: PlaythroughCardProps) {
+export const PlaythroughCard = memo(function PlaythroughCard({
+  playthrough,
+  onEdit,
+  onContinueCampaign = () => {},
+  onDelete,
+  activeArchetypeFilters = [],
+}: PlaythroughCardProps) {
   const displayName = playthrough.campaignType === 'Fan-Made' 
     ? playthrough.customCampaignName || playthrough.campaignName
     : playthrough.campaignType === 'Unknown'
@@ -104,6 +114,16 @@ export const PlaythroughCard = memo(function PlaythroughCard({ playthrough, onEd
       : playthrough.campaignName
 
   const isDreamEaters = playthrough.campaignName === 'The Dream-Eaters'
+  const formattedDate = formatDate(playthrough.date)
+  const scenarioLabel = playthrough.scenarioName?.trim()
+  const canContinueCampaign = isContinuableCampaignLog({
+    campaignName: playthrough.campaignName,
+    customCampaignName: playthrough.customCampaignName,
+    campaignType: playthrough.campaignType,
+    campaignSet: playthrough.campaignSet,
+  })
+  const hasActualScenarioNight = isActualLegacyScenarioNight(playthrough)
+  const campaignActionLabel = hasActualScenarioNight ? 'Continue Campaign' : 'Log First Scenario'
 
   // When campaignSet is a generic bucket (e.g. 'Scenario Pack'), it has no dedicated
   // artwork; prefer campaignName when it resolves to a specific standalone icon.
@@ -113,10 +133,9 @@ export const PlaythroughCard = memo(function PlaythroughCard({ playthrough, onEd
 
   return (
     <Card className="p-4 md:p-6 hover:border-accent transition-all duration-200 hover:shadow-lg group overflow-hidden">
-      <div className="flex flex-col md:flex-row gap-4 md:gap-6 md:items-start">
-        <div className="flex items-start justify-between gap-4 md:min-w-[320px] md:flex-shrink-0">
-          <div className="flex-1 min-w-0">
-            <h3 className="text-lg md:text-xl font-semibold mb-1 truncate flex items-center gap-2">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4 md:grid-cols-[320px_minmax(0,1fr)_auto] md:gap-6">
+        <div className="min-w-0">
+            <h3 className="mb-1 flex items-center gap-2 text-lg font-semibold leading-snug md:text-xl">
               <span aria-hidden="true" className="flex-shrink-0">
                 <CampaignSvgIcon
                   campaignSet={campaignIconKey}
@@ -124,17 +143,22 @@ export const PlaythroughCard = memo(function PlaythroughCard({ playthrough, onEd
                   className="text-primary/70"
                 />
               </span>
-              {displayName || 'Untitled Campaign'}
+              <span className="min-w-0 truncate">{displayName || 'Untitled Campaign'}</span>
             </h3>
             <div className="flex md:hidden flex-wrap items-center gap-2 text-sm text-muted-foreground">
               <div className="flex items-center gap-1">
                 <Clock size={16} weight="duotone" />
-                <span>{formatDate(playthrough.date)}</span>
+                <span>{formattedDate}</span>
               </div>
               <Badge variant="secondary" className="text-xs">
                 {playthrough.campaignType}
               </Badge>
             </div>
+            {scenarioLabel && (
+              <p className="mt-2 text-sm text-muted-foreground">
+                Scenario: <span className="font-medium text-foreground">{scenarioLabel}</span>
+              </p>
+            )}
             {playthrough.sideStories && playthrough.sideStories.length > 0 && (
               <div className="mt-2 md:hidden flex items-start gap-2 flex-wrap">
                 <div className="flex items-center gap-1 text-xs font-medium text-muted-foreground uppercase tracking-wide flex-shrink-0">
@@ -157,7 +181,7 @@ export const PlaythroughCard = memo(function PlaythroughCard({ playthrough, onEd
             </div>
             <div className="hidden md:flex items-center gap-1 text-sm text-muted-foreground">
               <Clock size={16} weight="duotone" />
-              <span>{formatDate(playthrough.date)}</span>
+              <span>{formattedDate}</span>
             </div>
             {playthrough.sideStories && playthrough.sideStories.length > 0 && (
               <div className="mt-3 hidden md:flex items-start gap-2 flex-wrap">
@@ -174,30 +198,9 @@ export const PlaythroughCard = memo(function PlaythroughCard({ playthrough, onEd
                 </div>
               </div>
             )}
-          </div>
-          <div className="flex gap-1 opacity-100 md:hidden">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => onEdit(playthrough)}
-              className="h-8 w-8"
-              aria-label="Edit playthrough"
-            >
-              <PencilSimple size={18} />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => onDelete(playthrough.id)}
-              className="h-8 w-8 text-destructive hover:text-destructive"
-              aria-label="Delete playthrough"
-            >
-              <Trash size={18} />
-            </Button>
-          </div>
         </div>
 
-        <div className="flex-1 min-w-0 flex flex-col gap-3">
+        <div className="col-span-2 row-start-2 flex min-w-0 flex-col gap-3 md:col-span-1 md:col-start-2 md:row-start-1">
           {playthrough.investigators.length > 0 && (
             <>
               {isDreamEaters ? (
@@ -265,17 +268,39 @@ export const PlaythroughCard = memo(function PlaythroughCard({ playthrough, onEd
               )}
             </>
           )}
+
+          {playthrough.campaignType === 'Scenario Pack' && playthrough.investigatorOutcomes?.length ? (
+            <div className="space-y-1 text-xs text-muted-foreground" aria-label="Scenario results by investigator">
+              {playthrough.investigatorOutcomes.map(outcome => (
+                <p key={outcome.slotId}>
+                  <span className="font-medium text-foreground">{outcome.investigatorName}</span>
+                  {`: ${outcome.status.replace(/_/g, ' ')} · XP ${outcome.xpEarned} · Trauma P${outcome.traumaGainedPhysical}/M${outcome.traumaGainedMental}`}
+                </p>
+              ))}
+            </div>
+          ) : null}
         </div>
 
 
 
-        <div className="hidden md:flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+        <CardActionArea className="col-start-2 row-start-1 max-w-44 md:col-start-3 md:max-w-none">
+          {canContinueCampaign && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onContinueCampaign(playthrough)}
+              className="gap-2"
+            >
+              <Plus size={16} weight="bold" />
+              {campaignActionLabel}
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="icon"
             onClick={() => onEdit(playthrough)}
             className="h-8 w-8"
-            aria-label="Edit playthrough"
+            aria-label={`Edit campaign log for ${displayName} on ${formattedDate}`}
           >
             <PencilSimple size={18} />
           </Button>
@@ -288,7 +313,7 @@ export const PlaythroughCard = memo(function PlaythroughCard({ playthrough, onEd
           >
             <Trash size={18} />
           </Button>
-        </div>
+        </CardActionArea>
       </div>
 
         {playthrough.notes && (

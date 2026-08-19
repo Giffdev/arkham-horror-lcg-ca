@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "rootDir": "..",
+    "outDir": "lib",
+    "strict": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "lib": ["ES2022"],
+    "types": ["node"]
+  },
+  "include": [
+    "*.ts",
+    "../api/**/*.ts",
+    "../src/lib/community-stats-core.ts",
+    "../src/lib/campaign-data.ts",
+    "../src/lib/campaign-progression.ts",
+    "../src/lib/campaign-runs.ts",
+    "../src/lib/investigator-data.ts",
+    "../src/lib/types.ts"
+  ],
+  "exclude": [
+    "*.test.ts",
+    "../api/**/*.test.ts"
+  ]
+}

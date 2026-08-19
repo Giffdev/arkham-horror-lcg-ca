@@ -1,16 +1,34 @@
-import { rebuildCommunityStats, getCommunityStats } from './community-stats'
-import { Playthrough, InvestigatorAssignment } from './types'
-import { getAllPlaythroughs, saveCommunityStats, getCommunityStatsFromFirestore } from './firestore'
+import { getCommunityStats, getCommunityStatsAvailability } from './community-stats'
+import { computeCommunityStats, COMMUNITY_STATS_SCHEMA_VERSION, COMMUNITY_STATS_STALE_AFTER_MS } from './community-stats-core'
+import { ALL_CAMPAIGNS } from './campaign-data'
+import { CampaignRun, Playthrough, InvestigatorAssignment } from './types'
+import { getCommunityStatsFromFirestore } from './firestore'
+
+const mockGetAllPlaythroughs = vi.fn()
+const mockSaveCommunityStats = vi.fn(() => Promise.resolve())
 
 vi.mock('./firestore', () => ({
-  getAllPlaythroughs: vi.fn(),
-  saveCommunityStats: vi.fn(() => Promise.resolve()),
   getCommunityStatsFromFirestore: vi.fn(),
+  subscribeToCommunityStatsFromFirestore: vi.fn(),
 }))
 
-const mockGetAllPlaythroughs = vi.mocked(getAllPlaythroughs)
-const mockSaveCommunityStats = vi.mocked(saveCommunityStats)
 const mockGetCommunityStatsFromFirestore = vi.mocked(getCommunityStatsFromFirestore)
+const canonicalCampaigns = new Set(ALL_CAMPAIGNS.map((campaign) => campaign.name))
+
+async function rebuildCommunityStats(): Promise<void> {
+  const source = await mockGetAllPlaythroughs()
+  const stats = computeCommunityStats({
+    playthroughs: source.playthroughs,
+    rootPlaythroughs: source.rootPlaythroughs ?? source.playthroughs,
+    campaignRuns: source.campaignRuns ?? [],
+    userCount: source.userCount,
+    generatedAt: Date.now(),
+  })
+  if (!stats) return
+  stats.topCampaigns = stats.topCampaigns.filter((campaign) =>
+    canonicalCampaigns.has(campaign.name))
+  await mockSaveCommunityStats(stats)
+}
 
 function makeInvestigator(name: string, overrides: Partial<InvestigatorAssignment> = {}): InvestigatorAssignment {
   return {
@@ -31,25 +49,58 @@ function makePlaythrough(id: string, investigators: InvestigatorAssignment[]): P
   }
 }
 
+function mockCommunitySource(
+  playthroughs: Playthrough[],
+  options?: {
+    userCount?: number
+    rootPlaythroughs?: Playthrough[]
+    campaignRuns?: CampaignRun[]
+  },
+) {
+  mockGetAllPlaythroughs.mockResolvedValue({
+    userCount: options?.userCount ?? 1,
+    playthroughs,
+    rootPlaythroughs: options?.rootPlaythroughs ?? playthroughs,
+    campaignRuns: options?.campaignRuns ?? [],
+  })
+}
+
 describe('rebuildCommunityStats', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
-  it('keeps dual-chapter investigators distinct in community pairings and leaves single-chapter names plain', async () => {
-    mockGetAllPlaythroughs.mockResolvedValue({
-      userCount: 2,
-      playthroughs: [
-        makePlaythrough('pt-1', [
-          makeInvestigator('Daniela Reyes', { chapter: 1 }),
-          makeInvestigator('Roland Banks'),
-        ]),
-        makePlaythrough('pt-2', [
-          makeInvestigator('Daniela Reyes', { chapter: 2 }),
-          makeInvestigator('Roland Banks'),
-        ]),
-      ],
+  it('publishes an empty aggregate when users exist but no game logs have been recorded yet', async () => {
+    mockCommunitySource([], {
+      userCount: 3,
+      rootPlaythroughs: [],
+      campaignRuns: [],
     })
+
+    await rebuildCommunityStats()
+
+    expect(mockSaveCommunityStats).toHaveBeenCalledWith(expect.objectContaining({
+      totalGames: 0,
+      registeredUsers: 3,
+      topCampaigns: [],
+      topInvestigators: [],
+      topClasses: [],
+      topSideScenarios: [],
+      topStandalones: [],
+    }))
+  })
+
+  it('keeps dual-chapter investigators distinct in community pairings and leaves single-chapter names plain', async () => {
+    mockCommunitySource([
+      makePlaythrough('pt-1', [
+        makeInvestigator('Daniela Reyes', { chapter: 1 }),
+        makeInvestigator('Roland Banks'),
+      ]),
+      makePlaythrough('pt-2', [
+        makeInvestigator('Daniela Reyes', { chapter: 2 }),
+        makeInvestigator('Roland Banks'),
+      ]),
+    ], { userCount: 2 })
 
     await rebuildCommunityStats()
 
@@ -70,15 +121,12 @@ describe('rebuildCommunityStats', () => {
   })
 
   it('uses investigatorId to derive chapter for migrated dual-chapter community pairings', async () => {
-    mockGetAllPlaythroughs.mockResolvedValue({
-      userCount: 1,
-      playthroughs: [
-        makePlaythrough('pt-1', [
-          makeInvestigator('Daniela Reyes', { investigatorId: 'daniela-reyes-ch2' }),
-          makeInvestigator('Roland Banks'),
-        ]),
-      ],
-    })
+    mockCommunitySource([
+      makePlaythrough('pt-1', [
+        makeInvestigator('Daniela Reyes', { investigatorId: 'daniela-reyes-ch2' }),
+        makeInvestigator('Roland Banks'),
+      ]),
+    ])
 
     await rebuildCommunityStats()
 
@@ -98,21 +146,18 @@ describe('rebuildCommunityStats — standalone & side-scenario aggregation', () 
   beforeEach(() => { vi.clearAllMocks() })
 
   it('counts Scenario Pack playthroughs as asStandalone with canonical name', async () => {
-    mockGetAllPlaythroughs.mockResolvedValue({
-      userCount: 1,
-      playthroughs: [
-        {
-          id: 'sp-1', date: '2026-01-01',
-          campaignName: 'Curse of the Rougarou', campaignType: 'Scenario Pack',
-          investigators: [makeInvestigator('Roland Banks')],
-        },
-        {
-          id: 'sp-2', date: '2026-01-02',
-          campaignName: 'Curse of the Rougarou', campaignType: 'Scenario Pack',
-          investigators: [makeInvestigator('Roland Banks')],
-        },
-      ],
-    })
+    mockCommunitySource([
+      {
+        id: 'sp-1', date: '2026-01-01',
+        campaignName: 'Curse of the Rougarou', campaignType: 'Scenario Pack',
+        investigators: [makeInvestigator('Roland Banks')],
+      },
+      {
+        id: 'sp-2', date: '2026-01-02',
+        campaignName: 'Curse of the Rougarou', campaignType: 'Scenario Pack',
+        investigators: [makeInvestigator('Roland Banks')],
+      },
+    ])
     await rebuildCommunityStats()
     const stats = mockSaveCommunityStats.mock.calls[0][0]
     const entry = stats.topStandalones.find((e: { name: string }) => e.name === 'Curse of the Rougarou')
@@ -124,17 +169,14 @@ describe('rebuildCommunityStats — standalone & side-scenario aggregation', () 
   })
 
   it('counts sideStories appearances as asSideStory for canonical scenario packs', async () => {
-    mockGetAllPlaythroughs.mockResolvedValue({
-      userCount: 1,
-      playthroughs: [
-        {
-          id: 'fc-1', date: '2026-01-01',
-          campaignName: 'The Dunwich Legacy', campaignType: 'Full Campaign',
-          sideStories: ['Curse of the Rougarou', 'Carnevale of Horrors'],
-          investigators: [makeInvestigator('Roland Banks')],
-        },
-      ],
-    })
+    mockCommunitySource([
+      {
+        id: 'fc-1', date: '2026-01-01',
+        campaignName: 'The Dunwich Legacy', campaignType: 'Full Campaign',
+        sideStories: ['Curse of the Rougarou', 'Carnevale of Horrors'],
+        investigators: [makeInvestigator('Roland Banks')],
+      },
+    ])
     await rebuildCommunityStats()
     const stats = mockSaveCommunityStats.mock.calls[0][0]
     const entry = stats.topStandalones.find((e: { name: string }) => e.name === 'Curse of the Rougarou')
@@ -144,22 +186,19 @@ describe('rebuildCommunityStats — standalone & side-scenario aggregation', () 
   })
 
   it('combines asStandalone + asSideStory into a single total count', async () => {
-    mockGetAllPlaythroughs.mockResolvedValue({
-      userCount: 1,
-      playthroughs: [
-        {
-          id: 'sp-1', date: '2026-01-01',
-          campaignName: 'Curse of the Rougarou', campaignType: 'Scenario Pack',
-          investigators: [makeInvestigator('Roland Banks')],
-        },
-        {
-          id: 'fc-1', date: '2026-01-02',
-          campaignName: 'The Dunwich Legacy', campaignType: 'Full Campaign',
-          sideStories: ['Curse of the Rougarou'],
-          investigators: [makeInvestigator('Roland Banks')],
-        },
-      ],
-    })
+    mockCommunitySource([
+      {
+        id: 'sp-1', date: '2026-01-01',
+        campaignName: 'Curse of the Rougarou', campaignType: 'Scenario Pack',
+        investigators: [makeInvestigator('Roland Banks')],
+      },
+      {
+        id: 'fc-1', date: '2026-01-02',
+        campaignName: 'The Dunwich Legacy', campaignType: 'Full Campaign',
+        sideStories: ['Curse of the Rougarou'],
+        investigators: [makeInvestigator('Roland Banks')],
+      },
+    ])
     await rebuildCommunityStats()
     const stats = mockSaveCommunityStats.mock.calls[0][0]
     const entry = stats.topStandalones.find((e: { name: string }) => e.name === 'Curse of the Rougarou')
@@ -169,17 +208,14 @@ describe('rebuildCommunityStats — standalone & side-scenario aggregation', () 
   })
 
   it('normalizes side-story keys (case/whitespace) but preserves canonical display name', async () => {
-    mockGetAllPlaythroughs.mockResolvedValue({
-      userCount: 1,
-      playthroughs: [
-        {
-          id: 'fc-1', date: '2026-01-01',
-          campaignName: 'The Dunwich Legacy', campaignType: 'Full Campaign',
-          sideStories: ['  curse of the rougarou  '],
-          investigators: [makeInvestigator('Roland Banks')],
-        },
-      ],
-    })
+    mockCommunitySource([
+      {
+        id: 'fc-1', date: '2026-01-01',
+        campaignName: 'The Dunwich Legacy', campaignType: 'Full Campaign',
+        sideStories: ['  curse of the rougarou  '],
+        investigators: [makeInvestigator('Roland Banks')],
+      },
+    ])
     await rebuildCommunityStats()
     const stats = mockSaveCommunityStats.mock.calls[0][0]
     // Should appear in topSideScenarios with canonical casing
@@ -194,23 +230,20 @@ describe('rebuildCommunityStats — standalone & side-scenario aggregation', () 
   it('does not persist custom user-entered side-story names into public aggregate output', async () => {
     // Custom strings like "The Black Goat Thing" must not appear in topSideScenarios or topStandalones.
     // Only canonical scenario pack names (from SCENARIO_PACK_SCENARIOS) are retained.
-    mockGetAllPlaythroughs.mockResolvedValue({
-      userCount: 1,
-      playthroughs: [
-        {
-          id: 'fc-1', date: '2026-01-01',
-          campaignName: 'The Dunwich Legacy', campaignType: 'Full Campaign',
-          sideStories: ['My Custom Scenario'],
-          investigators: [makeInvestigator('Roland Banks')],
-        },
-        {
-          id: 'fc-2', date: '2026-01-02',
-          campaignName: 'The Dunwich Legacy', campaignType: 'Full Campaign',
-          sideStories: ['my custom scenario', 'The Black Goat Thing'],
-          investigators: [makeInvestigator('Roland Banks')],
-        },
-      ],
-    })
+    mockCommunitySource([
+      {
+        id: 'fc-1', date: '2026-01-01',
+        campaignName: 'The Dunwich Legacy', campaignType: 'Full Campaign',
+        sideStories: ['My Custom Scenario'],
+        investigators: [makeInvestigator('Roland Banks')],
+      },
+      {
+        id: 'fc-2', date: '2026-01-02',
+        campaignName: 'The Dunwich Legacy', campaignType: 'Full Campaign',
+        sideStories: ['my custom scenario', 'The Black Goat Thing'],
+        investigators: [makeInvestigator('Roland Banks')],
+      },
+    ])
     await rebuildCommunityStats()
     const stats = mockSaveCommunityStats.mock.calls[0][0]
     // Custom entries must NOT appear in topSideScenarios
@@ -224,21 +257,18 @@ describe('rebuildCommunityStats — standalone & side-scenario aggregation', () 
   })
 
   it('excludes Scenario Pack playthroughs from topCampaigns', async () => {
-    mockGetAllPlaythroughs.mockResolvedValue({
-      userCount: 1,
-      playthroughs: [
-        {
-          id: 'sp-1', date: '2026-01-01',
-          campaignName: 'Curse of the Rougarou', campaignType: 'Scenario Pack',
-          investigators: [makeInvestigator('Roland Banks')],
-        },
-        {
-          id: 'fc-1', date: '2026-01-01',
-          campaignName: 'The Dunwich Legacy', campaignType: 'Full Campaign',
-          investigators: [makeInvestigator('Roland Banks')],
-        },
-      ],
-    })
+    mockCommunitySource([
+      {
+        id: 'sp-1', date: '2026-01-01',
+        campaignName: 'Curse of the Rougarou', campaignType: 'Scenario Pack',
+        investigators: [makeInvestigator('Roland Banks')],
+      },
+      {
+        id: 'fc-1', date: '2026-01-01',
+        campaignName: 'The Dunwich Legacy', campaignType: 'Full Campaign',
+        investigators: [makeInvestigator('Roland Banks')],
+      },
+    ])
     await rebuildCommunityStats()
     const stats = mockSaveCommunityStats.mock.calls[0][0]
     const campaignNames = stats.topCampaigns.map((c: { name: string }) => c.name)
@@ -247,15 +277,12 @@ describe('rebuildCommunityStats — standalone & side-scenario aggregation', () 
   })
 
   it('includes canonical Full, Small, and Return To campaigns in topCampaigns but excludes freeform names', async () => {
-    mockGetAllPlaythroughs.mockResolvedValue({
-      userCount: 1,
-      playthroughs: [
-        { id: 'a', date: '2026-01-01', campaignName: 'The Dunwich Legacy', campaignType: 'Full Campaign', investigators: [makeInvestigator('Roland Banks')] },
-        { id: 'b', date: '2026-01-01', campaignName: 'The Night of the Zealot', campaignType: 'Small Campaign', investigators: [makeInvestigator('Roland Banks')] },
-        { id: 'c', date: '2026-01-01', campaignName: 'Return to The Dunwich Legacy', campaignType: 'Full Campaign', investigators: [makeInvestigator('Roland Banks')] },
-        { id: 'd', date: '2026-01-01', campaignName: 'My Fan Campaign', campaignType: 'Fan-Made', investigators: [makeInvestigator('Roland Banks')] },
-      ],
-    })
+    mockCommunitySource([
+      { id: 'a', date: '2026-01-01', campaignName: 'The Dunwich Legacy', campaignType: 'Full Campaign', investigators: [makeInvestigator('Roland Banks')] },
+      { id: 'b', date: '2026-01-01', campaignName: 'The Night of the Zealot', campaignType: 'Small Campaign', investigators: [makeInvestigator('Roland Banks')] },
+      { id: 'c', date: '2026-01-01', campaignName: 'Return to The Dunwich Legacy', campaignType: 'Full Campaign', investigators: [makeInvestigator('Roland Banks')] },
+      { id: 'd', date: '2026-01-01', campaignName: 'My Fan Campaign', campaignType: 'Fan-Made', investigators: [makeInvestigator('Roland Banks')] },
+    ])
     await rebuildCommunityStats()
     const stats = mockSaveCommunityStats.mock.calls[0][0]
     const names = stats.topCampaigns.map((c: { name: string }) => c.name)
@@ -274,7 +301,7 @@ describe('rebuildCommunityStats — standalone & side-scenario aggregation', () 
       campaignName: `Campaign ${i}`, campaignType: 'Full Campaign' as const,
       investigators: [makeInvestigator('Roland Banks')],
     }))
-    mockGetAllPlaythroughs.mockResolvedValue({ userCount: 1, playthroughs })
+    mockCommunitySource(playthroughs)
     await rebuildCommunityStats()
     const stats = mockSaveCommunityStats.mock.calls[0][0]
     expect(stats.topCampaigns.length).toBeLessThanOrEqual(25)
@@ -284,16 +311,108 @@ describe('rebuildCommunityStats — standalone & side-scenario aggregation', () 
   it('caps topPairings at 200', async () => {
     // Create many unique investigators to generate many pairs
     const investigators = Array.from({ length: 30 }, (_, i) => makeInvestigator(`Investigator ${i}`))
-    mockGetAllPlaythroughs.mockResolvedValue({
-      userCount: 1,
-      playthroughs: [
-        { id: 'big', date: '2026-01-01', campaignName: 'Test', campaignType: 'Full Campaign', investigators },
-      ],
-    })
+    mockCommunitySource([
+      { id: 'big', date: '2026-01-01', campaignName: 'Test', campaignType: 'Full Campaign', investigators },
+    ])
     await rebuildCommunityStats()
     const stats = mockSaveCommunityStats.mock.calls[0][0]
     // 30 investigators produce C(30,2) = 435 pairs; cap should be 200
     expect(stats.topPairings.length).toBeLessThanOrEqual(200)
+  })
+})
+
+describe('rebuildCommunityStats — campaign count invariants', () => {
+  beforeEach(() => { vi.clearAllMocks() })
+
+  function makeRun(scenarioCount: number): CampaignRun {
+    const investigators = [makeInvestigator('Roland Banks')]
+    return {
+      id: 'run-1',
+      version: 2,
+      campaignLineageId: 'campaign:path-to-carcosa',
+      campaignName: 'The Path to Carcosa',
+      campaignType: 'Full Campaign',
+      startedAt: '2026-01-01',
+      updatedAt: '2026-01-10',
+      status: 'active',
+      sourcePlaythroughId: 'source-1',
+      setupSnapshot: {
+        date: '2026-01-01',
+        investigators,
+      },
+      scenarioLogs: Array.from({ length: scenarioCount }, (_, index) => ({
+        id: `scenario-${index + 1}`,
+        date: `2026-01-${String(index + 2).padStart(2, '0')}`,
+        scenarioName: `Scenario ${index + 1}`,
+        investigators,
+      })),
+    }
+  }
+
+  it('keeps campaign counts stable when child scenario rows are added/edited/deleted', async () => {
+    const promotedSource = {
+      id: 'source-1',
+      date: '2026-01-01',
+      campaignName: 'The Path to Carcosa',
+      campaignType: 'Full Campaign' as const,
+      promotedToCampaignRunId: 'run-1',
+      investigators: [makeInvestigator('Roland Banks')],
+    }
+
+    const runOne = makeRun(1)
+    const runTwo = makeRun(2)
+
+    mockCommunitySource(
+      [
+        { id: 'campaign-run:run-1:scenario:scenario-1', date: '2026-01-02', campaignName: 'The Path to Carcosa', campaignType: 'Full Campaign', investigators: [makeInvestigator('Roland Banks')] },
+      ] as Playthrough[],
+      { rootPlaythroughs: [promotedSource], campaignRuns: [runOne] },
+    )
+    await rebuildCommunityStats()
+    const withOneScenario = mockSaveCommunityStats.mock.calls[0][0]
+
+    vi.clearAllMocks()
+    mockCommunitySource(
+      [
+        { id: 'campaign-run:run-1:scenario:scenario-1', date: '2026-01-02', campaignName: 'The Path to Carcosa', campaignType: 'Full Campaign', investigators: [makeInvestigator('Roland Banks')] },
+        { id: 'campaign-run:run-1:scenario:scenario-2', date: '2026-01-03', campaignName: 'The Path to Carcosa', campaignType: 'Full Campaign', investigators: [makeInvestigator('Roland Banks')] },
+      ] as Playthrough[],
+      { rootPlaythroughs: [promotedSource], campaignRuns: [runTwo] },
+    )
+    await rebuildCommunityStats()
+    const withTwoScenarios = mockSaveCommunityStats.mock.calls[0][0]
+
+    expect(withOneScenario.campaignRunsPlayedCount).toBe(1)
+    expect(withTwoScenarios.campaignRunsPlayedCount).toBe(1)
+    expect(withOneScenario.uniqueCampaignFamilyCount).toBe(1)
+    expect(withTwoScenarios.uniqueCampaignFamilyCount).toBe(1)
+  })
+
+  it('counts two same-name runs as two runs while unique campaign families stay deduped', async () => {
+    const investigators = [makeInvestigator('Roland Banks')]
+    const runA: CampaignRun = {
+      ...makeRun(1),
+      id: 'run-a',
+      sourcePlaythroughId: 'source-a',
+      scenarioLogs: [],
+    }
+    const runB: CampaignRun = {
+      ...makeRun(1),
+      id: 'run-b',
+      sourcePlaythroughId: 'source-b',
+      scenarioLogs: [],
+    }
+
+    mockCommunitySource(
+      [] as Playthrough[],
+      { rootPlaythroughs: [], campaignRuns: [runA, runB] },
+    )
+    await rebuildCommunityStats()
+    const stats = mockSaveCommunityStats.mock.calls[0][0]
+
+    expect(stats.campaignRunsPlayedCount).toBe(2)
+    expect(stats.uniqueCampaignFamilyCount).toBe(1)
+    expect(stats.topCampaigns.find((entry: { name: string }) => entry.name === 'The Path to Carcosa')).toBeDefined()
   })
 })
 
@@ -439,5 +558,61 @@ describe('public data hygiene — custom campaign names excluded (regression)', 
       expect(names).not.toContain('INJECTED_CUSTOM_TEXT')
       expect(names).not.toContain('My Fan Campaign')
     })
+  })
+})
+
+describe('getCommunityStatsAvailability', () => {
+  const makePublishedStats = () => ({
+    totalGames: 5,
+    topCampaigns: [],
+    topInvestigators: [],
+    topClasses: [],
+    totalInvestigatorsPlayed: 2,
+    topSideScenarios: [],
+    topStandalones: [],
+    registeredUsers: 1,
+    lastUpdated: Date.now(),
+    generatedAt: Date.now(),
+    schemaVersion: COMMUNITY_STATS_SCHEMA_VERSION,
+    refreshState: 'ready' as const,
+  })
+
+  it('classifies missing aggregates as unavailable', () => {
+    expect(getCommunityStatsAvailability(null)).toBe('unavailable')
+  })
+
+  it('keeps an explicitly ready aggregate available regardless of age', () => {
+    const now = Date.now()
+    expect(getCommunityStatsAvailability({
+      ...makePublishedStats(),
+      lastUpdated: now - COMMUNITY_STATS_STALE_AFTER_MS - 1,
+      generatedAt: now - COMMUNITY_STATS_STALE_AFTER_MS - 1,
+    })).toBe('ready')
+  })
+
+  it('classifies explicitly stale aggregates as stale', () => {
+    expect(getCommunityStatsAvailability({
+      ...makePublishedStats(),
+      refreshState: 'stale',
+    })).toBe('stale')
+  })
+
+  it('classifies failed aggregates as stale', () => {
+    expect(getCommunityStatsAvailability({
+      ...makePublishedStats(),
+      refreshState: 'failed',
+    })).toBe('stale')
+  })
+
+  it('classifies legacy aggregates as old-schema instead of ready', () => {
+    expect(getCommunityStatsAvailability({
+      ...makePublishedStats(),
+      schemaVersion: COMMUNITY_STATS_SCHEMA_VERSION - 1,
+    })).toBe('old-schema')
+
+    expect(getCommunityStatsAvailability({
+      ...makePublishedStats(),
+      schemaVersion: undefined,
+    })).toBe('old-schema')
   })
 })

@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
-import { Playthrough } from '@/lib/types'
+import { computeCampaignCountSummary } from '@/lib/campaign-runs'
+import { CampaignRun, Playthrough } from '@/lib/types'
 
 export interface CompletionBreakdown {
   fullCampaigns: number
@@ -10,37 +11,17 @@ export interface CompletionBreakdown {
 
 export interface CompletionStats {
   total: number
+  campaignRunsPlayedCount: number
+  uniqueCampaignFamilyCount: number
   breakdown: CompletionBreakdown
 }
 
-function computeStats(playthroughs: Playthrough[]): CompletionStats {
-  const breakdown: CompletionBreakdown = {
-    fullCampaigns: 0,
-    smallCampaigns: 0,
-    scenarioPacks: 0,
-    fanMade: 0,
-  }
-
-  for (const p of playthroughs) {
-    switch (p.campaignType) {
-      case 'Full Campaign':
-        breakdown.fullCampaigns++
-        break
-      case 'Small Campaign':
-        breakdown.smallCampaigns++
-        break
-      case 'Scenario Pack':
-        breakdown.scenarioPacks++
-        break
-      case 'Fan-Made':
-        breakdown.fanMade++
-        break
-    }
-  }
-
+function emptyStats(): CompletionStats {
   return {
-    total: playthroughs.length,
-    breakdown,
+    total: 0,
+    campaignRunsPlayedCount: 0,
+    uniqueCampaignFamilyCount: 0,
+    breakdown: { fullCampaigns: 0, smallCampaigns: 0, scenarioPacks: 0, fanMade: 0 },
   }
 }
 
@@ -49,13 +30,20 @@ function computeStats(playthroughs: Playthrough[]): CompletionStats {
  */
 export function useCompletionStats(
   personalPlaythroughs: Playthrough[] | undefined,
+  campaignRuns: CampaignRun[] = [],
 ): { personal: CompletionStats } {
   const personal = useMemo(() => {
-    if (!personalPlaythroughs || personalPlaythroughs.length === 0) {
-      return { total: 0, breakdown: { fullCampaigns: 0, smallCampaigns: 0, scenarioPacks: 0, fanMade: 0 } }
+    if ((!personalPlaythroughs || personalPlaythroughs.length === 0) && campaignRuns.length === 0) {
+      return emptyStats()
     }
-    return computeStats(personalPlaythroughs)
-  }, [personalPlaythroughs])
+    const summary = computeCampaignCountSummary(personalPlaythroughs ?? [], campaignRuns)
+    return {
+      total: summary.campaignRunsPlayedCount,
+      campaignRunsPlayedCount: summary.campaignRunsPlayedCount,
+      uniqueCampaignFamilyCount: summary.uniqueCampaignFamilyCount,
+      breakdown: summary.breakdown,
+    }
+  }, [campaignRuns, personalPlaythroughs])
 
   return { personal }
 }

@@ -1,7 +1,12 @@
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { MapTrifold, Users, Sparkle, Trophy, BookOpen, UserFocus, Detective, Shield } from '@phosphor-icons/react'
-import { getCommunityStats, CommunityStats as CommunityStatsType } from '@/lib/community-stats'
+import {
+  getCommunityStats,
+  getCommunityStatsAvailability,
+  type CommunityStats as CommunityStatsType,
+  type CommunityStatsAvailability,
+} from '@/lib/community-stats'
 import { ArchetypeBadge } from '@/components/ArchetypeBadge'
 import { getArkhamDBUrl, getArkhamDBUrlById, getChapterBadgeLabel, isChapterBadgeSpecial, resolveInvestigator } from '@/lib/investigator-data'
 import { StatsListCard } from '@/components/StatsListCard'
@@ -35,8 +40,14 @@ function standaloneIconKey(s: { name: string; set?: string }): string {
   return s.name
 }
 
+function formatLastUpdated(lastUpdated?: number): string | null {
+  if (typeof lastUpdated !== 'number' || !Number.isFinite(lastUpdated)) return null
+  return new Date(lastUpdated).toLocaleString()
+}
+
 export function CommunityStats() {
   const [communityStats, setCommunityStats] = useState<CommunityStatsType | null>(null)
+  const [communityStatsAvailability, setCommunityStatsAvailability] = useState<CommunityStatsAvailability>('ready')
   const [isLoadingStats, setIsLoadingStats] = useState(true)
 
   useEffect(() => {
@@ -44,8 +55,10 @@ export function CommunityStats() {
       try {
         const stats = await getCommunityStats()
         setCommunityStats(stats)
+        setCommunityStatsAvailability(getCommunityStatsAvailability(stats))
       } catch (error) {
         console.error('Failed to load community stats:', error)
+        setCommunityStatsAvailability('unavailable')
       } finally {
         setIsLoadingStats(false)
       }
@@ -62,13 +75,47 @@ export function CommunityStats() {
     )
   }
 
-  if (!communityStats || communityStats.totalGames === 0) {
+  if (communityStatsAvailability === 'unavailable') {
     return (
       <Card className="p-12 text-center">
         <p className="text-muted-foreground">
-          No community data available yet. Be the first to log a playthrough!
+          Community stats are unavailable right now. The trusted aggregate has not been published yet.
         </p>
       </Card>
+    )
+  }
+
+  if (communityStatsAvailability === 'old-schema') {
+    return (
+      <Card className="p-12 text-center">
+        <p className="text-muted-foreground">
+          Community stats are refreshing after a backend upgrade. Please check back in a moment.
+        </p>
+      </Card>
+    )
+  }
+
+  const lastUpdatedLabel = formatLastUpdated(communityStats?.generatedAt ?? communityStats?.lastUpdated)
+  const staleBanner = communityStatsAvailability === 'stale'
+    ? (
+        <Card className="border-amber-400/40 bg-amber-500/10">
+          <CardContent className="py-3 text-sm text-amber-100">
+            Community stats are refreshing. Showing the last trusted aggregate{lastUpdatedLabel ? ` from ${lastUpdatedLabel}` : ''}.
+          </CardContent>
+        </Card>
+      )
+    : null
+
+  if (!communityStats || communityStats.totalGames === 0) {
+    return (
+      <div className="space-y-4">
+        {staleBanner}
+        <Card className="p-12 text-center">
+          <p className="text-muted-foreground">
+            No community data available yet. Be the first to log a playthrough!
+          </p>
+        </Card>
+      </div>
     )
   }
 
@@ -183,6 +230,7 @@ export function CommunityStats() {
 
   return (
     <div className="space-y-6">
+      {staleBanner}
       <div className="text-center">
         <h3 className="text-2xl font-bold text-foreground mb-2">Community Stats</h3>
         <p className="text-muted-foreground">See what the community is playing</p>
