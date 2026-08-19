@@ -30,6 +30,9 @@ const firebaseDbHolder = vi.hoisted(() => ({
 }))
 
 vi.mock('./firebase', () => ({
+  auth: {
+    currentUser: null,
+  },
   get db() {
     if (!firebaseDbHolder.db) {
       throw new Error('Test Firebase database has not been initialized.')
