@@ -37,7 +37,7 @@ describe('firestore repository contract', () => {
       'node backend/scripts/check-built-artifact.mjs .vercel/output/functions/api/community-stats/process.func/api/community-stats/process.js',
     )
     expect(rootPackageJson.scripts?.['backend:test']).toBe(
-      'vitest run backend/scripts/bootstrap-community-stats.test.ts backend/google-cloud.test.ts backend/firebase-identity.test.ts backend/firebase-identity-api.test.ts backend/community-stats-contributions.test.ts backend/community-stats-handler.test.ts',
+      'vitest run backend/scripts/bootstrap-community-stats.test.ts backend/google-cloud.test.ts backend/firebase-identity.test.ts backend/firebase-identity-api.test.ts backend/community-stats-control-ids.test.ts backend/community-stats-contributions.test.ts backend/community-stats-handler.test.ts',
     )
     expect(rootPackageJson.scripts?.['backend:test:emulator']).toBe(
       'firebase emulators:exec --project demo-arkham-horror-lcg-ca --only firestore "vitest run --config vitest.firestore.config.ts backend/community-stats-contributions.emulator.test.ts"',

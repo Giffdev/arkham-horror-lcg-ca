@@ -611,7 +611,9 @@ authenticated Application Default Credentials project. It enumerates Firebase
 Authentication accounts, reads each account's source collections independently,
 writes an empty contribution when the account has no games, removes stale
 contributions for deleted Auth accounts, and publishes the aggregate. It writes only
-server-private privacy-filtered state and does not modify source documents.
+server-private privacy-filtered state and does not modify source documents. The final
+publish lease uses the strict safe ASCII owner marker `bootstrap-publisher`; bootstrap
+does not read or clean up the invalid Firestore-reserved `__...__` ID namespace.
 
 ### 5. Verify backend rollout
 

@@ -13,6 +13,10 @@ import {
   type CompletionBreakdown,
 } from '../src/lib/community-stats-core.js'
 import type { Archetype, CampaignRun, Playthrough } from '../src/lib/types.js'
+import {
+  COMMUNITY_STATS_BOOTSTRAP_LEASE_OWNER_ID,
+  COMMUNITY_STATS_STATE_DOC_PATH,
+} from './community-stats-control-ids.js'
 import { listFirebaseAuthUserIds } from './firebase-identity.js'
 import { getBackendFirestore } from './google-cloud.js'
 
@@ -20,7 +24,7 @@ export const COMMUNITY_STATS_OUTBOX_COLLECTION = 'communityStatsOutbox'
 export const COMMUNITY_STATS_CONTRIBUTIONS_COLLECTION = 'community-stats-contributions'
 export const COMMUNITY_STATS_QUARANTINE_COLLECTION = 'community-stats-quarantine'
 export const COMMUNITY_STATS_DOC_PATH = 'community-stats/global'
-export const COMMUNITY_STATS_STATE_DOC_PATH = 'community-stats-internal/contribution-publisher'
+export { COMMUNITY_STATS_STATE_DOC_PATH } from './community-stats-control-ids.js'
 export const COMMUNITY_STATS_LEASE_MS = 75_000
 
 const MAX_USER_SOURCE_DOCUMENTS = 5_000
@@ -577,7 +581,7 @@ export async function bootstrapCommunityStatsContributions(): Promise<number> {
     }
   }
   await removeDeletedAuthUserState(new Set(userIds))
-  const bootstrapLease = await claimLease('__bootstrap__', true)
+  const bootstrapLease = await claimLease(COMMUNITY_STATS_BOOTSTRAP_LEASE_OWNER_ID, true)
   if (!('leaseId' in bootstrapLease)) {
     throw new Error('Unable to claim the final bootstrap publish lease.')
   }

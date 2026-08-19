@@ -8,6 +8,10 @@ This project follows the spirit of [Keep a Changelog](https://keepachangelog.com
 
 ### Changed
 
+- **Community statistics bootstrap now uses Firestore-safe control IDs.** The final
+  aggregate publish lease uses the centralized strict ASCII marker
+  `bootstrap-publisher` instead of Firestore's reserved `__...__` document-ID format.
+
 - **Vercel owner authentication is Node 22 compatible.** The backend now verifies
   Firebase ID tokens directly with Google's fixed Secure Token JWKS, an explicit
   RS256/issuer/audience contract, and disabled/revoked-user checks. The incompatible

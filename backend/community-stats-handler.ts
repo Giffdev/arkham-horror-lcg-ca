@@ -11,6 +11,7 @@ import {
   rebuildUserContribution,
   type ContributionProcessResult,
 } from './community-stats-contributions.js'
+import { COMMUNITY_STATS_RECOVERY_CURSOR_DOC_PATH } from './community-stats-control-ids.js'
 import { verifyFirebaseIdToken } from './firebase-identity.js'
 import { getBackendFirestore } from './google-cloud.js'
 
@@ -27,7 +28,6 @@ export type CommunityStatsProcessResponse = {
 
 const MAX_RECOVERY_OWNERS_PER_INVOCATION = 3
 const MAX_RECOVERY_CANDIDATE_EVENTS = 50
-const RECOVERY_CURSOR_DOC_PATH = 'community-stats-internal/recovery-cursor'
 const RECOVERY_CURSOR_LEASE_MS = 75_000
 
 type RecoveryLease = {
@@ -82,7 +82,7 @@ function authorizeRecoveryWake(request: CommunityStatsProcessRequest): boolean {
 
 async function claimRecoveryLease(): Promise<RecoveryLease | ContributionProcessResult> {
   const db = getBackendFirestore()
-  const cursorRef = db.doc(RECOVERY_CURSOR_DOC_PATH)
+  const cursorRef = db.doc(COMMUNITY_STATS_RECOVERY_CURSOR_DOC_PATH)
   const nowMs = Date.now()
 
   return db.runTransaction(async (transaction) => {
@@ -117,7 +117,7 @@ async function finishRecoveryLease(
   afterPath: string | null,
 ): Promise<void> {
   const db = getBackendFirestore()
-  const cursorRef = db.doc(RECOVERY_CURSOR_DOC_PATH)
+  const cursorRef = db.doc(COMMUNITY_STATS_RECOVERY_CURSOR_DOC_PATH)
   await db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(cursorRef)
     if (snapshot.data()?.leaseId !== lease.leaseId) return

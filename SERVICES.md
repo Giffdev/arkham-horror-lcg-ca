@@ -30,7 +30,9 @@
   and aggregate publication logic lives in `backend/community-stats-contributions.ts`.
 - Every Firebase Authentication account has one contribution, including accounts
   with no games. Bootstrap enumerates Auth accounts, rebuilds empty contributions,
-  and removes contributions for deleted Auth accounts.
+  and removes contributions for deleted Auth accounts. Its final publish lease uses
+  the server-only safe ASCII owner marker `bootstrap-publisher`, not Firestore's
+  reserved `__...__` document-ID namespace.
 - Deterministic source failures are acknowledged into server-only quarantine without
   replacing the last valid contribution. The published snapshot reports `failed`
   until a later valid owner event clears quarantine. Firestore/runtime failures remain

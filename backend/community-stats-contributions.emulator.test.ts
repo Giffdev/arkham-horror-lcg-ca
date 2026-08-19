@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
+import { COMMUNITY_STATS_BOOTSTRAP_LEASE_OWNER_ID } from './community-stats-control-ids'
 import { rebuildUserContribution } from './community-stats-contributions'
 import { getBackendFirestore } from './google-cloud'
 
@@ -24,6 +25,15 @@ describeEmulator('community stats contributions against Firestore emulator', () 
 
   afterAll(async () => {
     await getBackendFirestore().terminate()
+  })
+
+  it('accepts the bootstrap lease owner in the actual Firestore outbox query path', async () => {
+    const snapshot = await getBackendFirestore()
+      .collection(`users/${COMMUNITY_STATS_BOOTSTRAP_LEASE_OWNER_ID}/communityStatsOutbox`)
+      .limit(1)
+      .get()
+
+    expect(snapshot.empty).toBe(true)
   })
 
   it('replaces one owner contribution without reading or copying another owner raw document', async () => {
