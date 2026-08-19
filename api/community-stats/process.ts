@@ -2,7 +2,7 @@ import {
   handleCommunityStatsProcess,
   type CommunityStatsProcessRequest,
   type CommunityStatsProcessResponse,
-} from '../../backend/community-stats-handler'
+} from '../../backend/community-stats-handler.js'
 
 export const config = {
   maxDuration: 60,

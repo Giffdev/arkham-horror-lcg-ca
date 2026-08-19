@@ -568,6 +568,10 @@ and `CRON_SECRET` interactively as production-only, sensitive server values usin
 the commands in `SERVICES.md`. Do not populate a tracked or local project file with
 the real key. Confirm Preview and Development have no production credential.
 
+Before deploying, run `npm run build`. In addition to the Vite production build,
+this compiles the Node ESM backend and imports the emitted serverless entrypoint so
+an unresolved relative module fails locally instead of at function startup.
+
 ```powershell
 npx vercel link --yes --non-interactive --team $VercelScope --project $VercelProject
 npx vercel deploy --prod --yes --scope $VercelScope --project $VercelProject

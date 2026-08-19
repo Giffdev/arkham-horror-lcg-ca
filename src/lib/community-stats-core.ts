@@ -1,7 +1,7 @@
-import type { Archetype, CampaignRun, Playthrough } from './types'
-import { getCampaignSet, SCENARIO_PACK_SCENARIOS } from './campaign-data'
-import { computeCampaignCountSummary } from './campaign-runs'
-import { getInvestigatorPairKey, resolveInvestigator } from './investigator-data'
+import type { Archetype, CampaignRun, Playthrough } from './types.js'
+import { getCampaignSet, SCENARIO_PACK_SCENARIOS } from './campaign-data.js'
+import { computeCampaignCountSummary } from './campaign-runs.js'
+import { getInvestigatorPairKey, resolveInvestigator } from './investigator-data.js'
 
 export interface CompletionBreakdown {
   fullCampaigns: number

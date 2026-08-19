@@ -3,17 +3,17 @@ import { createHash, randomUUID } from 'node:crypto'
 import { getAuth } from 'firebase-admin/auth'
 import { FieldValue, getFirestore, Timestamp } from 'firebase-admin/firestore'
 
-import { ALL_CAMPAIGNS } from '../src/lib/campaign-data'
-import { computeCampaignCountSummary, flattenGameLogs } from '../src/lib/campaign-runs'
-import { getInvestigatorPairKey, resolveInvestigator } from '../src/lib/investigator-data'
+import { ALL_CAMPAIGNS } from '../src/lib/campaign-data.js'
+import { computeCampaignCountSummary, flattenGameLogs } from '../src/lib/campaign-runs.js'
+import { getInvestigatorPairKey, resolveInvestigator } from '../src/lib/investigator-data.js'
 import {
   COMMUNITY_STATS_SCHEMA_VERSION,
   computeCommunityStats,
   type CommunityPairing,
   type CommunityStats,
   type CompletionBreakdown,
-} from '../src/lib/community-stats-core'
-import type { Archetype, CampaignRun, Playthrough } from '../src/lib/types'
+} from '../src/lib/community-stats-core.js'
+import type { Archetype, CampaignRun, Playthrough } from '../src/lib/types.js'
 
 export const COMMUNITY_STATS_OUTBOX_COLLECTION = 'communityStatsOutbox'
 export const COMMUNITY_STATS_CONTRIBUTIONS_COLLECTION = 'community-stats-contributions'

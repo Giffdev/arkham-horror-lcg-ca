@@ -1,9 +1,9 @@
-import { getCampaignLineageId, resolveCampaignType } from './campaign-data'
+import { getCampaignLineageId, resolveCampaignType } from './campaign-data.js'
 import {
   getCampaignProgressionScenarioNames,
   getNextCampaignScenarioResolution,
   resolveCampaignProgressionContract,
-} from './campaign-progression'
+} from './campaign-progression.js'
 import type {
   CampaignRosterSummaryInvestigatorItem,
   CampaignRosterSummaryInvestigatorState,
@@ -20,7 +20,7 @@ import type {
   InvestigatorAssignment,
   LegacyGroupScenarioOutcomeFields,
   Playthrough,
-} from './types'
+} from './types.js'
 import {
   isCampaignScenarioAdjustment,
   isCampaignScenarioInvestigatorOutcome,
@@ -28,7 +28,7 @@ import {
   isCampaignScenarioRosterChange,
   isCampaignScenarioRosterEntry,
   isCampaignScenarioType,
-} from './types'
+} from './types.js'
 
 export interface FlattenGameLogsInput {
   playthroughs: Playthrough[]

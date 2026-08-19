@@ -12,8 +12,8 @@ import {
   COMMUNITY_STATS_OUTBOX_COLLECTION,
   rebuildUserContribution,
   type ContributionProcessResult,
-} from './community-stats-contributions'
-import { ensureFirebaseAdminApp } from './firebase-admin'
+} from './community-stats-contributions.js'
+import { ensureFirebaseAdminApp } from './firebase-admin.js'
 
 export type CommunityStatsProcessRequest = {
   method?: string

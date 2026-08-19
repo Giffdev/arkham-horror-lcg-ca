@@ -1,4 +1,4 @@
-import { Archetype } from './types'
+import type { Archetype } from './types.js'
 
 export interface Investigator {
   id: string

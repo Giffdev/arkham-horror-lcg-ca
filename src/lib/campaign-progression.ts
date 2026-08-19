@@ -3,7 +3,7 @@ import {
   SMALL_CAMPAIGNS,
   type CampaignLookupInput,
   resolveCampaignMetadata,
-} from './campaign-data'
+} from './campaign-data.js'
 
 export type CampaignProgressionTopology = 'linear' | 'branching' | 'parallel' | 'open'
 export type CampaignProgressionStepMode = 'automatic' | 'manual'
