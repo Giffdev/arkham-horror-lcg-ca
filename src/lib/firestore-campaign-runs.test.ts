@@ -37,6 +37,10 @@ vi.mock('./firebase', () => ({
   db: {},
 }))
 
+vi.mock('./community-stats-wake', () => ({
+  requestCommunityStatsRefresh: vi.fn(),
+}))
+
 vi.mock('firebase/firestore', () => {
   const applyUpdate = (path: string, patch: Record<string, unknown>) => {
     const existing = clone(store.get(path) ?? {})

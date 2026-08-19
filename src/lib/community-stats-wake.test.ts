@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const authMock = vi.hoisted(() => ({
   currentUser: {
@@ -11,17 +11,28 @@ vi.mock('./firebase', () => ({
   auth: authMock,
 }))
 
-import { requestCommunityStatsRefresh } from './community-stats-wake'
+import {
+  requestCommunityStatsRefresh,
+  resetCommunityStatsWakeForTests,
+} from './community-stats-wake'
 
 describe('requestCommunityStatsRefresh', () => {
   beforeEach(() => {
+    resetCommunityStatsWakeForTests()
     vi.restoreAllMocks()
     vi.useRealTimers()
     vi.stubEnv('VITE_COMMUNITY_STATS_API_ENABLED', 'true')
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
     authMock.currentUser = {
       uid: 'owner-1',
       getIdToken: vi.fn(async () => 'firebase-id-token'),
     }
+  })
+
+  afterEach(() => {
+    resetCommunityStatsWakeForTests()
+    vi.useRealTimers()
+    vi.unstubAllEnvs()
   })
 
   it('sends a Firebase ID token to the same-origin Vercel worker', async () => {
@@ -31,12 +42,16 @@ describe('requestCommunityStatsRefresh', () => {
 
     await requestCommunityStatsRefresh('owner-1')
 
-    expect(fetchMock).toHaveBeenCalledWith('/api/community-stats/process', {
-      method: 'POST',
-      headers: {
-        Authorization: 'Bearer firebase-id-token',
-      },
-    })
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/community-stats/process',
+      expect.objectContaining({
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer firebase-id-token',
+        },
+        signal: expect.any(AbortSignal),
+      }),
+    )
   })
 
   it('does not wake for a different owner or while the rollout flag is disabled', async () => {
@@ -53,7 +68,7 @@ describe('requestCommunityStatsRefresh', () => {
     vi.useFakeTimers()
     const fetchMock = vi.spyOn(globalThis, 'fetch')
       .mockRejectedValueOnce(new TypeError('network unavailable'))
-      .mockResolvedValueOnce(new Response('{}', { status: 200 }))
+      .mockResolvedValue(new Response('{}', { status: 200 }))
 
     await requestCommunityStatsRefresh('owner-1')
 
@@ -62,6 +77,9 @@ describe('requestCommunityStatsRefresh', () => {
     await vi.advanceTimersByTimeAsync(5_000)
     expect(fetchMock).toHaveBeenCalledTimes(2)
     expect(vi.getTimerCount()).toBe(0)
+
+    await requestCommunityStatsRefresh('owner-1')
+    expect(fetchMock).toHaveBeenCalledTimes(3)
   })
 
   it('retries a token acquisition rejection once and stops after success', async () => {
@@ -110,6 +128,107 @@ describe('requestCommunityStatsRefresh', () => {
     await vi.advanceTimersByTimeAsync(90_000)
 
     expect(fetchMock).toHaveBeenCalledTimes(3)
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('coalesces simultaneous offline wakes into one bounded retry chain', async () => {
+    vi.useFakeTimers()
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockRejectedValue(
+      new TypeError('network unavailable'),
+    )
+
+    await Promise.all([
+      requestCommunityStatsRefresh('owner-1'),
+      requestCommunityStatsRefresh('owner-1'),
+    ])
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(vi.getTimerCount()).toBe(1)
+
+    await vi.advanceTimersByTimeAsync(5_000)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(vi.getTimerCount()).toBe(1)
+
+    await vi.advanceTimersByTimeAsync(90_000)
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('cancels a pending retry when the user logs out', async () => {
+    vi.useFakeTimers()
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockRejectedValue(
+      new TypeError('network unavailable'),
+    )
+
+    await requestCommunityStatsRefresh('owner-1')
+    expect(vi.getTimerCount()).toBe(1)
+
+    authMock.currentUser = null
+    await requestCommunityStatsRefresh()
+
+    expect(vi.getTimerCount()).toBe(0)
+    await vi.runAllTimersAsync()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('cancels the previous UID chain before waking the new user', async () => {
+    vi.useFakeTimers()
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockRejectedValueOnce(new TypeError('network unavailable'))
+      .mockResolvedValue(new Response('{}', { status: 200 }))
+
+    await requestCommunityStatsRefresh('owner-1')
+    expect(vi.getTimerCount()).toBe(1)
+
+    authMock.currentUser = {
+      uid: 'owner-2',
+      getIdToken: vi.fn(async () => 'firebase-id-token-2'),
+    }
+    await requestCommunityStatsRefresh('owner-2')
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(vi.getTimerCount()).toBe(0)
+    await vi.runAllTimersAsync()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('ignores a stale in-flight completion after a UID change', async () => {
+    vi.useFakeTimers()
+    let resolveOldRequest!: (response: Response) => void
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockImplementationOnce(() => new Promise((resolve) => {
+        resolveOldRequest = resolve
+      }))
+      .mockResolvedValueOnce(new Response('{}', { status: 200 }))
+
+    const oldWake = requestCommunityStatsRefresh('owner-1')
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+
+    authMock.currentUser = {
+      uid: 'owner-2',
+      getIdToken: vi.fn(async () => 'firebase-id-token-2'),
+    }
+    await requestCommunityStatsRefresh('owner-2')
+
+    resolveOldRequest(new Response('{}', { status: 503 }))
+    await oldWake
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it.each([202, 503])('retries transient HTTP %s responses', async (status) => {
+    vi.useFakeTimers()
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response('{}', { status }))
+      .mockResolvedValueOnce(new Response('{}', { status: 200 }))
+
+    await requestCommunityStatsRefresh('owner-1')
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(vi.getTimerCount()).toBe(1)
+    await vi.advanceTimersByTimeAsync(5_000)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
     expect(vi.getTimerCount()).toBe(0)
   })
 })
