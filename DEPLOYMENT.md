@@ -87,9 +87,10 @@ New-Item -ItemType Directory -Force -Path $AuditDir | Out-Null
 
 Now create a **read-only** local helper that fingerprints both
 `users/*/playthroughs/*` and `users/*/campaignRuns/*`. It aborts on ADC/project
-mismatch, performs **reads only**, canonicalizes supported Admin SDK values
-(timestamps, document references, GeoPoints, and bytes) plus arrays/maps before
-hashing, rejects unsupported functions/symbols/cycles, and writes **only**
+mismatch, performs **reads only**, canonicalizes every supported value into an
+unambiguous structural tagged representation (including timestamps, document
+references, GeoPoints, bytes, Dates, primitives, arrays, and maps) before
+hashing, rejects unsupported values/cycles, and writes **only**
 `{ path, updateTime, hash }` records to a local ignored JSONL file:
 
 ```powershell
@@ -155,26 +156,38 @@ function padNanos(value) {
   return String(value).padStart(9, '0')
 }
 
-function normalizeTimestamp(value) {
-  return {
-    __type: 'Timestamp',
-    seconds: value.seconds,
-    nanoseconds: value.nanoseconds,
+function compareCodeUnits(left, right) {
+  if (left < right) {
+    return -1
   }
+  if (left > right) {
+    return 1
+  }
+  return 0
+}
+
+function normalizeNumber(value, path) {
+  if (!Number.isFinite(value)) {
+    throw new Error(`Non-finite number encountered at ${path}: ${value}`)
+  }
+  return Object.is(value, -0) ? '-0' : String(value)
 }
 
 function normalize(value, path = '$', seen = new WeakSet()) {
-  if (value === null || typeof value === 'string' || typeof value === 'boolean') {
-    return value
+  if (value === null) {
+    return ['null']
+  }
+  if (typeof value === 'string') {
+    return ['string', value]
+  }
+  if (typeof value === 'boolean') {
+    return ['boolean', value]
   }
   if (typeof value === 'number') {
-    if (!Number.isFinite(value)) {
-      throw new Error(`Non-finite number encountered at ${path}: ${value}`)
-    }
-    return value
+    return ['number', normalizeNumber(value, path)]
   }
   if (typeof value === 'bigint') {
-    return { __type: 'BigInt', value: value.toString() }
+    throw new Error(`Unsupported Firestore value at ${path}: bigint`)
   }
   if (typeof value === 'undefined') {
     throw new Error(`Unsupported Firestore value at ${path}: undefined`)
@@ -186,23 +199,30 @@ function normalize(value, path = '$', seen = new WeakSet()) {
     throw new Error(`Unsupported Firestore value at ${path}: symbol`)
   }
   if (value instanceof Date) {
-    return { __type: 'Date', value: value.toISOString() }
+    if (!Number.isFinite(value.getTime())) {
+      throw new Error(`Unsupported Firestore value at ${path}: invalid Date`)
+    }
+    return ['date', value.toISOString()]
   }
   if (value instanceof Timestamp) {
-    return normalizeTimestamp(value)
+    return [
+      'timestamp',
+      normalizeNumber(value.seconds, `${path}.seconds`),
+      normalizeNumber(value.nanoseconds, `${path}.nanoseconds`),
+    ]
   }
   if (value instanceof DocumentReference) {
-    return { __type: 'DocumentReference', path: value.path }
+    return ['document-reference', value.firestore.formattedName, value.path]
   }
   if (value instanceof GeoPoint) {
-    return {
-      __type: 'GeoPoint',
-      latitude: value.latitude,
-      longitude: value.longitude,
-    }
+    return [
+      'geo-point',
+      normalizeNumber(value.latitude, `${path}.latitude`),
+      normalizeNumber(value.longitude, `${path}.longitude`),
+    ]
   }
   if (Buffer.isBuffer(value) || value instanceof Uint8Array) {
-    return { __type: 'Bytes', value: Buffer.from(value).toString('base64') }
+    return ['bytes', Buffer.from(value).toString('base64')]
   }
   if (Array.isArray(value)) {
     if (seen.has(value)) {
@@ -210,7 +230,14 @@ function normalize(value, path = '$', seen = new WeakSet()) {
     }
     seen.add(value)
     try {
-      return value.map((entry, index) => normalize(entry, `${path}[${index}]`, seen))
+      const entries = []
+      for (let index = 0; index < value.length; index += 1) {
+        if (!Object.hasOwn(value, index)) {
+          throw new Error(`Unsupported Firestore value at ${path}[${index}]: array hole`)
+        }
+        entries.push(normalize(value[index], `${path}[${index}]`, seen))
+      }
+      return ['array', entries]
     } finally {
       seen.delete(value)
     }
@@ -227,25 +254,25 @@ function normalize(value, path = '$', seen = new WeakSet()) {
   seen.add(value)
   try {
     if (value instanceof Map) {
-      return Object.fromEntries(
-        Array.from(value.entries())
-          .map(([key, entry]) => {
-            if (typeof key !== 'string') {
-              throw new Error(`Unsupported Firestore map key at ${path}: ${String(key)}`)
-            }
-            return [key, normalize(entry, `${path}.${key}`, seen)]
-          })
-          .sort(([left], [right]) => left.localeCompare(right)),
-      )
+      const entries = Array.from(value.entries()).map(([key, entry]) => {
+        if (typeof key !== 'string') {
+          throw new Error(`Unsupported Firestore map key at ${path}: ${String(key)}`)
+        }
+        return [key, normalize(entry, `${path}.${key}`, seen)]
+      })
+      entries.sort(([left], [right]) => compareCodeUnits(left, right))
+      return ['map', entries]
     }
 
     const prototype = Object.getPrototypeOf(value)
     if (prototype === Object.prototype || prototype === null) {
-      return Object.fromEntries(
-        Object.keys(value)
-          .sort((left, right) => left.localeCompare(right))
-          .map((key) => [key, normalize(value[key], `${path}.${key}`, seen)]),
-      )
+      if (Object.getOwnPropertySymbols(value).length > 0) {
+        throw new Error(`Unsupported Firestore map key at ${path}: symbol`)
+      }
+      const entries = Object.keys(value)
+        .sort(compareCodeUnits)
+        .map((key) => [key, normalize(value[key], `${path}.${key}`, seen)])
+      return ['map', entries]
     }
 
     const constructorName = prototype?.constructor?.name || 'object'
@@ -362,6 +389,14 @@ async function runSelfTest() {
   const firstHash = hashCanonicalValue(firstValue)
   const secondHash = hashCanonicalValue(secondValue)
   const changedHash = hashCanonicalValue(changedValue)
+  const unicodeFirst = {
+    'é': 'precomposed',
+    'e\u0301': 'decomposed',
+  }
+  const unicodeSecond = {
+    'e\u0301': 'decomposed',
+    'é': 'precomposed',
+  }
 
   assert.equal(
     firstHash,
@@ -369,6 +404,32 @@ async function runSelfTest() {
     'Canonical hashes should be stable across object and map key reordering.',
   )
   assert.notEqual(firstHash, changedHash, 'Canonical hashes should change when content changes.')
+  assert.equal(
+    JSON.stringify(normalize(unicodeFirst)),
+    JSON.stringify(normalize(unicodeSecond)),
+    'Unicode-distinct keys should have equal canonical output regardless of insertion order.',
+  )
+  assert.equal(
+    hashCanonicalValue(unicodeFirst),
+    hashCanonicalValue(unicodeSecond),
+    'Unicode-distinct keys should have equal hashes regardless of insertion order.',
+  )
+  assert.notEqual(
+    hashCanonicalValue(sharedDate),
+    hashCanonicalValue({
+      __type: 'Date',
+      value: sharedDate.toISOString(),
+    }),
+    'Date must not collide with a lookalike user map.',
+  )
+  assert.notEqual(
+    hashCanonicalValue(sharedRef),
+    hashCanonicalValue({
+      __type: 'DocumentReference',
+      path: sharedRef.path,
+    }),
+    'DocumentReference must not collide with a lookalike user map.',
+  )
 
   const fingerprint = toFingerprint({
     data: () => firstValue,
@@ -381,6 +442,12 @@ async function runSelfTest() {
 
   expectFailure('function rejection', () => normalize({ bad: () => {} }), /function/)
   expectFailure('symbol rejection', () => normalize({ bad: Symbol('bad') }), /symbol/)
+  expectFailure('symbol key rejection', () => normalize({ [Symbol('bad')]: true }), /symbol/)
+  expectFailure('bigint rejection', () => normalize({ bad: 1n }), /bigint/)
+  expectFailure('undefined rejection', () => normalize({ bad: undefined }), /undefined/)
+  expectFailure('NaN rejection', () => normalize({ bad: Number.NaN }), /Non-finite/)
+  expectFailure('Infinity rejection', () => normalize({ bad: Number.POSITIVE_INFINITY }), /Non-finite/)
+  expectFailure('array hole rejection', () => normalize(new Array(1)), /array hole/)
   const cyclic = {}
   cyclic.self = cyclic
   expectFailure('cycle rejection', () => normalize(cyclic), /Cycle detected/)
@@ -432,7 +499,7 @@ async function main() {
   const entries = [
     ...(await readCollectionGroup(db, 'playthroughs')),
     ...(await readCollectionGroup(db, 'campaignRuns')),
-  ].sort((left, right) => left.path.localeCompare(right.path))
+  ].sort((left, right) => compareCodeUnits(left.path, right.path))
 
   const resolvedOutFile = resolve(outFile)
   await mkdir(dirname(resolvedOutFile), { recursive: true })
