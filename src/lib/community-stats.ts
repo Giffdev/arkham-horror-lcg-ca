@@ -65,7 +65,8 @@ export function getCommunityStatsAvailability(stats: CommunityStats | null): Com
   if (stats.refreshState === 'failed' || stats.refreshState === 'stale') return 'stale'
 
   const generatedAt = getCommunityStatsGeneratedAt(stats)
-  if (!isCommunityStatsFresh(stats, Date.now(), COMMUNITY_STATS_STALE_AFTER_MS)) {
+  if (stats.refreshState !== 'ready'
+    && !isCommunityStatsFresh(stats, Date.now(), COMMUNITY_STATS_STALE_AFTER_MS)) {
     return 'stale'
   }
 

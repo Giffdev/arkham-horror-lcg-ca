@@ -581,19 +581,26 @@ describe('getCommunityStatsAvailability', () => {
     expect(getCommunityStatsAvailability(null)).toBe('unavailable')
   })
 
-  it('classifies stale aggregates by age', () => {
+  it('keeps an explicitly ready aggregate available regardless of age', () => {
     const now = Date.now()
     expect(getCommunityStatsAvailability({
       ...makePublishedStats(),
       lastUpdated: now - COMMUNITY_STATS_STALE_AFTER_MS - 1,
       generatedAt: now - COMMUNITY_STATS_STALE_AFTER_MS - 1,
-    })).toBe('stale')
+    })).toBe('ready')
   })
 
   it('classifies explicitly stale aggregates as stale', () => {
     expect(getCommunityStatsAvailability({
       ...makePublishedStats(),
       refreshState: 'stale',
+    })).toBe('stale')
+  })
+
+  it('classifies failed aggregates as stale', () => {
+    expect(getCommunityStatsAvailability({
+      ...makePublishedStats(),
+      refreshState: 'failed',
     })).toBe('stale')
   })
 

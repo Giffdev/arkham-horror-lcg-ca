@@ -135,6 +135,20 @@ describe('CommunityStats', () => {
       )
       expect(screen.getByText('42')).toBeVisible()
     })
+
+    it('shows old ready stats without a refreshing warning', async () => {
+      const oldReadyStats = {
+        ...FULL_STATS,
+        generatedAt: Date.now() - (16 * 60_000),
+        refreshState: 'ready',
+      }
+      mockGetCommunityStats.mockResolvedValueOnce(oldReadyStats as never)
+      mockGetCommunityStatsAvailability.mockReturnValueOnce('ready')
+      render(<CommunityStats />)
+
+      await waitFor(() => expect(screen.getByText('42')).toBeVisible())
+      expect(screen.queryByText(/community stats are refreshing/i)).not.toBeInTheDocument()
+    })
   })
 
   describe('full data — all seven cards visible', () => {

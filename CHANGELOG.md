@@ -8,6 +8,10 @@ This project follows the spirit of [Keep a Changelog](https://keepachangelog.com
 
 ### Changed
 
+- **Ready community statistics remain visible between backend refreshes.** A trusted
+  aggregate marked `ready` no longer shows a refreshing warning solely because its
+  generation timestamp is older than 15 minutes.
+
 - **Community statistics bootstrap now uses Firestore-safe control IDs.** The final
   aggregate publish lease uses the centralized strict ASCII marker
   `bootstrap-publisher` instead of Firestore's reserved `__...__` document-ID format.
