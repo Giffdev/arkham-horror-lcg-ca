@@ -26,8 +26,9 @@ async function sendWake(uid?: string): Promise<boolean> {
 }
 
 function scheduleRetry(uid: string, retryIndex: number): void {
+  if (typeof window === 'undefined') return
   if (retryIndex >= RETRY_DELAYS_MS.length) return
-  window.setTimeout(() => {
+  globalThis.setTimeout(() => {
     void sendWake(uid)
       .then((completed) => {
         if (!completed) scheduleRetry(uid, retryIndex + 1)

@@ -4,7 +4,7 @@ const mocks = vi.hoisted(() => ({
   ensureFirebaseAdminApp: vi.fn(),
   verifyIdToken: vi.fn(),
   pendingGet: vi.fn(),
-  processCommunityStatsQueue: vi.fn(),
+  rebuildUserContribution: vi.fn(),
 }))
 
 vi.mock('./firebase-admin', () => ({
@@ -24,12 +24,17 @@ vi.mock('firebase-admin/firestore', () => ({
         get: mocks.pendingGet,
       })),
     })),
+    collectionGroup: vi.fn(() => ({
+      limit: vi.fn(() => ({
+        get: mocks.pendingGet,
+      })),
+    })),
   }),
 }))
 
-vi.mock('./community-stats-pipeline', () => ({
+vi.mock('./community-stats-contributions', () => ({
   COMMUNITY_STATS_OUTBOX_COLLECTION: 'communityStatsOutbox',
-  processCommunityStatsQueue: mocks.processCommunityStatsQueue,
+  rebuildUserContribution: mocks.rebuildUserContribution,
 }))
 
 import {
@@ -61,8 +66,11 @@ describe('Vercel community stats process handler', () => {
     process.env.COMMUNITY_STATS_BACKEND_ENABLED = 'true'
     process.env.CRON_SECRET = 'test-cron-secret'
     mocks.verifyIdToken.mockResolvedValue({ uid: 'owner-1' })
-    mocks.pendingGet.mockResolvedValue({ empty: false })
-    mocks.processCommunityStatsQueue.mockResolvedValue({
+    mocks.pendingGet.mockResolvedValue({
+      empty: false,
+      docs: [{ ref: { path: 'users/owner-1/communityStatsOutbox/event-1' } }],
+    })
+    mocks.rebuildUserContribution.mockResolvedValue({
       status: 'published',
       refreshState: 'ready',
       pendingOutboxCount: 0,
@@ -82,7 +90,7 @@ describe('Vercel community stats process handler', () => {
       statusCode: 503,
       body: { error: 'backend-not-enabled' },
     })
-    expect(mocks.processCommunityStatsQueue).not.toHaveBeenCalled()
+    expect(mocks.rebuildUserContribution).not.toHaveBeenCalled()
   })
 
   it('accepts an authenticated owner only when that owner has durable queued work', async () => {
@@ -95,7 +103,7 @@ describe('Vercel community stats process handler', () => {
 
     expect(mocks.verifyIdToken).toHaveBeenCalledWith('firebase-id-token', true)
     expect(output.result().statusCode).toBe(200)
-    expect(mocks.processCommunityStatsQueue).toHaveBeenCalledOnce()
+    expect(mocks.rebuildUserContribution).toHaveBeenCalledWith('owner-1')
   })
 
   it('rejects owner wakes without an owner-scoped outbox event', async () => {
@@ -108,11 +116,11 @@ describe('Vercel community stats process handler', () => {
     )
 
     expect(output.result().statusCode).toBe(401)
-    expect(mocks.processCommunityStatsQueue).not.toHaveBeenCalled()
+    expect(mocks.rebuildUserContribution).not.toHaveBeenCalled()
   })
 
   it('uses the Vercel cron secret for daily recovery and reports retryable failures', async () => {
-    mocks.processCommunityStatsQueue.mockResolvedValue({
+    mocks.rebuildUserContribution.mockResolvedValue({
       status: 'failed',
       failureKind: 'transient',
       shouldRetry: true,

@@ -264,6 +264,10 @@ describeWithEmulator('firestore rules emulator', () => {
     await assertFails(setDoc(doc(ownerDb, 'community-stats-internal', 'state'), {
       leaseId: 'forbidden',
     }))
+    await assertFails(getDoc(doc(ownerDb, 'community-stats-contributions', 'owner-1')))
+    await assertFails(setDoc(doc(ownerDb, 'community-stats-contributions', 'owner-1'), {
+      totalGames: 999,
+    }))
   }, EMULATOR_TEST_TIMEOUT_MS)
 
   it('denies forged marker, extra-field, pii, wrong-requestedBy, invalid-reason, invalid-type, and id-mismatch client outbox writes', async () => {
@@ -354,16 +358,6 @@ describeWithEmulator('firestore rules emulator', () => {
       { affectedDocuments: 2 },
     ))
     await assertFails(deleteDoc(doc(ownerDb, 'users', 'owner-1', 'communityStatsOutbox', 'event-existing')))
-    await assertFails(setDoc(
-      doc(ownerDb, 'community-stats-system', 'system', 'communityStatsOutbox', 'event-system'),
-      {
-        mutationId: 'event-system',
-        requestedAtMs: 1_725_000_000_000,
-        requestedBy: 'system',
-        reason: 'manual',
-        affectedDocuments: 0,
-      },
-    ))
   }, EMULATOR_TEST_TIMEOUT_MS)
 
   it('imports 499 source records atomically and queues one exact outbox event in the emulator', async () => {

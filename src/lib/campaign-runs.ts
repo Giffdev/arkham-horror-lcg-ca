@@ -980,6 +980,7 @@ export function flattenGameLogs(input: FlattenGameLogsInput): FlattenedGameLog[]
         campaignLineageId: campaignRun.campaignLineageId,
         customCampaignName: campaignRun.customCampaignName,
         scenarioName: scenarioLog.scenarioName,
+        scenarioType: scenarioLog.scenarioType,
         sideStories: scenarioLog.sideStories ? [...scenarioLog.sideStories] : undefined,
         investigators: cloneInvestigators(scenarioLog.investigators),
         notes: scenarioLog.notes,

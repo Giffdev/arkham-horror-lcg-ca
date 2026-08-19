@@ -81,8 +81,9 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    match /community-stats-system/{scope}/{document=**} {
+    match /community-stats-contributions/{userId} {
       allow read, write: if false;
     }
+
   }
 }

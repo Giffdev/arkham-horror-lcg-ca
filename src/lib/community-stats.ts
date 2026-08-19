@@ -1,14 +1,8 @@
-import type { Playthrough } from './types'
 import {
-  getAllPlaythroughs,
   getCommunityStatsFromFirestore,
-  saveCommunityStats,
   subscribeToCommunityStatsFromFirestore,
 } from './firestore'
 import {
-  buildEmptyCommunityStats,
-  computeCommunityStats,
-  COMMUNITY_STATS_SCHEMA_VERSION,
   COMMUNITY_STATS_STALE_AFTER_MS,
   getCommunityStatsGeneratedAt,
   hasCurrentCommunityStatsSchema,
@@ -88,66 +82,6 @@ export function getCommunityStatsAvailability(stats: CommunityStats | null): Com
   }
 
   return 'ready'
-}
-
-/**
- * Trusted/admin rebuild path retained for tests and backend tooling.
- * Ordinary clients should read the published aggregate document instead.
- */
-export async function rebuildCommunityStats(_localPlaythroughs?: Playthrough[]): Promise<CommunityStats | void> {
-  try {
-    const source = await getAllPlaythroughs()
-    const generatedAt = Date.now()
-    const stats = computeCommunityStats({
-      playthroughs: source.playthroughs,
-      rootPlaythroughs: source.rootPlaythroughs ?? source.playthroughs,
-      campaignRuns: source.campaignRuns ?? [],
-      userCount: source.userCount,
-      generatedAt,
-      snapshotReadAt: generatedAt,
-      schemaVersion: COMMUNITY_STATS_SCHEMA_VERSION,
-      refreshState: 'ready',
-    }) ?? buildEmptyCommunityStats({
-      userCount: source.userCount,
-      generatedAt,
-      snapshotReadAt: generatedAt,
-      schemaVersion: COMMUNITY_STATS_SCHEMA_VERSION,
-      refreshState: 'ready',
-    })
-    stats.topCampaigns = filterCanonicalTopCampaigns(stats.topCampaigns)
-    await saveCommunityStats(stats)
-    return stats
-  } catch (error) {
-    console.error('[CommunityStats] Failed to rebuild:', error)
-  }
-}
-
-export async function bumpCommunityStats(delta: {
-  gamesAdded?: number
-  gamesRemoved?: number
-}): Promise<void> {
-  try {
-    const existing = await getCommunityStatsFromFirestore()
-    if (!existing) return
-    const generatedAt = Date.now()
-    const totalGames = Math.max(
-      0,
-      existing.totalGames + (delta.gamesAdded || 0) - (delta.gamesRemoved || 0),
-    )
-    await saveCommunityStats({
-      ...existing,
-      totalGames,
-      lastUpdated: generatedAt,
-      generatedAt,
-      snapshotReadAt: generatedAt,
-      schemaVersion: existing.schemaVersion ?? COMMUNITY_STATS_SCHEMA_VERSION,
-      refreshState: 'ready',
-      sourceGeneration: existing.sourceGeneration ?? 0,
-      pipelineGeneration: existing.pipelineGeneration ?? existing.sourceGeneration ?? 0,
-    })
-  } catch (error) {
-    console.error('Failed to bump community stats:', error)
-  }
 }
 
 export async function getCommunityStats(): Promise<CommunityStats | null> {

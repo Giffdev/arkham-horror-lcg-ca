@@ -20,11 +20,13 @@
   `users/{uid}/communityStatsOutbox/{eventId}`. Clients can create only the exact,
   validated outbox schema and cannot read, update, or delete queued events.
 - `community-stats/global` is public read-only aggregate data.
-- `community-stats-internal/**` and `community-stats-system/**` are denied to clients.
-- The Admin SDK reads cross-user source data and writes aggregate/internal documents
-  only inside the Vercel Function.
-- The existing lease, snapshot, generation, quarantine, bootstrap-marker, bounded
-  deletion, and idempotent retry logic lives in `backend/community-stats-pipeline.ts`.
+- `community-stats-internal/**` and `community-stats-contributions/**` are denied to clients.
+- The Vercel Function reads only the authenticated owner's raw source collections.
+  It writes a compact, privacy-filtered document under
+  `community-stats-contributions/{uid}` and publishes from those server-only
+  contributions; ordinary client wakes never scan another user's raw records.
+- The lease, bounded owner reads, contribution replacement, bounded outbox deletion,
+  and aggregate publication logic lives in `backend/community-stats-contributions.ts`.
 - Nested campaign scenario logs are flattened by the shared campaign adapter. Side
   scenarios count as game nights but do not add campaigns or progression.
 
@@ -32,6 +34,18 @@
 
 Production uses Vercel OIDC plus Google Workload Identity Federation. No service
 account private key is stored in Vercel.
+
+The worker intentionally retains Firebase Admin's Firestore client instead of hand-
+implementing Firestore REST transactions. This is a supported credential path, not
+an assumed one: Vercel officially documents `ExternalAccountClient` with its OIDC
+subject-token supplier (`https://vercel.com/docs/oidc/gcp`), and Firebase Admin's
+official `Credential` contract accepts any implementation returning a Google OAuth
+access token (`https://firebase.google.com/docs/reference/admin/node/firebase-admin.credential`).
+`backend/firebase-admin.ts` implements exactly that contract. Firestore REST remains
+a fallback if an integration deployment disproves this documented path. Reimplementing
+Firestore value encoding, transactional preconditions, and retry semantics over REST
+would add avoidable correctness risk without improving the short-lived identity model.
+Client wakes stay disabled until the documented Admin/OIDC integration check succeeds.
 
 One-time secure configuration:
 

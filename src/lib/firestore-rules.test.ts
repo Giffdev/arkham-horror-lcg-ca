@@ -34,10 +34,10 @@ describe('firestore repository contract', () => {
     expect(rootPackageJson.scripts?.['backend:build']).toBe('tsc -p backend/tsconfig.json')
     expect(rootPackageJson.scripts?.['backend:typecheck']).toBe('tsc -p backend/tsconfig.typecheck.json')
     expect(rootPackageJson.scripts?.['backend:test']).toBe(
-      'vitest run backend/scripts/bootstrap-community-stats.test.ts backend/community-stats-pipeline.test.ts backend/community-stats-handler.test.ts',
+      'vitest run backend/scripts/bootstrap-community-stats.test.ts backend/community-stats-contributions.test.ts backend/community-stats-handler.test.ts',
     )
     expect(rootPackageJson.scripts?.['backend:test:emulator']).toBe(
-      'firebase emulators:exec --project demo-arkham-horror-lcg-ca --only firestore "vitest run --config vitest.firestore.config.ts backend/community-stats-pipeline.emulator.test.ts"',
+      'firebase emulators:exec --project demo-arkham-horror-lcg-ca --only firestore "vitest run --config vitest.firestore.config.ts backend/community-stats-contributions.emulator.test.ts"',
     )
     expect(rootPackageJson.dependencies).toHaveProperty('@vercel/oidc')
     expect(rootPackageJson.dependencies).toHaveProperty('firebase-admin')
@@ -63,7 +63,7 @@ describe('firestore repository contract', () => {
   it('publishes a read-only global community aggregate to clients', () => {
     expect(firestoreRules).toMatch(/match \/community-stats\/\{docId\}\s*\{\s*allow read: if docId == 'global';\s*allow write: if false;/s)
     expect(firestoreRules).toMatch(/match \/community-stats-internal\/\{docId\}\s*\{\s*allow read, write: if false;/s)
-    expect(firestoreRules).toMatch(/match \/community-stats-system\/\{scope\}\/\{document=\*\*\}\s*\{\s*allow read, write: if false;/s)
+    expect(firestoreRules).toMatch(/match \/community-stats-contributions\/\{userId\}\s*\{\s*allow read, write: if false;/s)
   })
 
   it('defines a Firestore emulator port for rules tests', () => {

@@ -5,9 +5,9 @@ import { getFirestore } from 'firebase-admin/firestore'
 
 import {
   COMMUNITY_STATS_OUTBOX_COLLECTION,
-  processCommunityStatsQueue,
-  type CommunityStatsRebuildResult,
-} from './community-stats-pipeline'
+  rebuildUserContribution,
+  type ContributionProcessResult,
+} from './community-stats-contributions'
 import { ensureFirebaseAdminApp } from './firebase-admin'
 
 export type CommunityStatsProcessRequest = {
@@ -39,16 +39,16 @@ function backendEnabled(): boolean {
   return process.env.COMMUNITY_STATS_BACKEND_ENABLED === 'true'
 }
 
-async function authorizeOwnerWake(request: CommunityStatsProcessRequest): Promise<boolean> {
+async function authorizeOwnerWake(request: CommunityStatsProcessRequest): Promise<string | null> {
   const token = bearerToken(request)
-  if (!token) return false
+  if (!token) return null
 
   const decoded = await getAuth().verifyIdToken(token, true)
   const pending = await getFirestore()
     .collection(`users/${decoded.uid}/${COMMUNITY_STATS_OUTBOX_COLLECTION}`)
     .limit(1)
     .get()
-  return !pending.empty
+  return pending.empty ? null : decoded.uid
 }
 
 function authorizeRecoveryWake(request: CommunityStatsProcessRequest): boolean {
@@ -61,9 +61,18 @@ function authorizeRecoveryWake(request: CommunityStatsProcessRequest): boolean {
     timingSafeEqual(expectedBytes, providedBytes)
 }
 
-function responseStatus(result: CommunityStatsRebuildResult): number {
+async function findRecoveryOwner(): Promise<string | null> {
+  const pending = await getFirestore()
+    .collectionGroup(COMMUNITY_STATS_OUTBOX_COLLECTION)
+    .limit(1)
+    .get()
+  const path = pending.docs[0]?.ref.path
+  const match = path?.match(/^users\/([^/]+)\/communityStatsOutbox\/[^/]+$/)
+  return match?.[1] ?? null
+}
+
+function responseStatus(result: ContributionProcessResult): number {
   if (result.status === 'failed') return result.shouldRetry ? 503 : 422
-  if (result.status === 'lease-lost') return 409
   if (result.skipReason === 'lease-active') return 202
   return 200
 }
@@ -86,15 +95,19 @@ export async function handleCommunityStatsProcess(
 
   try {
     ensureFirebaseAdminApp()
-    const authorized = request.method === 'GET'
-      ? authorizeRecoveryWake(request)
+    const ownerUid = request.method === 'GET'
+      ? authorizeRecoveryWake(request) ? await findRecoveryOwner() : null
       : await authorizeOwnerWake(request)
-    if (!authorized) {
+    if (!ownerUid) {
+      if (request.method === 'GET' && authorizeRecoveryWake(request)) {
+        response.status(200).json({ status: 'skipped', skipReason: 'no-pending-work' })
+        return
+      }
       response.status(401).json({ error: 'unauthorized' })
       return
     }
 
-    const result = await processCommunityStatsQueue()
+    const result = await rebuildUserContribution(ownerUid)
     response.status(responseStatus(result)).json(result)
   } catch (error) {
     console.error('Community stats Vercel worker failed.', error)

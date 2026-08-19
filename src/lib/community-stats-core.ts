@@ -62,6 +62,13 @@ export interface CommunityStatsSourceInput {
   pipelineGeneration?: number
   schemaVersion?: number
   refreshState?: CommunityStatsRefreshState
+  limits?: {
+    campaigns?: number
+    investigators?: number
+    standalones?: number
+    sideScenarios?: number
+    pairings?: number
+  }
 }
 
 function normalizeKey(value: string): string {
@@ -145,6 +152,7 @@ export function computeCommunityStats(input: CommunityStatsSourceInput): Communi
     pipelineGeneration,
     schemaVersion = COMMUNITY_STATS_SCHEMA_VERSION,
     refreshState = 'ready',
+    limits = {},
   } = input
   if (!playthroughs.length && !rootPlaythroughs.length && !campaignRuns.length && userCount === 0) {
     return null
@@ -291,7 +299,7 @@ export function computeCommunityStats(input: CommunityStatsSourceInput): Communi
       ...(data.set ? { set: data.set } : {}),
     }))
     .sort((left, right) => right.count - left.count)
-    .slice(0, 25)
+    .slice(0, limits.campaigns ?? 25)
 
   const topInvestigators = Array.from(investigatorCounts.values())
     .map((investigator) => ({
@@ -303,7 +311,7 @@ export function computeCommunityStats(input: CommunityStatsSourceInput): Communi
       ...(investigator.investigatorSet ? { investigatorSet: investigator.investigatorSet } : {}),
     }))
     .sort((left, right) => right.count - left.count)
-    .slice(0, 25)
+    .slice(0, limits.investigators ?? 25)
 
   const topClasses = Array.from(classCounts.entries())
     .map(([archetype, count]) => ({ archetype, count }))
@@ -321,11 +329,11 @@ export function computeCommunityStats(input: CommunityStatsSourceInput): Communi
     }))
     .filter((entry) => entry.count > 0)
     .sort((left, right) => right.count - left.count)
-    .slice(0, 25)
+    .slice(0, limits.standalones ?? 25)
 
   const topSideScenarios = Array.from(sideCounts.values())
     .sort((left, right) => right.count - left.count)
-    .slice(0, 25)
+    .slice(0, limits.sideScenarios ?? 25)
 
   const topPairings = Array.from(pairCounts.entries())
     .map(([key, count]) => {
@@ -333,7 +341,7 @@ export function computeCommunityStats(input: CommunityStatsSourceInput): Communi
       return { investigator1, investigator2, count }
     })
     .sort((left, right) => right.count - left.count || left.investigator1.localeCompare(right.investigator1))
-    .slice(0, 200)
+    .slice(0, limits.pairings ?? 200)
 
   return {
     totalGames: playthroughs.length,

@@ -1,0 +1,484 @@
+import { createHash, randomUUID } from 'node:crypto'
+
+import { FieldValue, getFirestore, Timestamp } from 'firebase-admin/firestore'
+
+import { ALL_CAMPAIGNS } from '../src/lib/campaign-data'
+import { computeCampaignCountSummary, flattenGameLogs } from '../src/lib/campaign-runs'
+import { getInvestigatorPairKey, resolveInvestigator } from '../src/lib/investigator-data'
+import {
+  COMMUNITY_STATS_SCHEMA_VERSION,
+  computeCommunityStats,
+  type CommunityPairing,
+  type CommunityStats,
+  type CompletionBreakdown,
+} from '../src/lib/community-stats-core'
+import type { Archetype, CampaignRun, Playthrough } from '../src/lib/types'
+
+export const COMMUNITY_STATS_OUTBOX_COLLECTION = 'communityStatsOutbox'
+export const COMMUNITY_STATS_CONTRIBUTIONS_COLLECTION = 'community-stats-contributions'
+export const COMMUNITY_STATS_DOC_PATH = 'community-stats/global'
+export const COMMUNITY_STATS_STATE_DOC_PATH = 'community-stats-internal/contribution-publisher'
+export const COMMUNITY_STATS_LEASE_MS = 75_000
+
+const MAX_USER_SOURCE_DOCUMENTS = 5_000
+const MAX_CONTRIBUTIONS = 10_000
+const MAX_OUTBOX_DELETES = 498
+const CANONICAL_CAMPAIGNS = new Set(ALL_CAMPAIGNS.map((campaign) => campaign.name))
+
+type CountedCampaign = CommunityStats['topCampaigns'][number]
+type CountedInvestigator = CommunityStats['topInvestigators'][number]
+type CountedClass = CommunityStats['topClasses'][number]
+type CountedStandalone = CommunityStats['topStandalones'][number]
+type CountedSideScenario = CommunityStats['topSideScenarios'][number]
+
+export interface CommunityStatsContribution {
+  schemaVersion: number
+  generatedAt: number
+  hasSourceRecords: boolean
+  totalGames: number
+  campaignRunsPlayedCount: number
+  campaignFamilyHashes: string[]
+  campaigns: CountedCampaign[]
+  investigators: CountedInvestigator[]
+  classes: CountedClass[]
+  standalones: CountedStandalone[]
+  sideScenarios: CountedSideScenario[]
+  pairings: CommunityPairing[]
+  completionBreakdown: CompletionBreakdown
+}
+
+export interface ContributionProcessResult {
+  status: 'published' | 'updated' | 'skipped' | 'failed'
+  skipReason?: 'lease-active' | 'no-pending-work'
+  processedOutboxCount?: number
+  pendingOutboxCount?: number
+  refreshState?: 'ready' | 'stale' | 'failed'
+  shouldRetry?: boolean
+}
+
+type Lease = {
+  leaseId: string
+  uid: string
+}
+
+function withId<T>(id: string, data: FirebaseFirestore.DocumentData): T {
+  return { id, ...data } as T
+}
+
+function hashFamily(value: string): string {
+  return createHash('sha256').update(value).digest('hex')
+}
+
+function addCount<T extends string>(
+  target: Map<T, number>,
+  key: T,
+  count: number,
+): void {
+  target.set(key, (target.get(key) ?? 0) + count)
+}
+
+async function claimLease(uid: string, force: boolean): Promise<Lease | ContributionProcessResult> {
+  const db = getFirestore()
+  const stateRef = db.doc(COMMUNITY_STATS_STATE_DOC_PATH)
+  const outboxQuery = db.collection(`users/${uid}/${COMMUNITY_STATS_OUTBOX_COLLECTION}`).limit(1)
+  const nowMs = Date.now()
+
+  return db.runTransaction(async (transaction) => {
+    const [stateSnapshot, outboxSnapshot] = await Promise.all([
+      transaction.get(stateRef),
+      transaction.get(outboxQuery),
+    ])
+    if (!force && outboxSnapshot.empty) {
+      return { status: 'skipped', skipReason: 'no-pending-work' } satisfies ContributionProcessResult
+    }
+
+    const state = stateSnapshot.data() ?? {}
+    const leaseExpiresAt = state.leaseExpiresAt instanceof Timestamp
+      ? state.leaseExpiresAt.toMillis()
+      : 0
+    if (typeof state.leaseId === 'string' && leaseExpiresAt > nowMs) {
+      return {
+        status: 'skipped',
+        skipReason: 'lease-active',
+        shouldRetry: true,
+      } satisfies ContributionProcessResult
+    }
+
+    const lease = { leaseId: randomUUID(), uid }
+    transaction.set(stateRef, {
+      leaseId: lease.leaseId,
+      leaseOwnerUid: uid,
+      leaseExpiresAt: Timestamp.fromMillis(nowMs + COMMUNITY_STATS_LEASE_MS),
+      lastStartedAt: Timestamp.fromMillis(nowMs),
+    }, { merge: true })
+    return lease
+  })
+}
+
+async function loadUserSource(uid: string): Promise<{
+  playthroughs: Playthrough[]
+  campaignRuns: CampaignRun[]
+}> {
+  const db = getFirestore()
+  const [playthroughSnapshot, campaignRunSnapshot] = await Promise.all([
+    db.collection(`users/${uid}/playthroughs`).limit(MAX_USER_SOURCE_DOCUMENTS + 1).get(),
+    db.collection(`users/${uid}/campaignRuns`).limit(MAX_USER_SOURCE_DOCUMENTS + 1).get(),
+  ])
+  if (
+    playthroughSnapshot.size > MAX_USER_SOURCE_DOCUMENTS ||
+    campaignRunSnapshot.size > MAX_USER_SOURCE_DOCUMENTS
+  ) {
+    throw new Error(`User source exceeds the ${MAX_USER_SOURCE_DOCUMENTS}-document processing bound.`)
+  }
+  return {
+    playthroughs: playthroughSnapshot.docs.map((entry) =>
+      withId<Playthrough>(entry.id, entry.data())),
+    campaignRuns: campaignRunSnapshot.docs.map((entry) =>
+      withId<CampaignRun>(entry.id, entry.data())),
+  }
+}
+
+async function loadQueuedOutbox(uid: string): Promise<{
+  paths: string[]
+  hasMore: boolean
+}> {
+  const snapshot = await getFirestore()
+    .collection(`users/${uid}/${COMMUNITY_STATS_OUTBOX_COLLECTION}`)
+    .orderBy('requestedAtMs')
+    .limit(MAX_OUTBOX_DELETES + 1)
+    .get()
+  return {
+    paths: snapshot.docs.slice(0, MAX_OUTBOX_DELETES).map((entry) => entry.ref.path),
+    hasMore: snapshot.size > MAX_OUTBOX_DELETES,
+  }
+}
+
+export function buildCommunityStatsContribution(input: {
+  playthroughs: Playthrough[]
+  campaignRuns: CampaignRun[]
+  generatedAt?: number
+}): CommunityStatsContribution {
+  const generatedAt = input.generatedAt ?? Date.now()
+  const flattened = flattenGameLogs(input).map((playthrough) => ({
+    ...playthrough,
+    sideStories: playthrough.scenarioType === 'side_scenario' && playthrough.scenarioName
+      ? Array.from(new Set([...(playthrough.sideStories ?? []), playthrough.scenarioName]))
+      : playthrough.sideStories,
+    investigators: playthrough.investigators.filter((investigator) =>
+      Boolean(resolveInvestigator(investigator))),
+  }))
+  const stats = computeCommunityStats({
+    playthroughs: flattened,
+    rootPlaythroughs: input.playthroughs,
+    campaignRuns: input.campaignRuns,
+    userCount: 1,
+    generatedAt,
+    limits: {
+      campaigns: Number.MAX_SAFE_INTEGER,
+      investigators: Number.MAX_SAFE_INTEGER,
+      standalones: Number.MAX_SAFE_INTEGER,
+      sideScenarios: Number.MAX_SAFE_INTEGER,
+      pairings: Number.MAX_SAFE_INTEGER,
+    },
+  })
+  const canonicalInvestigators = (stats?.topInvestigators ?? [])
+    .filter((investigator) => Boolean(investigator.investigatorId))
+  const canonicalPairingNames = new Set(
+    canonicalInvestigators.map((investigator) => getInvestigatorPairKey({
+      investigatorName: investigator.name,
+      chapter: investigator.chapter,
+    })),
+  )
+  const summary = computeCampaignCountSummary(input.playthroughs, input.campaignRuns)
+
+  return {
+    schemaVersion: COMMUNITY_STATS_SCHEMA_VERSION,
+    generatedAt,
+    hasSourceRecords: input.playthroughs.length > 0 || input.campaignRuns.length > 0,
+    totalGames: stats?.totalGames ?? 0,
+    campaignRunsPlayedCount: summary.campaignRunsPlayedCount,
+    campaignFamilyHashes: Array.from(new Set(
+      summary.roots.map((root) => hashFamily(root.campaignLineageId)),
+    )).sort(),
+    campaigns: (stats?.topCampaigns ?? []).filter((campaign) =>
+      CANONICAL_CAMPAIGNS.has(campaign.name)),
+    investigators: canonicalInvestigators,
+    classes: stats?.topClasses ?? [],
+    standalones: stats?.topStandalones ?? [],
+    sideScenarios: stats?.topSideScenarios ?? [],
+    pairings: (stats?.topPairings ?? []).filter((pairing) =>
+      canonicalPairingNames.has(pairing.investigator1) &&
+      canonicalPairingNames.has(pairing.investigator2)),
+    completionBreakdown: stats?.completionBreakdown ?? {
+      fullCampaigns: 0,
+      smallCampaigns: 0,
+      scenarioPacks: 0,
+      fanMade: 0,
+    },
+  }
+}
+
+function mergeContributions(
+  contributions: CommunityStatsContribution[],
+  generatedAt = Date.now(),
+  generation = 1,
+  refreshState: 'ready' | 'stale' = 'ready',
+): CommunityStats {
+  const campaignCounts = new Map<string, CountedCampaign>()
+  const investigatorCounts = new Map<string, CountedInvestigator>()
+  const classCounts = new Map<Archetype, number>()
+  const standaloneCounts = new Map<string, CountedStandalone>()
+  const sideCounts = new Map<string, number>()
+  const pairingCounts = new Map<string, CommunityPairing>()
+  const campaignFamilies = new Set<string>()
+  const completionBreakdown: CompletionBreakdown = {
+    fullCampaigns: 0,
+    smallCampaigns: 0,
+    scenarioPacks: 0,
+    fanMade: 0,
+  }
+  let totalGames = 0
+  let campaignRunsPlayedCount = 0
+  let registeredUsers = 0
+
+  for (const contribution of contributions) {
+    if (contribution.hasSourceRecords !== false) registeredUsers++
+    totalGames += contribution.totalGames
+    campaignRunsPlayedCount += contribution.campaignRunsPlayedCount
+    contribution.campaignFamilyHashes.forEach((key) => campaignFamilies.add(key))
+    for (const campaign of contribution.campaigns) {
+      const existing = campaignCounts.get(campaign.name)
+      campaignCounts.set(campaign.name, {
+        ...campaign,
+        count: (existing?.count ?? 0) + campaign.count,
+      })
+    }
+    for (const investigator of contribution.investigators) {
+      const key = investigator.investigatorId ?? `${investigator.name}:${investigator.chapter ?? 1}`
+      const existing = investigatorCounts.get(key)
+      investigatorCounts.set(key, {
+        ...investigator,
+        count: (existing?.count ?? 0) + investigator.count,
+        archetypes: Array.from(new Set([
+          ...(existing?.archetypes ?? []),
+          ...investigator.archetypes,
+        ])),
+      })
+    }
+    for (const entry of contribution.classes) addCount(classCounts, entry.archetype, entry.count)
+    for (const entry of contribution.standalones) {
+      const existing = standaloneCounts.get(entry.name)
+      standaloneCounts.set(entry.name, {
+        ...entry,
+        count: (existing?.count ?? 0) + entry.count,
+        breakdown: {
+          asStandalone:
+            (existing?.breakdown?.asStandalone ?? 0) +
+            (entry.breakdown?.asStandalone ?? 0),
+          asSideStory:
+            (existing?.breakdown?.asSideStory ?? 0) +
+            (entry.breakdown?.asSideStory ?? 0),
+        },
+      })
+    }
+    for (const entry of contribution.sideScenarios) addCount(sideCounts, entry.name, entry.count)
+    for (const entry of contribution.pairings) {
+      const key = `${entry.investigator1}|||${entry.investigator2}`
+      const existing = pairingCounts.get(key)
+      pairingCounts.set(key, {
+        ...entry,
+        count: (existing?.count ?? 0) + entry.count,
+      })
+    }
+    completionBreakdown.fullCampaigns += contribution.completionBreakdown.fullCampaigns
+    completionBreakdown.smallCampaigns += contribution.completionBreakdown.smallCampaigns
+    completionBreakdown.scenarioPacks += contribution.completionBreakdown.scenarioPacks
+    completionBreakdown.fanMade += contribution.completionBreakdown.fanMade
+  }
+
+  const byCount = <T extends { count: number }>(left: T, right: T) =>
+    right.count - left.count
+
+  return {
+    totalGames,
+    campaignRunsPlayedCount,
+    uniqueCampaignFamilyCount: campaignFamilies.size,
+    topCampaigns: Array.from(campaignCounts.values()).sort(byCount).slice(0, 25),
+    topInvestigators: Array.from(investigatorCounts.values()).sort(byCount).slice(0, 25),
+    topClasses: Array.from(classCounts, ([archetype, count]) => ({ archetype, count }))
+      .sort(byCount),
+    totalInvestigatorsPlayed: investigatorCounts.size,
+    topSideScenarios: Array.from(sideCounts, ([name, count]) => ({ name, count }))
+      .sort(byCount)
+      .slice(0, 25),
+    topStandalones: Array.from(standaloneCounts.values()).sort(byCount).slice(0, 25),
+    completionBreakdown,
+    topPairings: Array.from(pairingCounts.values()).sort(byCount).slice(0, 200),
+    registeredUsers,
+    lastUpdated: generatedAt,
+    generatedAt,
+    snapshotReadAt: generatedAt,
+    sourceGeneration: generation,
+    pipelineGeneration: generation,
+    schemaVersion: COMMUNITY_STATS_SCHEMA_VERSION,
+    refreshState,
+  }
+}
+
+async function persistContribution(
+  lease: Lease,
+  contribution: CommunityStatsContribution,
+  queuedOutbox: { paths: string[]; hasMore: boolean },
+): Promise<{ processed: number; pending: number }> {
+  const db = getFirestore()
+  const stateRef = db.doc(COMMUNITY_STATS_STATE_DOC_PATH)
+  const contributionRef = db.doc(`${COMMUNITY_STATS_CONTRIBUTIONS_COLLECTION}/${lease.uid}`)
+
+  return db.runTransaction(async (transaction) => {
+    const stateSnapshot = await transaction.get(stateRef)
+    if (stateSnapshot.data()?.leaseId !== lease.leaseId) {
+      throw new Error('Community stats contribution lease was lost.')
+    }
+    transaction.set(contributionRef, contribution)
+    for (const path of queuedOutbox.paths) transaction.delete(db.doc(path))
+    return {
+      processed: queuedOutbox.paths.length,
+      pending: queuedOutbox.hasMore ? 1 : 0,
+    }
+  })
+}
+
+async function publishWithLease(lease: Lease): Promise<CommunityStats> {
+  const db = getFirestore()
+  const [snapshot, pendingOutbox] = await Promise.all([
+    db.collection(COMMUNITY_STATS_CONTRIBUTIONS_COLLECTION)
+      .limit(MAX_CONTRIBUTIONS + 1)
+      .get(),
+    db.collectionGroup(COMMUNITY_STATS_OUTBOX_COLLECTION).limit(1).get(),
+  ])
+  if (snapshot.size > MAX_CONTRIBUTIONS) {
+    throw new Error(`Community contributions exceed the ${MAX_CONTRIBUTIONS}-document bound.`)
+  }
+  const contributions = snapshot.docs.map((entry) =>
+    entry.data() as CommunityStatsContribution)
+  const stateRef = db.doc(COMMUNITY_STATS_STATE_DOC_PATH)
+  const aggregateRef = db.doc(COMMUNITY_STATS_DOC_PATH)
+
+  return db.runTransaction(async (transaction) => {
+    const stateSnapshot = await transaction.get(stateRef)
+    const state = stateSnapshot.data() ?? {}
+    if (state.leaseId !== lease.leaseId) {
+      throw new Error('Community stats publish lease was lost.')
+    }
+    const generation = typeof state.pipelineGeneration === 'number'
+      ? state.pipelineGeneration + 1
+      : 1
+    const aggregate = mergeContributions(
+      contributions,
+      Date.now(),
+      generation,
+      pendingOutbox.empty ? 'ready' : 'stale',
+    )
+    transaction.set(aggregateRef, aggregate)
+    transaction.set(stateRef, {
+      pipelineGeneration: generation,
+      lastCompletedAt: Timestamp.now(),
+      pendingOutboxCount: pendingOutbox.empty ? 0 : 1,
+      leaseId: FieldValue.delete(),
+      leaseOwnerUid: FieldValue.delete(),
+      leaseExpiresAt: FieldValue.delete(),
+      lastErrorAt: FieldValue.delete(),
+      lastErrorMessage: FieldValue.delete(),
+    }, { merge: true })
+    return aggregate
+  })
+}
+
+async function failLease(lease: Lease, error: unknown): Promise<void> {
+  const db = getFirestore()
+  const stateRef = db.doc(COMMUNITY_STATS_STATE_DOC_PATH)
+  const aggregateRef = db.doc(COMMUNITY_STATS_DOC_PATH)
+  await db.runTransaction(async (transaction) => {
+    const stateSnapshot = await transaction.get(stateRef)
+    if (stateSnapshot.data()?.leaseId !== lease.leaseId) return
+    transaction.set(stateRef, {
+      lastErrorAt: Timestamp.now(),
+      lastErrorMessage: error instanceof Error ? error.message.slice(0, 512) : String(error).slice(0, 512),
+      leaseId: FieldValue.delete(),
+      leaseOwnerUid: FieldValue.delete(),
+      leaseExpiresAt: FieldValue.delete(),
+    }, { merge: true })
+    transaction.set(aggregateRef, { refreshState: 'failed' }, { merge: true })
+  })
+}
+
+async function releaseLease(lease: Lease): Promise<void> {
+  const db = getFirestore()
+  const stateRef = db.doc(COMMUNITY_STATS_STATE_DOC_PATH)
+  await db.runTransaction(async (transaction) => {
+    const stateSnapshot = await transaction.get(stateRef)
+    if (stateSnapshot.data()?.leaseId !== lease.leaseId) return
+    transaction.set(stateRef, {
+      leaseId: FieldValue.delete(),
+      leaseOwnerUid: FieldValue.delete(),
+      leaseExpiresAt: FieldValue.delete(),
+    }, { merge: true })
+  })
+}
+
+export async function rebuildUserContribution(
+  uid: string,
+  options: { force?: boolean; publish?: boolean } = {},
+): Promise<ContributionProcessResult> {
+  const claim = await claimLease(uid, options.force === true)
+  if (!('leaseId' in claim)) return claim
+
+  try {
+    // Snapshot the queue first. Source writes that commit after this watermark leave a
+    // newer outbox event behind and cannot be accidentally acknowledged by this pass.
+    const queuedOutbox = await loadQueuedOutbox(uid)
+    const source = await loadUserSource(uid)
+    const contribution = buildCommunityStatsContribution(source)
+    const persisted = await persistContribution(claim, contribution, queuedOutbox)
+    if (options.publish === false) {
+      await releaseLease(claim)
+      return {
+        status: 'updated',
+        processedOutboxCount: persisted.processed,
+        pendingOutboxCount: persisted.pending,
+      }
+    }
+    const aggregate = await publishWithLease(claim)
+    return {
+      status: 'published',
+      processedOutboxCount: persisted.processed,
+      pendingOutboxCount: persisted.pending,
+      refreshState: aggregate.refreshState,
+      shouldRetry: persisted.pending > 0,
+    }
+  } catch (error) {
+    await failLease(claim, error)
+    console.error('Failed to rebuild a community stats contribution.', error)
+    return { status: 'failed', refreshState: 'failed', shouldRetry: true }
+  }
+}
+
+export async function bootstrapCommunityStatsContributions(): Promise<number> {
+  const db = getFirestore()
+  const users = await db.collection('users').limit(MAX_CONTRIBUTIONS + 1).get()
+  if (users.size > MAX_CONTRIBUTIONS) {
+    throw new Error(`User count exceeds the ${MAX_CONTRIBUTIONS}-user bootstrap bound.`)
+  }
+  for (const user of users.docs) {
+    const result = await rebuildUserContribution(user.id, { force: true, publish: false })
+    if (result.status === 'failed') {
+      throw new Error(`Failed to build contribution for user ${user.id}.`)
+    }
+  }
+  const bootstrapLease = await claimLease('__bootstrap__', true)
+  if (!('leaseId' in bootstrapLease)) {
+    throw new Error('Unable to claim the final bootstrap publish lease.')
+  }
+  await publishWithLease(bootstrapLease)
+  return users.size
+}

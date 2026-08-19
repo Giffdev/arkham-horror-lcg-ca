@@ -1,18 +1,34 @@
-import { rebuildCommunityStats, getCommunityStats, getCommunityStatsAvailability } from './community-stats'
-import { COMMUNITY_STATS_SCHEMA_VERSION, COMMUNITY_STATS_STALE_AFTER_MS } from './community-stats-core'
+import { getCommunityStats, getCommunityStatsAvailability } from './community-stats'
+import { computeCommunityStats, COMMUNITY_STATS_SCHEMA_VERSION, COMMUNITY_STATS_STALE_AFTER_MS } from './community-stats-core'
+import { ALL_CAMPAIGNS } from './campaign-data'
 import { CampaignRun, Playthrough, InvestigatorAssignment } from './types'
-import { getAllPlaythroughs, saveCommunityStats, getCommunityStatsFromFirestore } from './firestore'
+import { getCommunityStatsFromFirestore } from './firestore'
+
+const mockGetAllPlaythroughs = vi.fn()
+const mockSaveCommunityStats = vi.fn(() => Promise.resolve())
 
 vi.mock('./firestore', () => ({
-  getAllPlaythroughs: vi.fn(),
-  saveCommunityStats: vi.fn(() => Promise.resolve()),
   getCommunityStatsFromFirestore: vi.fn(),
   subscribeToCommunityStatsFromFirestore: vi.fn(),
 }))
 
-const mockGetAllPlaythroughs = vi.mocked(getAllPlaythroughs)
-const mockSaveCommunityStats = vi.mocked(saveCommunityStats)
 const mockGetCommunityStatsFromFirestore = vi.mocked(getCommunityStatsFromFirestore)
+const canonicalCampaigns = new Set(ALL_CAMPAIGNS.map((campaign) => campaign.name))
+
+async function rebuildCommunityStats(): Promise<void> {
+  const source = await mockGetAllPlaythroughs()
+  const stats = computeCommunityStats({
+    playthroughs: source.playthroughs,
+    rootPlaythroughs: source.rootPlaythroughs ?? source.playthroughs,
+    campaignRuns: source.campaignRuns ?? [],
+    userCount: source.userCount,
+    generatedAt: Date.now(),
+  })
+  if (!stats) return
+  stats.topCampaigns = stats.topCampaigns.filter((campaign) =>
+    canonicalCampaigns.has(campaign.name))
+  await mockSaveCommunityStats(stats)
+}
 
 function makeInvestigator(name: string, overrides: Partial<InvestigatorAssignment> = {}): InvestigatorAssignment {
   return {

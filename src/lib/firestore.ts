@@ -1,6 +1,5 @@
 import {
   collection,
-  collectionGroup,
   deleteField,
   doc,
   getDoc,
@@ -9,7 +8,6 @@ import {
   orderBy,
   query,
   runTransaction,
-  setDoc,
   where,
   type Transaction,
   type Unsubscribe,
@@ -26,7 +24,6 @@ import {
   deleteCampaignScenarioLog as deleteCampaignScenarioLogFromRun,
   editCampaignRun as editCampaignRunData,
   editCampaignScenarioLog as editCampaignScenarioLogInRun,
-  flattenGameLogs,
   toCampaignStartTimestamp,
 } from './campaign-runs'
 import type { CommunityStats } from './community-stats-core'
@@ -752,74 +749,4 @@ export function subscribeToCommunityStatsFromFirestore(
       if (onError) onError(error)
     },
   )
-}
-
-export async function saveCommunityStats(stats: CommunityStats): Promise<void> {
-  await setDoc(COMMUNITY_STATS_DOC, stats)
-}
-
-/**
- * Trusted/admin only: get ALL game logs across ALL users and flatten nested campaign scenario rows.
- * User count is derived from parent paths plus the persisted registeredUsers counter.
- */
-export async function getAllPlaythroughs(): Promise<{
-  playthroughs: Playthrough[]
-  userCount: number
-  rootPlaythroughs: Playthrough[]
-  campaignRuns: CampaignRun[]
-}> {
-  const playthroughSnapshot = await getDocs(collectionGroup(db, 'playthroughs'))
-  const campaignRunSnapshot = await getDocs(collectionGroup(db, 'campaignRuns'))
-
-  const perUserPlaythroughs = new Map<string, Playthrough[]>()
-  const perUserCampaignRuns = new Map<string, CampaignRun[]>()
-  const userIds = new Set<string>()
-
-  for (const entry of playthroughSnapshot.docs) {
-    const pathParts = entry.ref.path.split('/')
-    if (pathParts.length >= 2) {
-      userIds.add(pathParts[1])
-      const existing = perUserPlaythroughs.get(pathParts[1]) ?? []
-      existing.push(withDocId<Playthrough>(entry.id, entry.data()))
-      perUserPlaythroughs.set(pathParts[1], existing)
-    }
-  }
-
-  for (const entry of campaignRunSnapshot.docs) {
-    const pathParts = entry.ref.path.split('/')
-    if (pathParts.length >= 2) {
-      userIds.add(pathParts[1])
-      const existing = perUserCampaignRuns.get(pathParts[1]) ?? []
-      existing.push(withDocId<CampaignRun>(entry.id, entry.data()))
-      perUserCampaignRuns.set(pathParts[1], existing)
-    }
-  }
-
-  const flattenedLogs: Playthrough[] = []
-  const allRootPlaythroughs: Playthrough[] = []
-  const allCampaignRuns: CampaignRun[] = []
-  for (const uid of userIds) {
-    const userPlaythroughs = perUserPlaythroughs.get(uid) ?? []
-    const userCampaignRuns = perUserCampaignRuns.get(uid) ?? []
-    allRootPlaythroughs.push(...userPlaythroughs)
-    allCampaignRuns.push(...userCampaignRuns)
-    flattenedLogs.push(
-      ...flattenGameLogs({
-        playthroughs: userPlaythroughs,
-        campaignRuns: userCampaignRuns,
-      }),
-    )
-  }
-
-  const existingStats = await getDoc(COMMUNITY_STATS_DOC)
-  const persistedUserCount = existingStats.exists()
-    ? (existingStats.data() as { registeredUsers?: number }).registeredUsers || 0
-    : 0
-
-  return {
-    playthroughs: flattenedLogs,
-    userCount: Math.max(persistedUserCount, userIds.size),
-    rootPlaythroughs: allRootPlaythroughs,
-    campaignRuns: allCampaignRuns,
-  }
 }

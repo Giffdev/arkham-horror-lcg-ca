@@ -6,7 +6,7 @@ Production release is a **manual backend-first rollout**:
 1. deploy Firestore rules only
 2. deploy Vercel with the backend enabled and client wake flag disabled
 3. bootstrap and verify the community-stats pipeline
-4. prove existing source documents were not rewritten
+4. optionally prove existing source documents were not rewritten with local read-only fingerprints
 5. enable client wakes and deploy the same verified revision again
 
 No Firebase Functions or paid Firebase services are used.
@@ -39,14 +39,12 @@ No Firebase Functions or paid Firebase services are used.
   `.\.vercel\release-audit\`.
 - Configure Vercel OIDC and Google Workload Identity Federation exactly as described
   in `SERVICES.md`; do not create or upload a service-account JSON private key.
-- Set `COMMUNITY_STATS_PROCESS_URL` and `CRON_SECRET` only in the release shell when
-  running bootstrap. Never commit either value.
 
 ## Canonical production rollout
 
 The commands below are the canonical production workflow. They are consistent
 with `SERVICES.md`, `PRD.md`, `package.json`, `firebase.json`, and the
-Functions bootstrap script.
+contribution bootstrap script.
 
 ### 0. Optional local validation
 
@@ -62,7 +60,7 @@ npm run build
 Documentation-only changes do not require this full suite unless a doc-specific
 consistency test is added later.
 
-### 1. PowerShell preflight: fix the target values up front and capture a baseline snapshot
+### 1. PowerShell preflight and optional read-only baseline snapshot
 
 Open PowerShell in the release worktree root, then refuse to continue unless
 that shell is already using **Node 22**:
@@ -530,6 +528,7 @@ main().catch((error) => {
 
 node --check $SnapshotScript
 node $SnapshotScript --self-test
+# Optional:
 node $SnapshotScript --project $FirebaseProject --out $BeforeSnapshot --label before-bootstrap
 ```
 
@@ -575,20 +574,38 @@ npx vercel deploy --prod --yes --scope $VercelScope --project $VercelProject
 The first deployment publishes the API while the browser continues only writing the
 durable outbox. This prevents a new client from depending on an unverified backend.
 
-### 4. Bootstrap the community-stats pipeline against the explicit project
-
-Set release-shell values without writing a secret file:
+Before bootstrap, verify the deployed Vercel OIDC → Google WIF → Firebase Admin path
+with the cron-protected endpoint. Set the same `CRON_SECRET` in this release shell
+without writing it to disk:
 
 ```powershell
-$env:COMMUNITY_STATS_PROCESS_URL = 'https://arkham-horror-lcg-ca.vercel.app/api/community-stats/process'
-$env:CRON_SECRET = '<same value configured securely in Vercel>'
+$Headers = @{ Authorization = "Bearer $env:CRON_SECRET" }
+$WorkerCheck = Invoke-RestMethod `
+  -Uri 'https://arkham-horror-lcg-ca.vercel.app/api/community-stats/process' `
+  -Method Get `
+  -Headers $Headers
+
+if (-not $WorkerCheck.status) {
+  throw 'Vercel worker identity integration check returned no status.'
+}
+```
+
+This call either reports no pending work or safely processes one queued owner. Stop
+before enabling client wakes if the request returns an authentication, identity, IAM,
+or Firestore error. Firestore REST is the documented fallback only if this check
+disproves the supported custom-Credential path.
+
+### 4. Bootstrap the community-stats pipeline against the explicit project
+
+```powershell
 npm run backend:bootstrap -- --project $FirebaseProject
 ```
 
 The bootstrap script is `backend/scripts/bootstrap-community-stats.mjs`. It
 refuses ambiguous targeting and requires the requested `--project` to match the
-authenticated Admin SDK project. It creates only a system outbox marker, wakes the
-deployed Vercel worker, and waits for the exact ready acknowledgement.
+authenticated Application Default Credentials project. It reads each user's source
+collections independently, writes only server-private privacy-filtered contribution
+documents, and publishes the aggregate. It does not modify source documents.
 
 ### 5. Verify backend rollout
 
@@ -600,28 +617,23 @@ Verify all of the following:
   - `schemaVersion == 3`
   - `refreshState == "ready"`
   - `pipelineGeneration == sourceGeneration` when those fields are present
-  - `generatedAt` is recent (the bootstrap script currently requires it to be
-    within its freshness window)
-- `community-stats-internal/state`
-  - the exact bootstrap marker reported by the bootstrap run is present in
-    `completedBootstrapMarkers`
-  - `pendingBootstrapMarkers` is empty or absent
+  - `generatedAt` is recent
+- `community-stats-internal/contribution-publisher`
   - no active lease remains (`leaseId` absent, or no unexpired lease)
-- durable outbox
-  - `communityStatsOutbox` is empty after the publish completes
+- `community-stats-contributions`
+  - one server-only contribution exists per user
+  - contribution documents contain counts/canonical dimensions only, never raw
+    player names, notes, dates, or custom text
 
-The bootstrap command itself is expected to finish with the success marker:
+The bootstrap command is expected to finish with:
 
 ```text
-Community stats bootstrap complete at pipeline generation ... (generatedAt=..., marker=bootstrap-...)
+Community stats contribution bootstrap complete for ... users in project ...
 ```
 
-Treat the printed `marker=bootstrap-...` value as the exact completed marker to
-check in retained completed worker state.
+### 6. Optionally prove source documents were not rewritten before enabling the client
 
-### 6. Prove source documents were not rewritten before enabling the client
-
-After step 4 succeeds, capture a second read-only snapshot and require an empty
+If the optional baseline was captured, capture a second read-only snapshot and require an empty
 diff of `{ path, updateTime, hash }` across **both** collection groups:
 
 ```powershell
@@ -636,7 +648,7 @@ if ($LASTEXITCODE -ne 0) {
 Remove-Item $DiffPath -ErrorAction SilentlyContinue
 ```
 
-This is a **hard stop** if any source document count, path, `updateTime`, or
+When this optional verification is run, it is a **hard stop** if any source document count, path, `updateTime`, or
 stable content hash changes under either:
 
 - `users/{uid}/playthroughs/*`
