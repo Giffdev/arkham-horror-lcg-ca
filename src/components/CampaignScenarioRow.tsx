@@ -126,16 +126,28 @@ export function CampaignScenarioRow({
           >
             {playerPairs.slice(0, 4).map((pair, pairIndex) => (
               <li key={`${pair.playerName}-${pair.investigatorName}-${pairIndex}`}>
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                  <span className="font-medium text-foreground">{pair.investigatorName}</span>
+                <div
+                  className="flex min-w-0 flex-col items-start gap-0.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-2 sm:gap-y-1"
+                  data-slot="scenario-player-heading"
+                >
+                  <span className="min-w-0 break-words font-medium text-foreground [overflow-wrap:anywhere]">
+                    {pair.investigatorName}
+                  </span>
                   <span className="text-muted-foreground">{pair.playerName}</span>
                 </div>
                 {pair.outcome && (
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {pair.outcome.xpEarned} XP
-                    {' '}· Trauma P{pair.outcome.traumaGainedPhysical}/M{pair.outcome.traumaGainedMental}
-                    {pair.outcome.status !== 'survived' && ` · ${renderStatusLabel(pair.outcome.status)}`}
-                  </p>
+                  <div
+                    className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-muted-foreground"
+                    data-slot="scenario-player-outcome"
+                  >
+                    <span className="whitespace-nowrap">{pair.outcome.xpEarned} XP</span>
+                    <span className="whitespace-nowrap">
+                      · Trauma P{pair.outcome.traumaGainedPhysical}/M{pair.outcome.traumaGainedMental}
+                    </span>
+                    {pair.outcome.status !== 'survived' && (
+                      <span className="whitespace-nowrap">· {renderStatusLabel(pair.outcome.status)}</span>
+                    )}
+                  </div>
                 )}
               </li>
             ))}
