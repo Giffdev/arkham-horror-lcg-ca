@@ -3,25 +3,36 @@ import { generateKeyPairSync } from 'node:crypto'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
-  applicationDefault: vi.fn(() => ({ kind: 'adc' })),
-  cert: vi.fn((config: unknown) => ({ kind: 'cert', config })),
-  getApps: vi.fn((): unknown[] => []),
-  initializeApp: vi.fn(),
+  Firestore: vi.fn(),
+  GoogleAuth: vi.fn(),
 }))
 
-vi.mock('firebase-admin/app', () => mocks)
+vi.mock('@google-cloud/firestore', () => ({
+  Firestore: mocks.Firestore,
+}))
 
-import { ensureFirebaseAdminApp, getBackendConfig } from './firebase-admin'
+vi.mock('google-auth-library', () => ({
+  GoogleAuth: mocks.GoogleAuth,
+}))
+
+import {
+  FIREBASE_PROJECT_ID,
+  getBackendConfig,
+  getBackendFirestore,
+  getBackendGoogleAuth,
+  resetBackendClientsForTest,
+} from './google-cloud'
 
 const { privateKey } = generateKeyPairSync('rsa', { modulusLength: 1024 })
 const validPem = privateKey.export({ format: 'pem', type: 'pkcs8' }).toString()
 const validKey = validPem.trim().replace(/\n/g, '\\n')
 
-describe('Firebase Admin identity', () => {
+describe('Google Cloud backend identity', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    resetBackendClientsForTest()
     vi.stubEnv('VERCEL', '1')
-    vi.stubEnv('FIREBASE_PROJECT_ID', 'arkham-horror-tracker')
+    vi.stubEnv('FIREBASE_PROJECT_ID', FIREBASE_PROJECT_ID)
     vi.stubEnv(
       'FIREBASE_CLIENT_EMAIL',
       'vercel-community-stats@arkham-horror-tracker.iam.gserviceaccount.com',
@@ -29,18 +40,23 @@ describe('Firebase Admin identity', () => {
     vi.stubEnv('FIREBASE_PRIVATE_KEY', validKey)
   })
 
-  it('initializes Vercel with an explicit project and certificate credential', () => {
-    ensureFirebaseAdminApp()
+  it('constructs Firestore and Google Auth with the explicit production identity', () => {
+    getBackendFirestore()
+    getBackendGoogleAuth()
 
-    expect(mocks.cert).toHaveBeenCalledWith({
-      projectId: 'arkham-horror-tracker',
-      clientEmail:
+    const identity = {
+      client_email:
         'vercel-community-stats@arkham-horror-tracker.iam.gserviceaccount.com',
-      privateKey: validPem,
+      private_key: validPem,
+    }
+    expect(mocks.Firestore).toHaveBeenCalledWith({
+      projectId: FIREBASE_PROJECT_ID,
+      credentials: identity,
     })
-    expect(mocks.initializeApp).toHaveBeenCalledWith({
-      credential: expect.objectContaining({ kind: 'cert' }),
-      projectId: 'arkham-horror-tracker',
+    expect(mocks.GoogleAuth).toHaveBeenCalledWith({
+      projectId: FIREBASE_PROJECT_ID,
+      credentials: identity,
+      scopes: ['https://www.googleapis.com/auth/cloud-platform'],
     })
   })
 
@@ -56,13 +72,13 @@ describe('Firebase Admin identity', () => {
     },
   )
 
-  it('rejects malformed or cross-project service-account configuration', () => {
-    vi.stubEnv('FIREBASE_PROJECT_ID', 'INVALID_PROJECT')
+  it('rejects a non-production project or cross-project service account', () => {
+    vi.stubEnv('FIREBASE_PROJECT_ID', 'another-project')
     expect(() => getBackendConfig()).toThrow(
-      'FIREBASE_PROJECT_ID is not a valid Google Cloud project ID.',
+      `FIREBASE_PROJECT_ID must be ${FIREBASE_PROJECT_ID}.`,
     )
 
-    vi.stubEnv('FIREBASE_PROJECT_ID', 'arkham-horror-tracker')
+    vi.stubEnv('FIREBASE_PROJECT_ID', FIREBASE_PROJECT_ID)
     vi.stubEnv(
       'FIREBASE_CLIENT_EMAIL',
       'worker@another-firebase-project.iam.gserviceaccount.com',
@@ -87,17 +103,17 @@ describe('Firebase Admin identity', () => {
     expect(getBackendConfig().privateKey).toBe(validPem)
   })
 
-  it('retains ADC with explicit project targeting outside Vercel', () => {
+  it('uses ADC with explicit project targeting outside Vercel', () => {
     vi.stubEnv('VERCEL', '')
-    vi.stubEnv('COMMUNITY_STATS_FIREBASE_PROJECT_ID', 'arkham-horror-tracker')
+    vi.stubEnv('COMMUNITY_STATS_FIREBASE_PROJECT_ID', FIREBASE_PROJECT_ID)
 
-    ensureFirebaseAdminApp()
+    getBackendFirestore()
+    getBackendGoogleAuth()
 
-    expect(mocks.applicationDefault).toHaveBeenCalled()
-    expect(mocks.cert).not.toHaveBeenCalled()
-    expect(mocks.initializeApp).toHaveBeenCalledWith({
-      credential: expect.objectContaining({ kind: 'adc' }),
-      projectId: 'arkham-horror-tracker',
+    expect(mocks.Firestore).toHaveBeenCalledWith({ projectId: FIREBASE_PROJECT_ID })
+    expect(mocks.GoogleAuth).toHaveBeenCalledWith({
+      projectId: FIREBASE_PROJECT_ID,
+      scopes: ['https://www.googleapis.com/auth/cloud-platform'],
     })
   })
 })

@@ -36,15 +36,10 @@ async function main() {
   }
 
   process.env.COMMUNITY_STATS_FIREBASE_PROJECT_ID = projectId
-  const adminModule = new URL('../lib/backend/firebase-admin.js', import.meta.url).href
   const contributionModule =
     new URL('../lib/backend/community-stats-contributions.js', import.meta.url).href
-  const [{ ensureFirebaseAdminApp }, { bootstrapCommunityStatsContributions }] =
-    await Promise.all([
-      import(/* @vite-ignore */ adminModule),
-      import(/* @vite-ignore */ contributionModule),
-    ])
-  ensureFirebaseAdminApp()
+  const { bootstrapCommunityStatsContributions } =
+    await import(/* @vite-ignore */ contributionModule)
   const userCount = await bootstrapCommunityStatsContributions()
   console.log(
     `Community stats contribution bootstrap complete for ${userCount} users in project ${projectId}.`,

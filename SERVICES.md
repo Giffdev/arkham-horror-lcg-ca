@@ -41,14 +41,14 @@
 ## Identity
 
 Production uses a dedicated Google service-account key stored only as encrypted,
-server-only Vercel environment variables. This works with Firebase Admin and does not
+server-only Vercel environment variables. This works with Google Cloud clients and does not
 require Cloud Billing, so `arkham-horror-tracker` remains on the Spark plan.
-`backend/firebase-admin.ts` validates separate `FIREBASE_PROJECT_ID`,
+`backend/google-cloud.ts` validates separate `FIREBASE_PROJECT_ID`,
 `FIREBASE_CLIENT_EMAIL`, and `FIREBASE_PRIVATE_KEY` values, normalizes escaped
-newlines, and initializes Admin with `cert()` plus an explicit project ID.
+newlines, and constructs Firestore and Google Auth clients with an explicit project ID.
 
 This is a pragmatic fallback, not a risk-free credential model. A service-account key
-is long-lived and can be used outside Vercel if stolen. Firebase Admin also bypasses
+is long-lived and can be used outside Vercel if stolen. Server Firestore clients bypass
 Firestore Security Rules. IAM permissions are project-wide rather than collection-
 scoped, so even a custom role can reach every document through its allowed operations.
 Limit exposure through a dedicated identity, minimum permissions, production-only
@@ -119,8 +119,10 @@ After deployment, verify identity without exposing it:
    Development copies. Do not use commands that print decrypted values.
 2. Call the cron-protected endpoint as documented in `DEPLOYMENT.md`; this exercises
    Firestore reads/writes with the deployed certificate credential.
-3. Call the owner endpoint with a valid Firebase ID token; `verifyIdToken(token, true)`
-   exercises the `firebaseauth.users.get` permission. Never log the token.
+3. Call the owner endpoint with a valid Firebase ID token; direct `jose` verification
+   checks Google's fixed Secure Token JWKS, issuer, audience, algorithm, signature, and
+   time claims, then Identity Toolkit checks disabled/revoked state using
+   `firebaseauth.users.get`. Never log the token or decoded claims.
 4. Confirm Google Cloud audit logs attribute the operations to the dedicated service
    account and that no broader service account is used.
 

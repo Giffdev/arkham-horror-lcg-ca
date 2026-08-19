@@ -33,15 +33,20 @@ describe('firestore repository contract', () => {
   it('wires the Vercel backend and daily Hobby-compatible recovery', () => {
     expect(rootPackageJson.scripts?.['backend:build']).toBe('tsc -p backend/tsconfig.json')
     expect(rootPackageJson.scripts?.['backend:typecheck']).toBe('tsc -p backend/tsconfig.typecheck.json')
+    expect(rootPackageJson.scripts?.['vercel:artifact-check']).toBe(
+      'node backend/scripts/check-built-artifact.mjs .vercel/output/functions/api/community-stats/process.func/api/community-stats/process.js',
+    )
     expect(rootPackageJson.scripts?.['backend:test']).toBe(
-      'vitest run backend/scripts/bootstrap-community-stats.test.ts backend/firebase-admin.test.ts backend/community-stats-contributions.test.ts backend/community-stats-handler.test.ts',
+      'vitest run backend/scripts/bootstrap-community-stats.test.ts backend/google-cloud.test.ts backend/firebase-identity.test.ts backend/firebase-identity-api.test.ts backend/community-stats-contributions.test.ts backend/community-stats-handler.test.ts',
     )
     expect(rootPackageJson.scripts?.['backend:test:emulator']).toBe(
       'firebase emulators:exec --project demo-arkham-horror-lcg-ca --only firestore "vitest run --config vitest.firestore.config.ts backend/community-stats-contributions.emulator.test.ts"',
     )
     expect(rootPackageJson.dependencies).not.toHaveProperty('@vercel/oidc')
-    expect(rootPackageJson.dependencies).toHaveProperty('firebase-admin')
+    expect(rootPackageJson.dependencies).not.toHaveProperty('firebase-admin')
+    expect(rootPackageJson.dependencies).toHaveProperty('@google-cloud/firestore')
     expect(rootPackageJson.dependencies).toHaveProperty('google-auth-library')
+    expect(rootPackageJson.dependencies).toHaveProperty('jose')
     expect(rootPackageJson.devDependencies).not.toHaveProperty('firebase-functions')
     expect(vercelJson.functions?.['api/community-stats/process.ts']?.maxDuration).toBe(60)
     expect(vercelJson.crons).toEqual([

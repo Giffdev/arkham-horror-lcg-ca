@@ -1,20 +1,18 @@
-import { deleteApp, getApps, initializeApp } from 'firebase-admin/app'
-import { getFirestore } from 'firebase-admin/firestore'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { rebuildUserContribution } from './community-stats-contributions'
+import { getBackendFirestore } from './google-cloud'
 
 const emulatorEnabled = Boolean(process.env.FIRESTORE_EMULATOR_HOST)
 const describeEmulator = emulatorEnabled ? describe : describe.skip
 
 describeEmulator('community stats contributions against Firestore emulator', () => {
   beforeAll(async () => {
-    for (const app of getApps()) await deleteApp(app)
-    initializeApp({ projectId: 'demo-arkham-horror-lcg-ca' })
+    process.env.COMMUNITY_STATS_FIREBASE_PROJECT_ID = 'demo-arkham-horror-lcg-ca'
   })
 
   beforeEach(async () => {
-    const db = getFirestore()
+    const db = getBackendFirestore()
     await Promise.all([
       db.recursiveDelete(db.collection('users')),
       db.recursiveDelete(db.collection('community-stats-contributions')),
@@ -25,11 +23,11 @@ describeEmulator('community stats contributions against Firestore emulator', () 
   })
 
   afterAll(async () => {
-    for (const app of getApps()) await deleteApp(app)
+    await getBackendFirestore().terminate()
   })
 
   it('replaces one owner contribution without reading or copying another owner raw document', async () => {
-    const db = getFirestore()
+    const db = getBackendFirestore()
     await db.doc('users/u1/playthroughs/game-1').set({
       date: '2026-08-01',
       campaignName: 'The Path to Carcosa',
@@ -89,7 +87,7 @@ describeEmulator('community stats contributions against Firestore emulator', () 
   })
 
   it('keeps an empty registered owner through game creation and deletion replacements', async () => {
-    const db = getFirestore()
+    const db = getBackendFirestore()
     await db.doc('users/empty/communityStatsOutbox/create').set({
       mutationId: 'create',
       requestedAtMs: 1,
@@ -143,7 +141,7 @@ describeEmulator('community stats contributions against Firestore emulator', () 
   })
 
   it('quarantines deterministic source failures without replacing contributions or totals', async () => {
-    const db = getFirestore()
+    const db = getBackendFirestore()
     for (const uid of ['poison', 'healthy']) {
       await db.doc(`users/${uid}/playthroughs/game-1`).set({
         date: '2026-08-18',

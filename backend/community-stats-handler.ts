@@ -1,19 +1,18 @@
 import { randomUUID, timingSafeEqual } from 'node:crypto'
 
-import { getAuth } from 'firebase-admin/auth'
 import {
   FieldPath,
   FieldValue,
-  getFirestore,
   Timestamp,
-} from 'firebase-admin/firestore'
+} from '@google-cloud/firestore'
 
 import {
   COMMUNITY_STATS_OUTBOX_COLLECTION,
   rebuildUserContribution,
   type ContributionProcessResult,
 } from './community-stats-contributions.js'
-import { ensureFirebaseAdminApp } from './firebase-admin.js'
+import { verifyFirebaseIdToken } from './firebase-identity.js'
+import { getBackendFirestore } from './google-cloud.js'
 
 export type CommunityStatsProcessRequest = {
   method?: string
@@ -58,12 +57,17 @@ async function authorizeOwnerWake(request: CommunityStatsProcessRequest): Promis
   const token = bearerToken(request)
   if (!token) return null
 
-  const decoded = await getAuth().verifyIdToken(token, true)
-  const pending = await getFirestore()
-    .collection(`users/${decoded.uid}/${COMMUNITY_STATS_OUTBOX_COLLECTION}`)
+  let uid: string
+  try {
+    uid = (await verifyFirebaseIdToken(token)).uid
+  } catch {
+    return null
+  }
+  const pending = await getBackendFirestore()
+    .collection(`users/${uid}/${COMMUNITY_STATS_OUTBOX_COLLECTION}`)
     .limit(1)
     .get()
-  return pending.empty ? null : decoded.uid
+  return pending.empty ? null : uid
 }
 
 function authorizeRecoveryWake(request: CommunityStatsProcessRequest): boolean {
@@ -77,7 +81,7 @@ function authorizeRecoveryWake(request: CommunityStatsProcessRequest): boolean {
 }
 
 async function claimRecoveryLease(): Promise<RecoveryLease | ContributionProcessResult> {
-  const db = getFirestore()
+  const db = getBackendFirestore()
   const cursorRef = db.doc(RECOVERY_CURSOR_DOC_PATH)
   const nowMs = Date.now()
 
@@ -112,7 +116,7 @@ async function finishRecoveryLease(
   lease: RecoveryLease,
   afterPath: string | null,
 ): Promise<void> {
-  const db = getFirestore()
+  const db = getBackendFirestore()
   const cursorRef = db.doc(RECOVERY_CURSOR_DOC_PATH)
   await db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(cursorRef)
@@ -129,7 +133,7 @@ async function finishRecoveryLease(
 async function loadRecoveryCandidates(afterPath: string | null): Promise<{
   candidates: Array<{ ownerUid: string; afterPath: string }>
 }> {
-  const ordered = getFirestore()
+  const ordered = getBackendFirestore()
     .collectionGroup(COMMUNITY_STATS_OUTBOX_COLLECTION)
     .orderBy(FieldPath.documentId())
   const loadPage = (cursor: string | null) => cursor
@@ -221,7 +225,7 @@ export async function handleCommunityStatsProcess(
   }
 
   try {
-    ensureFirebaseAdminApp()
+    getBackendFirestore()
     if (request.method === 'GET') {
       if (!authorizeRecoveryWake(request)) {
         response.status(401).json({ error: 'unauthorized' })

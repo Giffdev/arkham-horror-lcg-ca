@@ -16,8 +16,7 @@ const mocks = vi.hoisted(() => {
   return {
     DELETE_FIELD: Symbol('delete-field'),
     Timestamp,
-    ensureFirebaseAdminApp: vi.fn(),
-    verifyIdToken: vi.fn(),
+    verifyFirebaseIdToken: vi.fn(),
     ownerPendingGet: vi.fn(),
     rebuildUserContribution: vi.fn(),
     recoveryDocs: [] as Array<{ ref: { path: string } }>,
@@ -26,17 +25,15 @@ const mocks = vi.hoisted(() => {
   }
 })
 
-vi.mock('./firebase-admin', () => ({
-  ensureFirebaseAdminApp: mocks.ensureFirebaseAdminApp,
-}))
+vi.mock('@google-cloud/firestore', () => {
+  return {
+    FieldPath: { documentId: () => '__name__' },
+    FieldValue: { delete: () => mocks.DELETE_FIELD },
+    Timestamp: mocks.Timestamp,
+  }
+})
 
-vi.mock('firebase-admin/auth', () => ({
-  getAuth: () => ({
-    verifyIdToken: mocks.verifyIdToken,
-  }),
-}))
-
-vi.mock('firebase-admin/firestore', () => {
+vi.mock('./google-cloud', () => {
   const applyCursorWrite = (value: Record<string, unknown>) => {
     for (const [key, fieldValue] of Object.entries(value)) {
       if (fieldValue === mocks.DELETE_FIELD) delete mocks.cursorState[key]
@@ -57,10 +54,7 @@ vi.mock('firebase-admin/firestore', () => {
   })
   const cursorRef = { path: 'community-stats-internal/recovery-cursor' }
   return {
-    FieldPath: { documentId: () => '__name__' },
-    FieldValue: { delete: () => mocks.DELETE_FIELD },
-    Timestamp: mocks.Timestamp,
-    getFirestore: () => ({
+    getBackendFirestore: () => ({
       collection: vi.fn(() => ({
         limit: vi.fn(() => ({
           get: mocks.ownerPendingGet,
@@ -82,6 +76,10 @@ vi.mock('firebase-admin/firestore', () => {
     }),
   }
 })
+
+vi.mock('./firebase-identity', () => ({
+  verifyFirebaseIdToken: mocks.verifyFirebaseIdToken,
+}))
 
 vi.mock('./community-stats-contributions', () => ({
   COMMUNITY_STATS_OUTBOX_COLLECTION: 'communityStatsOutbox',
@@ -135,7 +133,7 @@ describe('Vercel community stats process handler', () => {
       { ref: { path: 'users/owner-1/communityStatsOutbox/event-1' } },
     ]
     mocks.recoveryQueryCursors = []
-    mocks.verifyIdToken.mockResolvedValue({ uid: 'owner-1' })
+    mocks.verifyFirebaseIdToken.mockResolvedValue({ uid: 'owner-1' })
     mocks.ownerPendingGet.mockResolvedValue({
       empty: false,
       docs: [{ ref: { path: 'users/owner-1/communityStatsOutbox/event-1' } }],
@@ -168,7 +166,7 @@ describe('Vercel community stats process handler', () => {
       output.response,
     )
 
-    expect(mocks.verifyIdToken).toHaveBeenCalledWith('firebase-id-token', true)
+    expect(mocks.verifyFirebaseIdToken).toHaveBeenCalledWith('firebase-id-token')
     expect(output.result().statusCode).toBe(200)
     expect(mocks.rebuildUserContribution).toHaveBeenCalledWith('owner-1')
   })
@@ -184,6 +182,21 @@ describe('Vercel community stats process handler', () => {
 
     expect(output.result().statusCode).toBe(401)
     expect(mocks.rebuildUserContribution).not.toHaveBeenCalled()
+  })
+
+  it('rejects invalid owner tokens without logging token or claim details', async () => {
+    mocks.verifyFirebaseIdToken.mockRejectedValue(new Error('sensitive auth detail'))
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const output = responseMock()
+
+    await handleCommunityStatsProcess(ownerRequest(), output.response)
+
+    expect(output.result()).toEqual({
+      statusCode: 401,
+      body: { error: 'unauthorized' },
+    })
+    expect(consoleError).not.toHaveBeenCalled()
+    consoleError.mockRestore()
   })
 
   it('uses the Vercel cron secret for daily recovery and reports retryable failures', async () => {

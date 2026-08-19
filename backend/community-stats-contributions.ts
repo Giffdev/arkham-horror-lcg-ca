@@ -1,7 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto'
 
-import { getAuth } from 'firebase-admin/auth'
-import { FieldValue, getFirestore, Timestamp } from 'firebase-admin/firestore'
+import { FieldValue, Timestamp } from '@google-cloud/firestore'
 
 import { ALL_CAMPAIGNS } from '../src/lib/campaign-data.js'
 import { computeCampaignCountSummary, flattenGameLogs } from '../src/lib/campaign-runs.js'
@@ -14,6 +13,8 @@ import {
   type CompletionBreakdown,
 } from '../src/lib/community-stats-core.js'
 import type { Archetype, CampaignRun, Playthrough } from '../src/lib/types.js'
+import { listFirebaseAuthUserIds } from './firebase-identity.js'
+import { getBackendFirestore } from './google-cloud.js'
 
 export const COMMUNITY_STATS_OUTBOX_COLLECTION = 'communityStatsOutbox'
 export const COMMUNITY_STATS_CONTRIBUTIONS_COLLECTION = 'community-stats-contributions'
@@ -89,7 +90,7 @@ function addCount<T extends string>(
 }
 
 async function claimLease(uid: string, force: boolean): Promise<Lease | ContributionProcessResult> {
-  const db = getFirestore()
+  const db = getBackendFirestore()
   const stateRef = db.doc(COMMUNITY_STATS_STATE_DOC_PATH)
   const outboxQuery = db.collection(`users/${uid}/${COMMUNITY_STATS_OUTBOX_COLLECTION}`).limit(1)
   const nowMs = Date.now()
@@ -130,7 +131,7 @@ async function loadUserSource(uid: string): Promise<{
   playthroughs: Playthrough[]
   campaignRuns: CampaignRun[]
 }> {
-  const db = getFirestore()
+  const db = getBackendFirestore()
   const [playthroughSnapshot, campaignRunSnapshot] = await Promise.all([
     db.collection(`users/${uid}/playthroughs`).limit(MAX_USER_SOURCE_DOCUMENTS + 1).get(),
     db.collection(`users/${uid}/campaignRuns`).limit(MAX_USER_SOURCE_DOCUMENTS + 1).get(),
@@ -155,7 +156,7 @@ async function loadQueuedOutbox(uid: string): Promise<{
   paths: string[]
   hasMore: boolean
 }> {
-  const snapshot = await getFirestore()
+  const snapshot = await getBackendFirestore()
     .collection(`users/${uid}/${COMMUNITY_STATS_OUTBOX_COLLECTION}`)
     .orderBy('requestedAtMs')
     .limit(MAX_OUTBOX_DELETES + 1)
@@ -343,7 +344,7 @@ async function persistContribution(
   contribution: CommunityStatsContribution,
   queuedOutbox: { paths: string[]; hasMore: boolean },
 ): Promise<{ processed: number; pending: number }> {
-  const db = getFirestore()
+  const db = getBackendFirestore()
   const stateRef = db.doc(COMMUNITY_STATS_STATE_DOC_PATH)
   const contributionRef = db.doc(`${COMMUNITY_STATS_CONTRIBUTIONS_COLLECTION}/${lease.uid}`)
   const quarantineRef = db.doc(`${COMMUNITY_STATS_QUARANTINE_COLLECTION}/${lease.uid}`)
@@ -364,7 +365,7 @@ async function persistContribution(
 }
 
 async function publishWithLease(lease: Lease): Promise<CommunityStats> {
-  const db = getFirestore()
+  const db = getBackendFirestore()
   const [snapshot, pendingOutbox, quarantineSnapshot] = await Promise.all([
     db.collection(COMMUNITY_STATS_CONTRIBUTIONS_COLLECTION)
       .limit(MAX_CONTRIBUTIONS + 1)
@@ -417,7 +418,7 @@ async function quarantinePoisonContribution(
   queuedOutbox: { paths: string[]; hasMore: boolean },
   error: DeterministicContributionError,
 ): Promise<ContributionProcessResult> {
-  const db = getFirestore()
+  const db = getBackendFirestore()
   const stateRef = db.doc(COMMUNITY_STATS_STATE_DOC_PATH)
   const aggregateRef = db.doc(COMMUNITY_STATS_DOC_PATH)
   const quarantineRef = db.doc(`${COMMUNITY_STATS_QUARANTINE_COLLECTION}/${lease.uid}`)
@@ -460,7 +461,7 @@ async function quarantinePoisonContribution(
 }
 
 async function failLease(lease: Lease, error: unknown): Promise<void> {
-  const db = getFirestore()
+  const db = getBackendFirestore()
   const stateRef = db.doc(COMMUNITY_STATS_STATE_DOC_PATH)
   const aggregateRef = db.doc(COMMUNITY_STATS_DOC_PATH)
   await db.runTransaction(async (transaction) => {
@@ -479,7 +480,7 @@ async function failLease(lease: Lease, error: unknown): Promise<void> {
 }
 
 async function releaseLease(lease: Lease): Promise<void> {
-  const db = getFirestore()
+  const db = getBackendFirestore()
   const stateRef = db.doc(COMMUNITY_STATS_STATE_DOC_PATH)
   await db.runTransaction(async (transaction) => {
     const stateSnapshot = await transaction.get(stateRef)
@@ -547,23 +548,8 @@ export async function rebuildUserContribution(
   }
 }
 
-async function listFirebaseAuthUserIds(): Promise<string[]> {
-  const auth = getAuth()
-  const userIds: string[] = []
-  let pageToken: string | undefined
-  do {
-    const page = await auth.listUsers(1_000, pageToken)
-    userIds.push(...page.users.map((user) => user.uid))
-    if (userIds.length > MAX_CONTRIBUTIONS) {
-      throw new Error(`Auth user count exceeds the ${MAX_CONTRIBUTIONS}-user bootstrap bound.`)
-    }
-    pageToken = page.pageToken
-  } while (pageToken)
-  return userIds
-}
-
 async function removeDeletedAuthUserState(activeUserIds: Set<string>): Promise<void> {
-  const db = getFirestore()
+  const db = getBackendFirestore()
   const snapshots = await Promise.all([
     db.collection(COMMUNITY_STATS_CONTRIBUTIONS_COLLECTION).limit(MAX_CONTRIBUTIONS + 1).get(),
     db.collection(COMMUNITY_STATS_QUARANTINE_COLLECTION).limit(MAX_CONTRIBUTIONS + 1).get(),

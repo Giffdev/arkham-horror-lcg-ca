@@ -24,8 +24,8 @@ No Firebase Functions or paid Firebase services are used.
   - `.node-version`
 - Firebase CLI is available via the repo dev dependency (`firebase-tools` in
   `package.json`), so prefer `npx firebase-tools ...`.
-- The bootstrap/runtime dependency set includes `firebase-admin` and
-  `google-auth-library`; and
+- The bootstrap/runtime dependency set includes `@google-cloud/firestore`,
+  `google-auth-library`, and `jose`; and
   `backend/scripts/bootstrap-community-stats.mjs` enforces explicit
   `--project` targeting plus ADC project matching.
 - Authenticate before touching production:
@@ -102,15 +102,13 @@ import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
-import { GoogleAuth } from 'google-auth-library'
-import { applicationDefault, getApps, initializeApp } from 'firebase-admin/app'
 import {
   DocumentReference,
   Firestore,
   GeoPoint,
   Timestamp,
-  getFirestore,
-} from 'firebase-admin/firestore'
+} from '@google-cloud/firestore'
+import { GoogleAuth } from 'google-auth-library'
 
 function parseArgs(argv) {
   let projectId
@@ -491,14 +489,7 @@ async function main() {
     )
   }
 
-  if (!getApps().length) {
-    initializeApp({
-      credential: applicationDefault(),
-      projectId,
-    })
-  }
-
-  const db = getFirestore()
+  const db = new Firestore({ projectId })
   const entries = [
     ...(await readCollectionGroup(db, 'playthroughs')),
     ...(await readCollectionGroup(db, 'campaignRuns')),
@@ -519,6 +510,7 @@ async function main() {
     `${label}: wrote ${entries.length} source-doc fingerprints ` +
       `(${playthroughCount} playthroughs, ${campaignRunCount} campaignRuns) to ${resolvedOutFile}`,
   )
+  await db.terminate()
 }
 
 main().catch((error) => {
@@ -569,8 +561,13 @@ the commands in `SERVICES.md`. Do not populate a tracked or local project file w
 the real key. Confirm Preview and Development have no production credential.
 
 Before deploying, run `npm run build`. In addition to the Vite production build,
-this compiles the Node ESM backend and imports the emitted serverless entrypoint so
-an unresolved relative module fails locally instead of at function startup.
+this compiles the Node ESM backend, imports the emitted serverless entrypoint, and
+executes an unauthenticated request through the handler. This catches startup and
+lazy module-loading failures locally instead of at function startup.
+
+For the exact Vercel function artifact, run `npx vercel build --yes` followed by
+`npm run vercel:artifact-check` under Node 22. The second command imports and invokes
+the traced `.vercel/output` entrypoint rather than only checking source output.
 
 ```powershell
 npx vercel link --yes --non-interactive --team $VercelScope --project $VercelProject
@@ -580,7 +577,7 @@ npx vercel deploy --prod --yes --scope $VercelScope --project $VercelProject
 The first deployment publishes the API while the browser continues only writing the
 durable outbox. This prevents a new client from depending on an unverified backend.
 
-Before bootstrap, verify the deployed Firebase Admin certificate identity with the
+Before bootstrap, verify the deployed Google Cloud client certificate identity with the
 cron-protected endpoint. Set the same `CRON_SECRET` in this release shell without
 writing it to disk:
 

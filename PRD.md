@@ -14,7 +14,7 @@ A campaign playthrough tracker for Arkham Horror: The Card Game that allows play
 ## Tech Stack
 
 - **Framework**: React 19 + TypeScript + Vite
-- **Server runtime**: Vercel Functions + Firebase Admin on Node 22, authenticated with a dedicated least-privilege service-account key stored only in encrypted, production-scoped Vercel environment variables
+- **Server runtime**: Vercel Functions + Google Cloud Firestore/Auth clients on Node 22, with Firebase ID tokens verified through `jose` and Google's fixed Secure Token JWKS; server credentials use a dedicated least-privilege service-account key stored only in encrypted, production-scoped Vercel environment variables
 - **Styling**: TailwindCSS 4, class-variance-authority, tailwind-merge
 - **UI Components**: Radix UI primitives (Dialog, Tabs, Select, Popover, AlertDialog, DropdownMenu, Toast, etc.)
 - **Icons**: Phosphor Icons (`@phosphor-icons/react`)

@@ -1,17 +1,18 @@
 import { createPrivateKey } from 'node:crypto'
 
-import {
-  applicationDefault,
-  cert,
-  getApps,
-  initializeApp,
-} from 'firebase-admin/app'
+import { Firestore } from '@google-cloud/firestore'
+import { GoogleAuth } from 'google-auth-library'
+
+export const FIREBASE_PROJECT_ID = 'arkham-horror-tracker'
 
 type RequiredBackendConfig = {
   projectId: string
   clientEmail: string
   privateKey: string
 }
+
+let firestore: Firestore | undefined
+let googleAuth: GoogleAuth | undefined
 
 function requiredEnv(name: string): string {
   const value = process.env[name]?.trim()
@@ -42,8 +43,8 @@ function normalizedPrivateKey(value: string): string {
 
 export function getBackendConfig(): RequiredBackendConfig {
   const projectId = requiredEnv('FIREBASE_PROJECT_ID')
-  if (!/^[a-z][a-z0-9-]{4,28}[a-z0-9]$/.test(projectId)) {
-    throw new Error('FIREBASE_PROJECT_ID is not a valid Google Cloud project ID.')
+  if (projectId !== FIREBASE_PROJECT_ID) {
+    throw new Error(`FIREBASE_PROJECT_ID must be ${FIREBASE_PROJECT_ID}.`)
   }
 
   const clientEmail = requiredEnv('FIREBASE_CLIENT_EMAIL').toLowerCase()
@@ -69,18 +70,8 @@ export function getBackendConfig(): RequiredBackendConfig {
   }
 }
 
-export function ensureFirebaseAdminApp(): void {
-  if (getApps().length > 0) return
-
-  if (process.env.VERCEL) {
-    const config = getBackendConfig()
-    initializeApp({
-      credential: cert(config),
-      projectId: config.projectId,
-    })
-    return
-  }
-
+export function getBackendProjectId(): string {
+  if (process.env.VERCEL) return getBackendConfig().projectId
   const projectId =
     process.env.COMMUNITY_STATS_FIREBASE_PROJECT_ID?.trim() ||
     process.env.GOOGLE_CLOUD_PROJECT?.trim()
@@ -89,8 +80,49 @@ export function ensureFirebaseAdminApp(): void {
       'Set COMMUNITY_STATS_FIREBASE_PROJECT_ID when running the backend outside Vercel.',
     )
   }
-  initializeApp({
-    credential: applicationDefault(),
-    projectId,
+  return projectId
+}
+
+export function getBackendFirestore(): Firestore {
+  if (firestore) return firestore
+  if (process.env.VERCEL) {
+    const config = getBackendConfig()
+    firestore = new Firestore({
+      projectId: config.projectId,
+      credentials: {
+        client_email: config.clientEmail,
+        private_key: config.privateKey,
+      },
+    })
+    return firestore
+  }
+  firestore = new Firestore({ projectId: getBackendProjectId() })
+  return firestore
+}
+
+export function getBackendGoogleAuth(): GoogleAuth {
+  if (googleAuth) return googleAuth
+  const scopes = ['https://www.googleapis.com/auth/cloud-platform']
+  if (process.env.VERCEL) {
+    const config = getBackendConfig()
+    googleAuth = new GoogleAuth({
+      projectId: config.projectId,
+      credentials: {
+        client_email: config.clientEmail,
+        private_key: config.privateKey,
+      },
+      scopes,
+    })
+    return googleAuth
+  }
+  googleAuth = new GoogleAuth({
+    projectId: getBackendProjectId(),
+    scopes,
   })
+  return googleAuth
+}
+
+export function resetBackendClientsForTest(): void {
+  firestore = undefined
+  googleAuth = undefined
 }

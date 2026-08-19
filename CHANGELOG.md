@@ -8,6 +8,11 @@ This project follows the spirit of [Keep a Changelog](https://keepachangelog.com
 
 ### Changed
 
+- **Vercel owner authentication is Node 22 compatible.** The backend now verifies
+  Firebase ID tokens directly with Google's fixed Secure Token JWKS, an explicit
+  RS256/issuer/audience contract, and disabled/revoked-user checks. The incompatible
+  `firebase-admin`/`jwks-rsa` runtime chain has been removed.
+
 - **Community statistics now run on the existing Vercel deployment without paid
   Firebase services.** Owner writes still atomically enqueue durable Firestore work,
   while a Firebase-authenticated Vercel Function publishes the
