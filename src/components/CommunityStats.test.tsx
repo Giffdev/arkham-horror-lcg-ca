@@ -205,10 +205,22 @@ describe('CommunityStats', () => {
       expect(screen.getByText('2 campaigns')).toBeVisible()
     })
 
-    it('labels class popularity in singular and plural class assignments', async () => {
+    it('preserves the compact pre-schema-v4 class popularity labels', async () => {
       await renderAndWait(FULL_STATS)
-      expect(screen.getByText('1 class assignment (25% of class assignments)')).toBeVisible()
-      expect(screen.getByText('3 class assignments (75% of class assignments)')).toBeVisible()
+      expect(screen.getByText('1 plays (25%)')).toBeVisible()
+      expect(screen.getByText('3 plays (75%)')).toBeVisible()
+      expect(screen.queryByText(/class assignments?/i)).not.toBeInTheDocument()
+      expect(screen.queryByText(/of class assignments/i)).not.toBeInTheDocument()
+    })
+
+    it('keeps class labels on the fixed compact count side of each ranked row', async () => {
+      await renderAndWait(FULL_STATS)
+      const countLabel = screen.getByText('3 plays (75%)')
+      const row = countLabel.parentElement
+
+      expect(countLabel).toHaveClass('flex-shrink-0')
+      expect(row).toHaveClass('flex', 'items-center', 'justify-between')
+      expect(row?.querySelector('[data-slot="badge"]')).toBeInTheDocument()
     })
 
     it('preserves campaign and standalone popularity play units', async () => {

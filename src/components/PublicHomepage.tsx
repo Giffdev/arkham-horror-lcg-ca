@@ -133,7 +133,7 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
   const classTotal = (communityStats?.topClasses ?? []).reduce((s, c) => s + c.count, 0)
   const classItems = (communityStats?.topClasses ?? []).map(cls => ({
     key: cls.archetype,
-    countLabel: `${cls.count} ${cls.count === 1 ? 'class assignment' : 'class assignments'} (${classTotal > 0 ? Math.round((cls.count / classTotal) * 100) : 0}% of class assignments)`,
+    countLabel: `${cls.count} plays (${classTotal > 0 ? Math.round((cls.count / classTotal) * 100) : 0}%)`,
     renderContent: () => <ArchetypeBadge archetype={cls.archetype} />,
   }))
 
