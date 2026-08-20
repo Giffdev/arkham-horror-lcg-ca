@@ -891,11 +891,9 @@ describe('CampaignRunCard', () => {
 
     const playerList = screen.getByRole('list', { name: /Curtain Call players/i })
     expect(playerList).toHaveClass(
-      'grid',
       'min-w-0',
-      'grid-cols-[repeat(2,minmax(0,1fr))]',
+      'space-y-3',
       'text-left',
-      'md:block',
       'md:self-center',
     )
     const scenarioRows = within(playerList).getAllByRole('listitem')
@@ -908,19 +906,25 @@ describe('CampaignRunCard', () => {
     expect(daisyRow!).toHaveTextContent('Defeated (Mental)')
     const daisyHeading = daisyRow!.querySelector('[data-slot="scenario-player-heading"]')
     const daisyOutcome = daisyRow!.querySelector('[data-slot="scenario-player-outcome"]')
-    expect(daisyHeading).toHaveClass('flex-wrap', 'items-baseline', 'text-left')
+    expect(daisyRow!).toHaveClass(
+      'grid',
+      'grid-cols-[minmax(6.25rem,0.8fr)_minmax(0,1.2fr)]',
+      'md:block',
+    )
+    expect(daisyHeading).toHaveClass('contents', 'text-left', 'md:flex', 'md:flex-wrap')
     expect(within(daisyHeading as HTMLElement).getByText('Bob')).toHaveClass(
-      'order-1',
+      'col-start-1',
+      'row-start-1',
       'md:order-3',
     )
     const daisyInvestigator = within(daisyHeading as HTMLElement).getByText('Daisy Walker')
     expect(daisyInvestigator.closest('[data-slot="scenario-investigator-label"]'))
-      .toHaveClass('order-3', 'flex', 'min-w-0', 'md:contents')
+      .toHaveClass('col-start-2', 'row-start-1', 'flex', 'min-w-0', 'md:contents')
     expect(daisyInvestigator)
       .toHaveClass('md:order-1', 'break-words', 'hyphens-none')
     expect(daisyInvestigator)
       .not.toHaveClass('[overflow-wrap:anywhere]')
-    expect(daisyOutcome).toHaveClass('flex', 'flex-wrap')
+    expect(daisyOutcome).toHaveClass('col-start-2', 'row-start-2', 'flex', 'flex-wrap')
     expect(Array.from(daisyOutcome!.children).every((child) =>
       child.classList.contains('whitespace-nowrap'),
     )).toBe(true)
@@ -1026,13 +1030,28 @@ describe('CampaignRunCard', () => {
     for (const scenarioName of ['Curtain Call', 'The Last King']) {
       const players = screen.getByRole('list', { name: `${scenarioName} players` })
       expect(players).toHaveClass(
-        'grid',
-        'grid-cols-[repeat(2,minmax(0,1fr))]',
+        'space-y-3',
         'text-left',
-        'md:block',
       )
       expect(players.className).not.toContain('min-[380px]:grid-cols-2')
-      expect(within(players).getAllByRole('listitem')).toHaveLength(4)
+      expect(players).not.toHaveClass('grid-cols-[repeat(2,minmax(0,1fr))]')
+      const playerRows = within(players).getAllByRole('listitem')
+      expect(playerRows).toHaveLength(4)
+      playerRows.forEach((row) => {
+        expect(row).toHaveClass(
+          'grid',
+          'grid-cols-[minmax(6.25rem,0.8fr)_minmax(0,1.2fr)]',
+          'md:block',
+        )
+        expect(row.querySelector('[data-slot="scenario-player-name"]')).toHaveClass(
+          'col-start-1',
+          'row-start-1',
+        )
+        expect(row.querySelector('[data-slot="scenario-player-outcome"]')).toHaveClass(
+          'col-start-2',
+          'row-start-2',
+        )
+      })
     }
 
     const longInvestigatorNames = screen.getAllByText('Winifred Habbamock')

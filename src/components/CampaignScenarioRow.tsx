@@ -124,26 +124,29 @@ export function CampaignScenarioRow({
 
         {playerPairs.length > 0 && (
           <ul
-            className="col-span-2 grid min-w-0 grid-cols-[repeat(2,minmax(0,1fr))] gap-x-3 gap-y-2 text-left text-sm text-muted-foreground md:col-span-1 md:block md:space-y-2.5 md:self-center"
+            className="col-span-2 min-w-0 space-y-3 text-left text-sm text-muted-foreground md:col-span-1 md:space-y-2.5 md:self-center"
             aria-label={`${scenarioLog.scenarioName} players`}
           >
             {playerPairs.slice(0, 4).map((pair, pairIndex) => (
-              <li className="min-w-0" key={`${pair.playerName}-${pair.investigatorName}-${pairIndex}`}>
+              <li
+                className="grid min-w-0 grid-cols-[minmax(6.25rem,0.8fr)_minmax(0,1.2fr)] items-baseline gap-x-3 gap-y-1 md:block"
+                key={`${pair.playerName}-${pair.investigatorName}-${pairIndex}`}
+                data-slot="scenario-player-row"
+              >
                 <div
-                  className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 gap-y-0.5 text-left"
+                  className="contents min-w-0 text-left md:flex md:flex-wrap md:items-baseline md:gap-x-1.5 md:gap-y-0.5"
                   data-slot="scenario-player-heading"
                 >
                   <span
-                    className="order-1 min-w-0 break-words hyphens-none font-medium text-foreground md:order-3"
+                    className="col-start-1 row-start-1 min-w-0 break-words hyphens-none font-medium text-foreground md:order-3"
                     data-slot="scenario-player-name"
                   >
                     {pair.playerName}
                   </span>
                   <span
-                    className="order-3 flex min-w-0 items-baseline gap-x-1.5 md:contents"
+                    className="col-start-2 row-start-1 flex min-w-0 items-baseline gap-x-1.5 md:contents"
                     data-slot="scenario-investigator-label"
                   >
-                    <span className="text-muted-foreground md:hidden" aria-hidden="true">·</span>
                     <span
                       className="min-w-0 break-words hyphens-none text-muted-foreground md:order-1"
                       data-slot="scenario-investigator-name"
@@ -155,7 +158,7 @@ export function CampaignScenarioRow({
                 </div>
                 {pair.outcome && (
                   <div
-                    className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-muted-foreground"
+                    className="col-start-2 row-start-2 flex min-w-0 flex-wrap gap-x-2 gap-y-0.5 text-xs text-muted-foreground md:mt-1"
                     data-slot="scenario-player-outcome"
                   >
                     <span className="whitespace-nowrap">{pair.outcome.xpEarned} XP</span>
