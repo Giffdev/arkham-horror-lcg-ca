@@ -49,6 +49,55 @@ function makePlaythrough(id: string, investigators: InvestigatorAssignment[]): P
   }
 }
 
+function makeCampaignRun(
+  id: string,
+  setupInvestigators: InvestigatorAssignment[],
+  scenarioInvestigators: InvestigatorAssignment[][],
+  overrides: Partial<CampaignRun> = {},
+): CampaignRun {
+  return {
+    id,
+    version: 2,
+    campaignLineageId: `campaign:${id}`,
+    campaignName: 'The Path to Carcosa',
+    campaignType: 'Full Campaign',
+    startedAt: '2026-01-01',
+    updatedAt: '2026-01-10',
+    status: 'active',
+    setupSnapshot: {
+      date: '2026-01-01',
+      investigators: setupInvestigators,
+    },
+    scenarioLogs: scenarioInvestigators.map((investigators, index) => ({
+      id: `scenario-${index + 1}`,
+      date: `2026-01-${String(index + 2).padStart(2, '0')}`,
+      scenarioName: `Scenario ${index + 1}`,
+      investigators,
+    })),
+    ...overrides,
+  }
+}
+
+function makeRosterEntry(
+  investigator: InvestigatorAssignment,
+  overrides: Partial<CampaignScenarioRosterEntry> = {},
+): CampaignScenarioRosterEntry {
+  return {
+    seatId: 'seat-1',
+    slotId: 'seat-1:slot:1',
+    playerName: investigator.playerName,
+    investigator,
+    seatStatus: 'active',
+    joinedAtScenarioIndex: 0,
+    startedAtScenarioIndex: 0,
+    xpTotal: 0,
+    xpSpent: 0,
+    physicalTrauma: 0,
+    mentalTrauma: 0,
+    ...overrides,
+  }
+}
+
 function mockCommunitySource(
   playthroughs: Playthrough[],
   options?: {
@@ -386,6 +435,254 @@ describe('rebuildCommunityStats — campaign count invariants', () => {
     expect(withTwoScenarios.campaignRunsPlayedCount).toBe(1)
     expect(withOneScenario.uniqueCampaignFamilyCount).toBe(1)
     expect(withTwoScenarios.uniqueCampaignFamilyCount).toBe(1)
+  })
+
+  describe('rebuildCommunityStats — most played investigator campaign tallies', () => {
+    beforeEach(() => { vi.clearAllMocks() })
+
+    function getInvestigatorCount(stats: { topInvestigators: { name: string; count: number }[] }, name: string): number {
+      return stats.topInvestigators.find((investigator) => investigator.name === name)?.count ?? 0
+    }
+
+    it('counts one investigator across multiple scenarios in one campaign once', async () => {
+      const roland = makeInvestigator('Roland Banks', { investigatorId: 'roland-banks' })
+      const run = makeCampaignRun('run-1', [roland], [[roland], [roland], [roland]])
+      mockCommunitySource([], { rootPlaythroughs: [], campaignRuns: [run] })
+
+      await rebuildCommunityStats()
+
+      expect(getInvestigatorCount(mockSaveCommunityStats.mock.calls[0][0], 'Roland Banks')).toBe(1)
+    })
+
+    it('counts a replacement found only in rosterChanges.newEntry once with the original', async () => {
+      const roland = makeInvestigator('Roland Banks', { investigatorId: 'roland-banks' })
+      const daisy = makeInvestigator('Daisy Walker', {
+        investigatorId: 'daisy-walker',
+        archetype: 'Seeker',
+      })
+      const replacementEntry = makeRosterEntry(daisy, {
+        slotId: 'seat-1:slot:2',
+        joinedAtScenarioIndex: 1,
+        startedAtScenarioIndex: 1,
+      })
+      const run = makeCampaignRun('run-1', [roland], [], {
+        scenarioLogs: [{
+          id: 'scenario-1',
+          date: '2026-01-02',
+          scenarioName: 'Scenario 1',
+          investigators: [],
+          rosterChanges: [{
+            type: 'replacement',
+            seatId: 'seat-1',
+            previousSlotId: 'seat-1:slot:1',
+            reason: 'killed',
+            newEntry: replacementEntry,
+          }],
+        }],
+      })
+      mockCommunitySource([], { rootPlaythroughs: [], campaignRuns: [run] })
+
+      await rebuildCommunityStats()
+
+      const stats = mockSaveCommunityStats.mock.calls[0][0]
+      expect(getInvestigatorCount(stats, 'Roland Banks')).toBe(1)
+      expect(getInvestigatorCount(stats, 'Daisy Walker')).toBe(1)
+    })
+
+    it('counts an eliminated investigator retained only in rosterBefore', async () => {
+      const roland = makeInvestigator('Roland Banks', { investigatorId: 'roland-banks' })
+      const agnes = makeInvestigator('Agnes Baker', {
+        investigatorId: 'agnes-baker',
+        archetype: 'Mystic',
+      })
+      const historicalEntry = makeRosterEntry(agnes, {
+        seatStatus: 'eliminated',
+        endedAtScenarioIndex: 0,
+        endReason: 'killed',
+      })
+      const run = makeCampaignRun('run-1', [roland], [], {
+        scenarioLogs: [{
+          id: 'scenario-1',
+          date: '2026-01-02',
+          scenarioName: 'Scenario 1',
+          investigators: [],
+          rosterBefore: [historicalEntry],
+        }],
+      })
+      mockCommunitySource([], { rootPlaythroughs: [], campaignRuns: [run] })
+
+      await rebuildCommunityStats()
+
+      const stats = mockSaveCommunityStats.mock.calls[0][0]
+      expect(getInvestigatorCount(stats, 'Roland Banks')).toBe(1)
+      expect(getInvestigatorCount(stats, 'Agnes Baker')).toBe(1)
+    })
+
+    it('counts the same investigator once in each of two campaigns', async () => {
+      const roland = makeInvestigator('Roland Banks', { investigatorId: 'roland-banks' })
+      mockCommunitySource([], {
+        rootPlaythroughs: [],
+        campaignRuns: [
+          makeCampaignRun('run-1', [roland], [[roland]]),
+          makeCampaignRun('run-2', [roland], [[roland], [roland]]),
+        ],
+      })
+
+      await rebuildCommunityStats()
+
+      expect(getInvestigatorCount(mockSaveCommunityStats.mock.calls[0][0], 'Roland Banks')).toBe(2)
+    })
+
+    it('does not double-count roster, history, and scenario overlap', async () => {
+      const roland = makeInvestigator('Roland Banks', { investigatorId: 'roland-banks' })
+      const rosterEntry = {
+        seatId: 'seat-1',
+        slotId: 'seat-1:slot:1',
+        playerName: 'Player',
+        investigator: roland,
+        seatStatus: 'active' as const,
+        joinedAtScenarioIndex: 0,
+        startedAtScenarioIndex: 0,
+        xpTotal: 0,
+        xpSpent: 0,
+        physicalTrauma: 0,
+        mentalTrauma: 0,
+      }
+      const run = makeCampaignRun('run-1', [roland], [[roland]], {
+        currentRoster: [rosterEntry],
+        scenarioLogs: [{
+          id: 'scenario-1',
+          date: '2026-01-02',
+          scenarioName: 'Scenario 1',
+          investigators: [roland],
+          rosterBefore: [rosterEntry],
+          rosterAfter: [rosterEntry],
+        }],
+      })
+      mockCommunitySource([], { rootPlaythroughs: [], campaignRuns: [run] })
+
+      await rebuildCommunityStats()
+
+      expect(getInvestigatorCount(mockSaveCommunityStats.mock.calls[0][0], 'Roland Banks')).toBe(1)
+    })
+
+    it('deduplicates unresolved legacy scenario-only assignments by normalized name fallback', async () => {
+      const legacyInvestigator = makeInvestigator('Legacy Custom Investigator', { isCustom: true })
+      const run = makeCampaignRun('run-1', [], [
+        [legacyInvestigator],
+        [makeInvestigator('Legacy Custom Investigator', { isCustom: true })],
+      ])
+      mockCommunitySource([], { rootPlaythroughs: [], campaignRuns: [run] })
+
+      await rebuildCommunityStats()
+
+      expect(getInvestigatorCount(mockSaveCommunityStats.mock.calls[0][0], 'Legacy Custom Investigator')).toBe(1)
+    })
+
+    it('keeps a custom investigator distinct from an official investigator with the same name', async () => {
+      const officialRoland = makeInvestigator('Roland Banks', {
+        investigatorId: 'roland-banks',
+        investigatorSet: 'Core',
+      })
+      const customRoland = makeInvestigator('Roland Banks', { isCustom: true })
+      const run = makeCampaignRun('run-1', [officialRoland], [
+        [officialRoland],
+        [customRoland],
+        [makeInvestigator('  Roland   Banks  ', { isCustom: true })],
+      ])
+      mockCommunitySource([], { rootPlaythroughs: [], campaignRuns: [run] })
+
+      await rebuildCommunityStats()
+
+      const rolandTallies = mockSaveCommunityStats.mock.calls[0][0].topInvestigators
+        .filter((investigator: { name: string }) => investigator.name.trim().replace(/\s+/g, ' ') === 'Roland Banks')
+      expect(rolandTallies).toHaveLength(2)
+      expect(rolandTallies).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          investigatorId: 'roland-banks',
+          investigatorSet: 'Core',
+          count: 1,
+        }),
+        expect.objectContaining({
+          name: 'Roland Banks',
+          count: 1,
+        }),
+      ]))
+      const customTally = rolandTallies.find(
+        (investigator: { investigatorId?: string }) => investigator.investigatorId === undefined,
+      )
+      expect(customTally).not.toHaveProperty('investigatorSet')
+      expect(customTally).not.toHaveProperty('chapter')
+    })
+
+    it('preserves an explicit custom investigator id without official canonical metadata', async () => {
+      const officialRoland = makeInvestigator('Roland Banks', {
+        investigatorId: 'roland-banks',
+        investigatorSet: 'Core',
+      })
+      const customRoland = makeInvestigator('Roland Banks', {
+        isCustom: true,
+        investigatorId: 'custom-roland-banks',
+      })
+      const run = makeCampaignRun('run-1', [officialRoland], [[customRoland]])
+      mockCommunitySource([], { rootPlaythroughs: [], campaignRuns: [run] })
+
+      await rebuildCommunityStats()
+
+      const rolandTallies = mockSaveCommunityStats.mock.calls[0][0].topInvestigators
+        .filter((investigator: { name: string }) => investigator.name === 'Roland Banks')
+      expect(rolandTallies).toHaveLength(2)
+      expect(rolandTallies).toEqual(expect.arrayContaining([
+        expect.objectContaining({ investigatorId: 'roland-banks', investigatorSet: 'Core', count: 1 }),
+        expect.objectContaining({ investigatorId: 'custom-roland-banks', count: 1 }),
+      ]))
+      const customTally = rolandTallies.find(
+        (investigator: { investigatorId?: string }) => investigator.investigatorId === 'custom-roland-banks',
+      )
+      expect(customTally).not.toHaveProperty('investigatorSet')
+      expect(customTally).not.toHaveProperty('chapter')
+    })
+
+    it('keeps same-name investigators with different stable ids distinct', async () => {
+      const danielaChapterOne = makeInvestigator('Daniela Reyes', {
+        investigatorId: 'daniela-reyes',
+        chapter: 1,
+      })
+      const danielaChapterTwo = makeInvestigator('Daniela Reyes', {
+        investigatorId: 'daniela-reyes-ch2',
+        chapter: 2,
+      })
+      const run = makeCampaignRun('run-1', [danielaChapterOne], [
+        [danielaChapterOne],
+        [danielaChapterTwo],
+      ])
+      mockCommunitySource([], { rootPlaythroughs: [], campaignRuns: [run] })
+
+      await rebuildCommunityStats()
+
+      const danielaTallies = mockSaveCommunityStats.mock.calls[0][0].topInvestigators
+        .filter((investigator: { name: string }) => investigator.name === 'Daniela Reyes')
+      expect(danielaTallies).toEqual(expect.arrayContaining([
+        expect.objectContaining({ investigatorId: 'daniela-reyes', chapter: 1, count: 1 }),
+        expect.objectContaining({ investigatorId: 'daniela-reyes-ch2', chapter: 2, count: 1 }),
+      ]))
+    })
+
+    it('does not double-count a promoted legacy root alongside its campaign run', async () => {
+      const roland = makeInvestigator('Roland Banks', { investigatorId: 'roland-banks' })
+      const promoted = {
+        ...makePlaythrough('source-1', [roland]),
+        promotedToCampaignRunId: 'run-1',
+      }
+      const run = makeCampaignRun('run-1', [roland], [[roland]], {
+        sourcePlaythroughId: promoted.id,
+      })
+      mockCommunitySource([], { rootPlaythroughs: [promoted], campaignRuns: [run] })
+
+      await rebuildCommunityStats()
+
+      expect(getInvestigatorCount(mockSaveCommunityStats.mock.calls[0][0], 'Roland Banks')).toBe(1)
+    })
   })
 
   it('counts two same-name runs as two runs while unique campaign families stay deduped', async () => {

@@ -1,6 +1,6 @@
 import type { Archetype, CampaignRun, Playthrough } from './types.js'
 import { getCampaignSet, SCENARIO_PACK_SCENARIOS } from './campaign-data.js'
-import { computeCampaignCountSummary } from './campaign-runs.js'
+import { computeCampaignCountSummary, shouldSuppressPromotedPlaythrough } from './campaign-runs.js'
 import { getInvestigatorPairKey, resolveInvestigator } from './investigator-data.js'
 
 export interface CompletionBreakdown {
@@ -73,6 +73,62 @@ export interface CommunityStatsSourceInput {
 
 function normalizeKey(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, ' ')
+}
+
+function getInvestigatorTallyIdentity(investigator: Playthrough['investigators'][number]): string {
+  if (investigator.isCustom) {
+    const investigatorId = investigator.investigatorId?.trim()
+    if (investigatorId) {
+      return `custom-investigator-id:${normalizeKey(investigatorId)}`
+    }
+
+    return [
+      'legacy',
+      normalizeKey(investigator.investigatorName),
+      `chapter:${investigator.chapter ?? 0}`,
+      `set:${normalizeKey(investigator.investigatorSet ?? '')}`,
+      'custom',
+    ].join('|')
+  }
+
+  const resolved = resolveInvestigator(investigator)
+  const investigatorId = resolved?.id ?? investigator.investigatorId?.trim()
+  if (investigatorId) {
+    return `investigator-id:${normalizeKey(investigatorId)}`
+  }
+
+  return [
+    'legacy',
+    normalizeKey(investigator.investigatorName),
+    `chapter:${investigator.chapter ?? 0}`,
+    `set:${normalizeKey(investigator.investigatorSet ?? '')}`,
+    'standard',
+  ].join('|')
+}
+
+function collectCampaignRunInvestigators(campaignRun: CampaignRun): Playthrough['investigators'] {
+  const investigators: Playthrough['investigators'] = [
+    ...campaignRun.setupSnapshot.investigators,
+  ]
+
+  for (const entry of campaignRun.currentRoster ?? []) {
+    investigators.push(entry.investigator)
+  }
+
+  for (const scenarioLog of campaignRun.scenarioLogs) {
+    investigators.push(...scenarioLog.investigators)
+    for (const entry of scenarioLog.rosterBefore ?? []) {
+      investigators.push(entry.investigator)
+    }
+    for (const entry of scenarioLog.rosterAfter ?? []) {
+      investigators.push(entry.investigator)
+    }
+    for (const change of scenarioLog.rosterChanges ?? []) {
+      investigators.push(change.newEntry.investigator)
+    }
+  }
+
+  return investigators
 }
 
 export function getCommunityStatsGeneratedAt(
@@ -249,18 +305,6 @@ export function computeCommunityStats(input: CommunityStatsSourceInput): Communi
         validNames.push(pairKey)
       }
 
-      const chapter = pairKey !== investigator.investigatorName ? resolvedChapter ?? 1 : resolvedChapter
-      const investigatorEntry = investigatorCounts.get(pairKey) ?? {
-        name: investigator.investigatorName,
-        count: 0,
-        archetypes: investigator.archetypes || [investigator.archetype],
-        chapter: chapter as 1 | 2 | undefined,
-        investigatorId: resolved?.id ?? investigator.investigatorId,
-        investigatorSet: resolved?.set ?? investigator.investigatorSet,
-      }
-      investigatorEntry.count++
-      investigatorCounts.set(pairKey, investigatorEntry)
-
       const archetypes = investigator.archetypes || (investigator.archetype ? [investigator.archetype] : [])
       for (const archetype of archetypes) {
         if (archetype && archetype.toLowerCase() !== 'neutral') {
@@ -277,6 +321,50 @@ export function computeCommunityStats(input: CommunityStatsSourceInput): Communi
         pairCounts.set(`${first}|||${second}`, (pairCounts.get(`${first}|||${second}`) || 0) + 1)
       }
     }
+  }
+
+  const addCampaignInvestigatorTallies = (investigators: Playthrough['investigators']) => {
+    const seenInCampaign = new Set<string>()
+    for (const investigator of investigators) {
+      if (investigator.isUnknown || !investigator.investigatorName || investigator.investigatorName === 'Unknown') {
+        continue
+      }
+
+      const identity = getInvestigatorTallyIdentity(investigator)
+      if (seenInCampaign.has(identity)) continue
+      seenInCampaign.add(identity)
+
+      const resolved = investigator.isCustom ? undefined : resolveInvestigator(investigator)
+      const resolvedChapter = resolved?.chapter ?? investigator.chapter
+      const chapter = investigator.isCustom
+        ? investigator.chapter
+        : getInvestigatorPairKey({
+            investigatorName: investigator.investigatorName,
+            chapter: resolvedChapter,
+          }) !== investigator.investigatorName
+          ? resolvedChapter ?? 1
+          : resolvedChapter
+      const investigatorEntry = investigatorCounts.get(identity) ?? {
+        name: investigator.investigatorName,
+        count: 0,
+        archetypes: investigator.archetypes || (investigator.archetype ? [investigator.archetype] : []),
+        chapter: chapter as 1 | 2 | undefined,
+        investigatorId: resolved?.id ?? investigator.investigatorId,
+        investigatorSet: resolved?.set ?? investigator.investigatorSet,
+      }
+      investigatorEntry.count++
+      investigatorCounts.set(identity, investigatorEntry)
+    }
+  }
+
+  const campaignRunIds = new Set(campaignRuns.map((campaignRun) => campaignRun.id))
+  for (const playthrough of rootPlaythroughs) {
+    if (!shouldSuppressPromotedPlaythrough(playthrough, campaignRunIds)) {
+      addCampaignInvestigatorTallies(playthrough.investigators)
+    }
+  }
+  for (const campaignRun of campaignRuns) {
+    addCampaignInvestigatorTallies(collectCampaignRunInvestigators(campaignRun))
   }
 
   for (const root of campaignCountSummary.roots) {
