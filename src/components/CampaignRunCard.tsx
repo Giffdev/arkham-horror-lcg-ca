@@ -128,9 +128,12 @@ export const CampaignRunCard = memo(function CampaignRunCard({
   return (
     <Card className="p-4 md:p-6 border-border/80 bg-card text-foreground">
       <div className="flex flex-col gap-4">
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
-          <div className="min-w-0 flex-1 space-y-4 md:grid md:grid-cols-[minmax(280px,320px)_minmax(0,1fr)] md:gap-6 md:space-y-0">
-            <div className="min-w-0 space-y-2">
+        <div
+          className="grid grid-cols-1 items-start gap-4 md:grid-cols-[minmax(280px,320px)_minmax(0,1fr)_auto] md:gap-6"
+          data-slot="campaign-card-layout"
+        >
+          <div className="contents">
+            <div className="order-1 min-w-0 space-y-2 md:order-none">
               <h3 className="flex items-center gap-2 text-lg font-semibold leading-snug text-foreground md:text-xl">
                 <span aria-hidden="true" className="flex-shrink-0">
                   <CampaignSvgIcon
@@ -163,12 +166,15 @@ export const CampaignRunCard = memo(function CampaignRunCard({
                 )}
               </div>
             </div>
-            <div className="min-w-0 text-sm text-foreground/90 md:self-center" data-testid="campaign-roster-column">
+            <div
+              className="order-3 min-w-0 text-sm text-foreground/90 md:order-none md:self-center"
+              data-testid="campaign-roster-column"
+            >
               <p className="text-xs uppercase tracking-wide text-muted-foreground">Roster</p>
               {rosterSummary.length === 0 ? (
                 <p className="mt-0.5 text-sm text-foreground">No players recorded</p>
               ) : (
-                <ul className="space-y-3" aria-label="Campaign roster summary">
+                <ul className="space-y-2.5" aria-label="Campaign roster summary">
                   {rosterSummary.map((seat) => {
                     const primaryInvestigator = (
                       seat.investigators.find((investigator) => investigator.isCurrent) ??
@@ -191,7 +197,7 @@ export const CampaignRunCard = memo(function CampaignRunCard({
                     return (
                       <li
                         key={seat.playerKey}
-                        className="grid grid-cols-1 items-start gap-x-3 gap-y-1.5 text-sm text-foreground sm:grid-cols-[7rem_minmax(0,1fr)] sm:gap-y-2.5"
+                        className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-3 gap-y-1.5 text-sm text-foreground md:grid-cols-[7rem_minmax(0,1fr)] md:gap-y-2.5"
                         data-testid={`campaign-roster-seat-${seat.playerKey}`}
                         aria-label={[
                           `Player seat ${seat.playerName || 'Unknown player'}`,
@@ -206,7 +212,7 @@ export const CampaignRunCard = memo(function CampaignRunCard({
                           status && !investigator.isCurrent ? `status ${status}` : null,
                         ].filter(Boolean).join(', ')}
                       >
-                        <div className="flex w-fit items-center pt-0.5 sm:w-28">
+                        <div className="flex w-fit items-center pt-0.5 md:w-28">
                           <ArchetypeBadge
                             archetype={investigator.archetype}
                             investigatorId={resolved?.id ?? investigator.investigatorId}
@@ -217,7 +223,7 @@ export const CampaignRunCard = memo(function CampaignRunCard({
                         </div>
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                            <span className="min-w-0 break-words font-medium text-foreground [overflow-wrap:anywhere]">
+                            <span className="min-w-0 break-words hyphens-none font-medium text-foreground">
                               {investigator.investigatorName}
                             </span>
                             {chapterLabel && (
@@ -237,7 +243,7 @@ export const CampaignRunCard = memo(function CampaignRunCard({
                                 {sourceLabel}
                               </Badge>
                             )}
-                            <span className="basis-full text-muted-foreground sm:basis-auto sm:truncate">
+                            <span className="min-w-0 break-words hyphens-none text-muted-foreground md:truncate">
                               {seat.playerName || 'Unknown player'}
                             </span>
                             {!investigator.isCurrent && status && (
@@ -262,7 +268,7 @@ export const CampaignRunCard = memo(function CampaignRunCard({
                           )}
                         </div>
                         {history.length > 0 && (
-                          <div className="space-y-2 sm:col-span-2" data-testid={`campaign-roster-history-${seat.playerKey}`}>
+                          <div className="col-span-2 space-y-2" data-testid={`campaign-roster-history-${seat.playerKey}`}>
                             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">History:</p>
                             {history.map((historical) => {
                               const historicalStatus = statusLabel(historical.state)
@@ -280,10 +286,10 @@ export const CampaignRunCard = memo(function CampaignRunCard({
                               return (
                                 <div
                                   key={historical.key}
-                                  className="grid grid-cols-1 items-start gap-x-3 gap-y-1.5 sm:grid-cols-[7rem_minmax(0,1fr)]"
+                                  className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-3 gap-y-1.5 md:grid-cols-[7rem_minmax(0,1fr)]"
                                   data-testid={`campaign-roster-history-row-${historical.key}`}
                                 >
-                                  <div className="flex w-fit items-center pt-0.5 sm:w-28">
+                                  <div className="flex w-fit items-center pt-0.5 md:w-28">
                                     <ArchetypeBadge
                                       archetype={historical.archetype}
                                       investigatorId={historicalResolved?.id ?? historical.investigatorId}
@@ -294,7 +300,7 @@ export const CampaignRunCard = memo(function CampaignRunCard({
                                   </div>
                                   <div className="min-w-0">
                                     <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                                      <span className="min-w-0 break-words font-medium text-foreground/85 [overflow-wrap:anywhere]">
+                                      <span className="min-w-0 break-words hyphens-none font-medium text-foreground/85">
                                         {historical.investigatorName}
                                       </span>
                                       {historicalSourceLabel && (
@@ -336,7 +342,7 @@ export const CampaignRunCard = memo(function CampaignRunCard({
             </div>
           </div>
 
-          <CardActionArea className="col-start-2 row-start-1 max-w-44 gap-2 sm:max-w-none">
+          <CardActionArea className="order-2 justify-start gap-2 md:order-none md:justify-end">
             {(!isStandaloneScenario || totalGameNightsLogged === 0) && (
               <Button
                 type="button"

@@ -60,9 +60,10 @@ describe('CampaignRunCard', () => {
     expect(screen.getAllByRole('button', { name: /Continue Campaign/i })).toHaveLength(1)
     expect(continueButton.querySelector('svg')).not.toBeNull()
     expect(continueButton.closest('[data-slot="card-action-area"]')).toHaveClass(
-      'col-start-2',
-      'row-start-1',
-      'justify-end',
+      'order-2',
+      'justify-start',
+      'md:order-none',
+      'md:justify-end',
     )
   })
 
@@ -794,19 +795,28 @@ describe('CampaignRunCard', () => {
     )
 
     const rosterList = screen.getByRole('list', { name: /campaign roster summary/i })
-    expect(screen.getByTestId('campaign-roster-column')).toHaveClass('min-w-0', 'md:self-center')
+    expect(screen.getByTestId('campaign-roster-column')).toHaveClass(
+      'order-3',
+      'min-w-0',
+      'md:order-none',
+      'md:self-center',
+    )
     const rosterRows = within(rosterList).getAllByRole('listitem')
     expect(rosterList.textContent).not.toContain('--')
     expect(rosterList.textContent).not.toContain('—')
     expect(rosterRows).toHaveLength(1)
     const seatRow = rosterRows[0]
-    expect(seatRow).toHaveClass('grid-cols-1', 'sm:grid-cols-[7rem_minmax(0,1fr)]')
+    expect(seatRow).toHaveClass(
+      'grid-cols-[auto_minmax(0,1fr)]',
+      'md:grid-cols-[7rem_minmax(0,1fr)]',
+    )
     expect(within(seatRow).getByText('Rogue')).toBeInTheDocument()
     const currentName = within(seatRow).getAllByText('André Patel')[0]
-    expect(currentName).toHaveClass('break-words', '[overflow-wrap:anywhere]')
+    expect(currentName).toHaveClass('break-words', 'hyphens-none')
+    expect(currentName).not.toHaveClass('[overflow-wrap:anywhere]')
     expect(within(seatRow).getByText(/^·\s*Ch\. 2$/i)).toBeInTheDocument()
     expect(within(seatRow).getByText('Evergreen Starters (Ch. 2)')).toBeInTheDocument()
-    expect(within(seatRow).getByText('Alice')).toHaveClass('basis-full', 'sm:basis-auto')
+    expect(within(seatRow).getByText('Alice')).toHaveClass('break-words', 'hyphens-none', 'md:truncate')
     expect(seatRow).toHaveTextContent('XP 3')
     expect(seatRow).toHaveTextContent('Trauma P0/M0')
     const tallyGroups = seatRow.querySelectorAll('[data-slot="campaign-roster-tallies"]')
@@ -816,7 +826,12 @@ describe('CampaignRunCard', () => {
     expect(seatRow).toHaveTextContent('History:')
     const historicalName = within(seatRow).getByText('Roland Banks')
     const historicalRow = historicalName.closest('[data-testid^="campaign-roster-history-row-"]')
-    expect(historicalRow).toHaveClass('grid', 'grid-cols-1', 'sm:grid-cols-[7rem_minmax(0,1fr)]', 'gap-x-3')
+    expect(historicalRow).toHaveClass(
+      'grid',
+      'grid-cols-[auto_minmax(0,1fr)]',
+      'md:grid-cols-[7rem_minmax(0,1fr)]',
+      'gap-x-3',
+    )
     expect(within(historicalRow as HTMLElement).getByText('Driven insane')).toHaveClass('whitespace-nowrap')
     expect(seatRow).toHaveTextContent('XP 2')
     expect(seatRow).toHaveTextContent('Trauma P1/M0')
@@ -875,7 +890,13 @@ describe('CampaignRunCard', () => {
     )
 
     const playerList = screen.getByRole('list', { name: /Curtain Call players/i })
-    expect(playerList).toHaveClass('min-w-0', 'flex-1', 'md:self-center')
+    expect(playerList).toHaveClass(
+      'grid',
+      'min-w-0',
+      'min-[380px]:grid-cols-2',
+      'md:block',
+      'md:self-center',
+    )
     const scenarioRows = within(playerList).getAllByRole('listitem')
     const rolandRow = scenarioRows.find((row) => row.textContent?.includes('Roland Banks') && row.textContent.includes('2 XP'))
     const daisyRow = scenarioRows.find((row) => row.textContent?.includes('Daisy Walker') && row.textContent.includes('4 XP'))
@@ -886,14 +907,126 @@ describe('CampaignRunCard', () => {
     expect(daisyRow!).toHaveTextContent('Defeated (Mental)')
     const daisyHeading = daisyRow!.querySelector('[data-slot="scenario-player-heading"]')
     const daisyOutcome = daisyRow!.querySelector('[data-slot="scenario-player-outcome"]')
-    expect(daisyHeading).toHaveClass('flex-col', 'sm:flex-row')
+    expect(daisyHeading).toHaveClass('flex-wrap', 'items-baseline')
     expect(within(daisyHeading as HTMLElement).getByText('Daisy Walker'))
-      .toHaveClass('break-words', '[overflow-wrap:anywhere]')
+      .toHaveClass('break-words', 'hyphens-none')
+    expect(within(daisyHeading as HTMLElement).getByText('Daisy Walker'))
+      .not.toHaveClass('[overflow-wrap:anywhere]')
     expect(daisyOutcome).toHaveClass('flex', 'flex-wrap')
     expect(Array.from(daisyOutcome!.children).every((child) =>
       child.classList.contains('whitespace-nowrap'),
     )).toBe(true)
     expect(screen.queryByText(/^6 XP$/)).not.toBeInTheDocument()
+  })
+
+  it('uses the card width for dense four-player rosters and multi-scenario history on phones', () => {
+    const investigators = [
+      { playerName: 'Alexandria Montgomery', investigatorName: 'William Yorick', archetype: 'Survivor' as const },
+      { playerName: 'Christopher Livingston', investigatorName: 'Jacqueline Fine', archetype: 'Mystic' as const },
+      { playerName: 'Morgan Matsushita', investigatorName: 'Nathaniel Cho', archetype: 'Guardian' as const },
+      { playerName: 'Samira del Rosario', investigatorName: 'Winifred Habbamock', archetype: 'Rogue' as const },
+    ]
+    const rosterEntries = investigators.map((investigator, index) => ({
+      seatId: `seat-${index + 1}`,
+      slotId: `slot-${index + 1}`,
+      playerName: investigator.playerName,
+      investigator,
+      seatStatus: 'active' as const,
+      joinedAtScenarioIndex: 0,
+      startedAtScenarioIndex: 0,
+      xpTotal: index + 4,
+      xpSpent: index,
+      physicalTrauma: index === 2 ? 1 : 0,
+      mentalTrauma: index === 1 ? 1 : 0,
+    }))
+    const investigatorOutcomes = investigators.map((investigator, index) => ({
+      seatId: `seat-${index + 1}`,
+      slotId: `slot-${index + 1}`,
+      playerName: investigator.playerName,
+      investigatorName: investigator.investigatorName,
+      status: index === 1 ? 'defeated_mental' as const : 'survived' as const,
+      xpEarned: index + 2,
+      traumaGainedPhysical: index === 2 ? 1 : 0,
+      traumaGainedMental: index === 1 ? 1 : 0,
+    }))
+    const run = makeRun({
+      setupSnapshot: {
+        date: '2026-08-17',
+        investigators,
+        notes: 'Dense mobile fixture',
+      },
+      currentRoster: rosterEntries,
+      scenarioLogs: [
+        {
+          id: 'scenario-1',
+          date: '2026-08-18',
+          scenarioName: 'Curtain Call',
+          investigators,
+          investigatorOutcomes,
+          rosterBefore: rosterEntries,
+          rosterAfter: rosterEntries,
+        },
+        {
+          id: 'scenario-2',
+          date: '2026-08-19',
+          scenarioName: 'The Last King',
+          investigators,
+          investigatorOutcomes,
+          rosterBefore: rosterEntries,
+          rosterAfter: rosterEntries,
+        },
+      ],
+    })
+
+    render(
+      <CampaignRunCard
+        campaignRun={run}
+        isExpanded
+        onToggleExpanded={vi.fn()}
+        onContinue={vi.fn()}
+        onEditRun={vi.fn()}
+        onDeleteRun={vi.fn()}
+        onEditScenario={vi.fn()}
+        onDeleteScenario={vi.fn()}
+      />,
+    )
+
+    expect(document.querySelector('[data-slot="campaign-card-layout"]')).toHaveClass(
+      'grid-cols-1',
+      'md:grid-cols-[minmax(280px,320px)_minmax(0,1fr)_auto]',
+    )
+
+    const roster = screen.getByRole('list', { name: /campaign roster summary/i })
+    const rosterSeats = Array.from(roster.querySelectorAll(':scope > li'))
+    expect(rosterSeats).toHaveLength(4)
+    rosterSeats.forEach((seat) => {
+      expect(seat).toHaveClass(
+        'grid-cols-[auto_minmax(0,1fr)]',
+        'md:grid-cols-[7rem_minmax(0,1fr)]',
+      )
+    })
+
+    const scenarioLayouts = document.querySelectorAll('[data-slot="scenario-row-layout"]')
+    expect(scenarioLayouts).toHaveLength(2)
+    scenarioLayouts.forEach((layout) => {
+      expect(layout).toHaveClass(
+        'grid-cols-[minmax(0,1fr)_auto]',
+        'md:grid-cols-[minmax(280px,320px)_minmax(0,1fr)_auto]',
+      )
+    })
+
+    for (const scenarioName of ['Curtain Call', 'The Last King']) {
+      const players = screen.getByRole('list', { name: `${scenarioName} players` })
+      expect(players).toHaveClass('grid', 'min-[380px]:grid-cols-2', 'md:block')
+      expect(within(players).getAllByRole('listitem')).toHaveLength(4)
+    }
+
+    const longInvestigatorNames = screen.getAllByText('Winifred Habbamock')
+    expect(longInvestigatorNames.length).toBeGreaterThan(1)
+    longInvestigatorNames.forEach((name) => {
+      expect(name).toHaveClass('break-words', 'hyphens-none')
+      expect(name).not.toHaveClass('[overflow-wrap:anywhere]')
+    })
   })
 
   it('labels legacy group totals as unallocated', () => {
