@@ -18,6 +18,27 @@ export function parseArgs(argv) {
   return { projectId }
 }
 
+export function formatBootstrapCompletion(result, projectId, expectedSchemaVersion) {
+  if (
+    !result ||
+    !Number.isSafeInteger(result.userCount) ||
+    result.userCount < 0 ||
+    result.schemaVersion !== expectedSchemaVersion ||
+    !Number.isSafeInteger(result.pipelineGeneration) ||
+    result.pipelineGeneration < 1 ||
+    result.refreshState !== 'ready'
+  ) {
+    throw new Error(
+      `Community stats bootstrap did not acknowledge a ready schema-${expectedSchemaVersion} publication.`,
+    )
+  }
+  return (
+    `Community stats contribution bootstrap complete for ${result.userCount} users ` +
+    `in project ${projectId} at schema ${result.schemaVersion}, ` +
+    `generation ${result.pipelineGeneration}.`
+  )
+}
+
 async function authenticatedProjectId() {
   const auth = new GoogleAuth({
     scopes: ['https://www.googleapis.com/auth/cloud-platform'],
@@ -38,12 +59,17 @@ async function main() {
   process.env.COMMUNITY_STATS_FIREBASE_PROJECT_ID = projectId
   const contributionModule =
     new URL('../lib/backend/community-stats-contributions.js', import.meta.url).href
-  const { bootstrapCommunityStatsContributions } =
+  const {
+    bootstrapCommunityStatsContributions,
+    COMMUNITY_STATS_SCHEMA_VERSION,
+  } =
     await import(/* @vite-ignore */ contributionModule)
-  const userCount = await bootstrapCommunityStatsContributions()
-  console.log(
-    `Community stats contribution bootstrap complete for ${userCount} users in project ${projectId}.`,
-  )
+  const result = await bootstrapCommunityStatsContributions()
+  console.log(formatBootstrapCompletion(
+    result,
+    projectId,
+    COMMUNITY_STATS_SCHEMA_VERSION,
+  ))
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {

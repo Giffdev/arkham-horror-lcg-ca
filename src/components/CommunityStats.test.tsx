@@ -34,6 +34,7 @@ const mockGetCommunityStatsAvailability = vi.mocked(getCommunityStatsAvailabilit
 
 const FULL_STATS = {
   totalGames: 42,
+  campaignRunsPlayedCount: 6,
   registeredUsers: 7,
   totalInvestigatorsPlayed: 23,
   topCampaigns: [
@@ -42,11 +43,12 @@ const FULL_STATS = {
     { name: 'Return to The Dunwich Legacy', count: 5, set: 'Return to The Dunwich Legacy', returnTo: true },
   ],
   topInvestigators: [
-    { name: 'Roland Banks', count: 9, archetypes: ['Guardian'], chapter: 1 },
+    { name: 'Roland Banks', count: 2, archetypes: ['Guardian'], chapter: 1 },
+    { name: 'Wendy Adams', count: 1, archetypes: ['Survivor'], chapter: 1 },
   ],
   topClasses: [
-    { archetype: 'Guardian', count: 15 },
-    { archetype: 'Seeker', count: 11 },
+    { archetype: 'Guardian', count: 3 },
+    { archetype: 'Seeker', count: 1 },
   ],
   topStandalones: [
     {
@@ -136,6 +138,19 @@ describe('CommunityStats', () => {
       expect(screen.getByText('42')).toBeVisible()
     })
 
+    it('renders a blocked warning for a failed aggregate while showing trusted stats', async () => {
+      mockGetCommunityStats.mockResolvedValueOnce({ ...FULL_STATS, refreshState: 'failed' } as never)
+      mockGetCommunityStatsAvailability.mockReturnValueOnce('failed')
+      render(<CommunityStats />)
+
+      await waitFor(() =>
+        expect(screen.getByText(/community stats updates are blocked/i)).toBeVisible(),
+      )
+      expect(screen.getByText(/showing the last trusted aggregate/i)).toBeVisible()
+      expect(screen.queryByText(/community stats are refreshing/i)).not.toBeInTheDocument()
+      expect(screen.getByText('42')).toBeVisible()
+    })
+
     it('shows old ready stats without a refreshing warning', async () => {
       const oldReadyStats = {
         ...FULL_STATS,
@@ -157,6 +172,8 @@ describe('CommunityStats', () => {
       expect(screen.getByText('42')).toBeVisible() // totalGames
       expect(screen.getByText('7')).toBeVisible()  // registeredUsers
       expect(screen.getByText('23')).toBeVisible() // totalInvestigatorsPlayed
+      expect(screen.getByText(/total games logged/i)).toBeVisible()
+      expect(screen.queryByText('6')).not.toBeInTheDocument()
     })
 
     it('renders the Most Popular Campaigns list card', async () => {
@@ -180,6 +197,24 @@ describe('CommunityStats', () => {
     it('renders the Class Popularity card', async () => {
       await renderAndWait(FULL_STATS)
       expect(screen.getByText(/class popularity/i)).toBeVisible()
+    })
+
+    it('labels investigator popularity in singular and plural campaigns', async () => {
+      await renderAndWait(FULL_STATS)
+      expect(screen.getByText('1 campaign')).toBeVisible()
+      expect(screen.getByText('2 campaigns')).toBeVisible()
+    })
+
+    it('labels class popularity in singular and plural class assignments', async () => {
+      await renderAndWait(FULL_STATS)
+      expect(screen.getByText('1 class assignment (25% of class assignments)')).toBeVisible()
+      expect(screen.getByText('3 class assignments (75% of class assignments)')).toBeVisible()
+    })
+
+    it('preserves campaign and standalone popularity play units', async () => {
+      await renderAndWait(FULL_STATS)
+      expect(screen.getByText('12 plays')).toBeVisible()
+      expect(screen.getByText('7 plays')).toBeVisible()
     })
 
     it('renders the Popular Standalone Scenarios card', async () => {
@@ -334,7 +369,7 @@ describe('CommunityStats', () => {
       await renderAndWait(FULL_STATS)
       // Each KPI card title must be present. Verifies no card is accidentally
       // moved outside the grid during the layout fix.
-      expect(screen.getByText(/total campaigns logged/i)).toBeInTheDocument()
+      expect(screen.getByText(/total games logged/i)).toBeInTheDocument()
       expect(screen.getByText(/community members/i)).toBeInTheDocument()
       expect(screen.getByText(/investigators played/i)).toBeInTheDocument()
       expect(screen.getByText(/unique campaigns/i)).toBeInTheDocument()

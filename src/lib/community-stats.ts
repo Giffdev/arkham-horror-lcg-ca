@@ -21,7 +21,7 @@ export type {
   StandalonePlayBreakdown,
 } from './community-stats-core'
 
-export type CommunityStatsAvailability = 'ready' | 'stale' | 'unavailable' | 'old-schema'
+export type CommunityStatsAvailability = 'ready' | 'stale' | 'failed' | 'unavailable' | 'old-schema'
 
 const COMMUNITY_STATS_CLOCK_SKEW_TOLERANCE_MS = 60_000
 
@@ -62,7 +62,8 @@ export function getCommunityStatsAvailability(stats: CommunityStats | null): Com
 
   if (!hasCurrentCommunityStatsSchema(stats)) return 'old-schema'
 
-  if (stats.refreshState === 'failed' || stats.refreshState === 'stale') return 'stale'
+  if (stats.refreshState === 'failed') return 'failed'
+  if (stats.refreshState === 'stale') return 'stale'
 
   const generatedAt = getCommunityStatsGeneratedAt(stats)
   if (stats.refreshState !== 'ready'

@@ -11,7 +11,7 @@
  *  7. Investigators card stays outside the ranked grid (intentional placement preserved)
  */
 import userEvent from '@testing-library/user-event'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { PublicHomepage } from './PublicHomepage'
 
@@ -31,6 +31,7 @@ const mockGetCommunityStatsAvailability = vi.mocked(getCommunityStatsAvailabilit
 
 const FULL_STATS = {
   totalGames: 55,
+  campaignRunsPlayedCount: 8,
   registeredUsers: 9,
   totalInvestigatorsPlayed: 30,
   topCampaigns: Array.from({ length: 8 }, (_, i) => ({
@@ -39,12 +40,12 @@ const FULL_STATS = {
     set: 'Core',
   })),
   topInvestigators: [
-    { name: 'Roland Banks', count: 10, archetypes: ['Guardian'], chapter: 1 },
-    { name: 'Wendy Adams', count: 7, archetypes: ['Survivor'], chapter: 1 },
+    { name: 'Roland Banks', count: 2, archetypes: ['Guardian'], chapter: 1 },
+    { name: 'Wendy Adams', count: 1, archetypes: ['Survivor'], chapter: 1 },
   ],
   topClasses: [
-    { archetype: 'Guardian', count: 20 },
-    { archetype: 'Seeker', count: 15 },
+    { archetype: 'Guardian', count: 3 },
+    { archetype: 'Seeker', count: 1 },
   ],
   topStandalones: [
     {
@@ -116,6 +117,18 @@ describe('PublicHomepage', () => {
         expect(screen.getByText(/community stats are unavailable right now/i)).toBeVisible(),
       )
     })
+
+    it('renders a blocked warning for failed updates without calling them refreshing', async () => {
+      mockGetCommunityStats.mockResolvedValueOnce({ ...FULL_STATS, refreshState: 'failed' } as never)
+      mockGetCommunityStatsAvailability.mockReturnValueOnce('failed')
+      render(<PublicHomepage onAuthSuccess={vi.fn()} />)
+
+      await waitFor(() =>
+        expect(screen.getByText(/community stats updates are blocked/i)).toBeVisible(),
+      )
+      expect(screen.getByText(/showing the last trusted aggregate/i)).toBeVisible()
+      expect(screen.queryByText(/community stats are refreshing/i)).not.toBeInTheDocument()
+    })
   })
 
   describe('KPI grid — mobile 2×2 + desktop 4-col responsive contract', () => {
@@ -157,7 +170,10 @@ describe('PublicHomepage', () => {
 
     it('all four KPI labels are inside the grid wrapper', async () => {
       await renderAndWait()
-      expect(screen.getByText(/total campaigns logged/i)).toBeInTheDocument()
+      const totalGamesCard = screen.getByText(/total games logged/i).closest('[data-slot="card"]')
+      expect(totalGamesCard).toBeInTheDocument()
+      expect(within(totalGamesCard as HTMLElement).getByText('55')).toBeVisible()
+      expect(within(totalGamesCard as HTMLElement).queryByText('8')).not.toBeInTheDocument()
       expect(screen.getByText(/community members/i)).toBeInTheDocument()
       expect(screen.getByText(/investigators played/i)).toBeInTheDocument()
       expect(screen.getByText(/unique campaigns/i)).toBeInTheDocument()
@@ -171,6 +187,26 @@ describe('PublicHomepage', () => {
       const rankedGrid = findGridWrapper(/most popular campaigns/i)
       expect(rankedGrid).toBeInTheDocument()
       expect(rankedGrid!.className).toMatch(/items-start/)
+    })
+  })
+
+  describe('campaign-grain popularity labels', () => {
+    it('labels investigator popularity in singular and plural campaigns', async () => {
+      await renderAndWait()
+      expect(screen.getByText('1 campaign')).toBeVisible()
+      expect(screen.getByText('2 campaigns')).toBeVisible()
+    })
+
+    it('labels class popularity in singular and plural class assignments', async () => {
+      await renderAndWait()
+      expect(screen.getByText('1 class assignment (25% of class assignments)')).toBeVisible()
+      expect(screen.getByText('3 class assignments (75% of class assignments)')).toBeVisible()
+    })
+
+    it('preserves campaign and standalone popularity play units', async () => {
+      await renderAndWait()
+      expect(screen.getByText('8 plays')).toBeVisible()
+      expect(screen.getAllByText('6 plays')).toHaveLength(2)
     })
   })
 

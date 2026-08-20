@@ -1,7 +1,14 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
-import { COMMUNITY_STATS_BOOTSTRAP_LEASE_OWNER_ID } from './community-stats-control-ids'
-import { rebuildUserContribution } from './community-stats-contributions'
+import {
+  COMMUNITY_STATS_BOOTSTRAP_LEASE_OWNER_ID,
+  COMMUNITY_STATS_STATE_DOC_PATH,
+} from './community-stats-control-ids'
+import {
+  bootstrapCommunityStatsContributions,
+  COMMUNITY_STATS_SCHEMA_VERSION,
+  rebuildUserContribution,
+} from './community-stats-contributions'
 import { getBackendFirestore } from './google-cloud'
 
 const emulatorEnabled = Boolean(process.env.FIRESTORE_EMULATOR_HOST)
@@ -147,6 +154,145 @@ describeEmulator('community stats contributions against Firestore emulator', () 
       registeredUsers: 1,
       totalGames: 0,
       refreshState: 'ready',
+    })
+  })
+
+  it('runs the trusted Vercel bootstrap sequence and replaces mixed server state', async () => {
+    const db = getBackendFirestore()
+    for (const [uid, campaignName] of [
+      ['current', 'The Path to Carcosa'],
+      ['legacy', 'The Dunwich Legacy'],
+    ]) {
+      await db.doc(`users/${uid}/playthroughs/game-1`).set({
+        date: '2026-08-18',
+        campaignName,
+        campaignType: 'Full Campaign',
+        investigators: [],
+      })
+    }
+    await db.doc('community-stats-contributions/current').set({
+      schemaVersion: COMMUNITY_STATS_SCHEMA_VERSION,
+      generatedAt: 1,
+      hasSourceRecords: false,
+    })
+    await db.doc('community-stats-contributions/legacy').set({
+      schemaVersion: 3,
+      generatedAt: 1,
+      hasSourceRecords: false,
+    })
+    await db.doc('community-stats-contributions/deleted-user').set({
+      schemaVersion: 3,
+      generatedAt: 1,
+      hasSourceRecords: true,
+    })
+    await db.doc('community-stats-quarantine/current').set({
+      ownerUid: 'current',
+      failureKind: 'poison',
+    })
+    await db.doc('community-stats-quarantine/deleted-user').set({
+      ownerUid: 'deleted-user',
+      failureKind: 'poison',
+    })
+    await db.doc('community-stats/global').set({
+      schemaVersion: 3,
+      refreshState: 'failed',
+      totalGames: 999,
+    })
+
+    const result = await bootstrapCommunityStatsContributions({
+      listUserIds: async () => ['current', 'legacy'],
+    })
+
+    expect(result).toMatchObject({
+      userCount: 2,
+      schemaVersion: COMMUNITY_STATS_SCHEMA_VERSION,
+      refreshState: 'ready',
+    })
+    expect(result.pipelineGeneration).toBeGreaterThanOrEqual(1)
+    expect((await db.doc('community-stats-contributions/current').get()).data())
+      .toMatchObject({ schemaVersion: COMMUNITY_STATS_SCHEMA_VERSION, totalGames: 1 })
+    expect((await db.doc('community-stats-contributions/legacy').get()).data())
+      .toMatchObject({ schemaVersion: COMMUNITY_STATS_SCHEMA_VERSION, totalGames: 1 })
+    expect((await db.doc('community-stats-contributions/deleted-user').get()).exists).toBe(false)
+    expect((await db.doc('community-stats-quarantine/current').get()).exists).toBe(false)
+    expect((await db.doc('community-stats-quarantine/deleted-user').get()).exists).toBe(false)
+    expect((await db.doc('community-stats/global').get()).data()).toMatchObject({
+      schemaVersion: COMMUNITY_STATS_SCHEMA_VERSION,
+      refreshState: 'ready',
+      registeredUsers: 2,
+      totalGames: 2,
+      pipelineGeneration: result.pipelineGeneration,
+    })
+  })
+
+  it('fails bootstrap acknowledgement when a post-watermark marker arrives before publication', async () => {
+    const db = getBackendFirestore()
+    await db.doc('users/current/playthroughs/game-1').set({
+      date: '2026-08-18',
+      campaignName: 'The Path to Carcosa',
+      campaignType: 'Full Campaign',
+      investigators: [],
+    })
+
+    await expect(bootstrapCommunityStatsContributions({
+      listUserIds: async () => ['current'],
+      beforeFinalPublish: async () => {
+        await db.doc('users/current/communityStatsOutbox/post-watermark').set({
+          mutationId: 'post-watermark',
+          requestedAtMs: Date.now(),
+          requestedBy: 'client',
+          reason: 'playthrough-write',
+          affectedDocuments: 1,
+        })
+      },
+    })).rejects.toThrow(/did not publish a ready schema-4 aggregate/i)
+
+    expect((await db.doc('users/current/communityStatsOutbox/post-watermark').get()).exists)
+      .toBe(true)
+    expect((await db.doc('community-stats/global').get()).data()).toMatchObject({
+      schemaVersion: COMMUNITY_STATS_SCHEMA_VERSION,
+      refreshState: 'stale',
+      registeredUsers: 1,
+      totalGames: 1,
+    })
+  })
+
+  it('does not publish ready when a marker arrives after the external outbox preflight', async () => {
+    const db = getBackendFirestore()
+    await db.doc('users/current/playthroughs/game-1').set({
+      date: '2026-08-18',
+      campaignName: 'The Path to Carcosa',
+      campaignType: 'Full Campaign',
+      investigators: [],
+    })
+    let markerInserted = false
+
+    await expect(bootstrapCommunityStatsContributions({
+      listUserIds: async () => ['current'],
+      afterOutboxPreflight: async () => {
+        if (markerInserted) return
+        markerInserted = true
+        await db.doc('users/current/communityStatsOutbox/post-preflight').set({
+          mutationId: 'post-preflight',
+          requestedAtMs: Date.now(),
+          requestedBy: 'client',
+          reason: 'playthrough-write',
+          affectedDocuments: 1,
+        })
+      },
+    })).rejects.toThrow(/did not publish a ready schema-4 aggregate/i)
+
+    expect(markerInserted).toBe(true)
+    expect((await db.doc('users/current/communityStatsOutbox/post-preflight').get()).exists)
+      .toBe(true)
+    expect((await db.doc('community-stats/global').get()).data()).toMatchObject({
+      schemaVersion: COMMUNITY_STATS_SCHEMA_VERSION,
+      refreshState: 'stale',
+      registeredUsers: 1,
+      totalGames: 1,
+    })
+    expect((await db.doc(COMMUNITY_STATS_STATE_DOC_PATH).get()).data()).toMatchObject({
+      pendingOutboxCount: 1,
     })
   })
 

@@ -4,7 +4,7 @@ import { FieldValue, Timestamp } from '@google-cloud/firestore'
 
 import { ALL_CAMPAIGNS } from '../src/lib/campaign-data.js'
 import { computeCampaignCountSummary, flattenGameLogs } from '../src/lib/campaign-runs.js'
-import { getInvestigatorPairKey, resolveInvestigator } from '../src/lib/investigator-data.js'
+import { resolveInvestigator } from '../src/lib/investigator-data.js'
 import {
   COMMUNITY_STATS_SCHEMA_VERSION,
   computeCommunityStats,
@@ -25,6 +25,7 @@ export const COMMUNITY_STATS_CONTRIBUTIONS_COLLECTION = 'community-stats-contrib
 export const COMMUNITY_STATS_QUARANTINE_COLLECTION = 'community-stats-quarantine'
 export const COMMUNITY_STATS_DOC_PATH = 'community-stats/global'
 export { COMMUNITY_STATS_STATE_DOC_PATH } from './community-stats-control-ids.js'
+export { COMMUNITY_STATS_SCHEMA_VERSION }
 export const COMMUNITY_STATS_LEASE_MS = 75_000
 
 const MAX_USER_SOURCE_DOCUMENTS = 5_000
@@ -38,6 +39,8 @@ type CountedInvestigator = CommunityStats['topInvestigators'][number]
 type CountedClass = CommunityStats['topClasses'][number]
 type CountedStandalone = CommunityStats['topStandalones'][number]
 type CountedSideScenario = CommunityStats['topSideScenarios'][number]
+type InvestigatorAssignment = Playthrough['investigators'][number]
+type CampaignRosterEntry = NonNullable<CampaignRun['currentRoster']>[number]
 
 export interface CommunityStatsContribution {
   schemaVersion: number
@@ -63,6 +66,13 @@ export interface ContributionProcessResult {
   refreshState?: 'ready' | 'stale' | 'failed'
   failureKind?: 'poison' | 'transient'
   shouldRetry?: boolean
+}
+
+export interface CommunityStatsBootstrapResult {
+  userCount: number
+  schemaVersion: number
+  pipelineGeneration: number
+  refreshState: 'ready'
 }
 
 type Lease = {
@@ -91,6 +101,85 @@ function addCount<T extends string>(
   count: number,
 ): void {
   target.set(key, (target.get(key) ?? 0) + count)
+}
+
+function canonicalizeInvestigator(
+  investigator: InvestigatorAssignment,
+): InvestigatorAssignment | null {
+  if (investigator.isCustom) return null
+  const canonical = resolveInvestigator(investigator)
+  if (!canonical) return null
+
+  return {
+    ...investigator,
+    investigatorName: canonical.name,
+    investigatorId: canonical.id,
+    investigatorSet: canonical.set,
+    chapter: canonical.chapter,
+    archetype: canonical.archetypes[0],
+    archetypes: canonical.archetypes,
+    isCustom: false,
+  }
+}
+
+function canonicalizeInvestigators(
+  investigators: InvestigatorAssignment[],
+): InvestigatorAssignment[] {
+  return investigators.flatMap((investigator) => {
+    const canonical = canonicalizeInvestigator(investigator)
+    return canonical ? [canonical] : []
+  })
+}
+
+function canonicalizeRoster(
+  roster: CampaignRosterEntry[] | undefined,
+): CampaignRosterEntry[] | undefined {
+  if (!roster) return undefined
+  return roster.flatMap((entry) => {
+    const investigator = canonicalizeInvestigator(entry.investigator)
+    return investigator ? [{ ...entry, investigator }] : []
+  })
+}
+
+function canonicalizePublicSource(input: {
+  playthroughs: Playthrough[]
+  campaignRuns: CampaignRun[]
+}): {
+  playthroughs: Playthrough[]
+  campaignRuns: CampaignRun[]
+} {
+  return {
+    playthroughs: input.playthroughs.map((playthrough) => ({
+      ...playthrough,
+      investigators: canonicalizeInvestigators(playthrough.investigators),
+    })),
+    campaignRuns: input.campaignRuns.map((campaignRun) => ({
+      ...campaignRun,
+      setupSnapshot: {
+        ...campaignRun.setupSnapshot,
+        investigators: canonicalizeInvestigators(campaignRun.setupSnapshot.investigators),
+      },
+      currentRoster: canonicalizeRoster(campaignRun.currentRoster),
+      scenarioLogs: campaignRun.scenarioLogs.map((scenarioLog) => ({
+        ...scenarioLog,
+        investigators: canonicalizeInvestigators(scenarioLog.investigators),
+        rosterBefore: canonicalizeRoster(scenarioLog.rosterBefore),
+        rosterAfter: canonicalizeRoster(scenarioLog.rosterAfter),
+        rosterChanges: scenarioLog.rosterChanges?.flatMap((change) => {
+          const investigator = canonicalizeInvestigator(change.newEntry.investigator)
+          return investigator
+            ? [{
+                ...change,
+                newEntry: {
+                  ...change.newEntry,
+                  investigator,
+                },
+              }]
+            : []
+        }),
+      })),
+    })),
+  }
 }
 
 async function claimLease(uid: string, force: boolean): Promise<Lease | ContributionProcessResult> {
@@ -182,10 +271,8 @@ export function buildCommunityStatsContribution(input: {
     sideStories: playthrough.scenarioType === 'side_scenario' && playthrough.scenarioName
       ? Array.from(new Set([...(playthrough.sideStories ?? []), playthrough.scenarioName]))
       : playthrough.sideStories,
-    investigators: playthrough.investigators.filter((investigator) =>
-      Boolean(resolveInvestigator(investigator))),
   }))
-  const stats = computeCommunityStats({
+  const allStats = computeCommunityStats({
     playthroughs: flattened,
     rootPlaythroughs: input.playthroughs,
     campaignRuns: input.campaignRuns,
@@ -199,35 +286,46 @@ export function buildCommunityStatsContribution(input: {
       pairings: Number.MAX_SAFE_INTEGER,
     },
   })
-  const canonicalInvestigators = (stats?.topInvestigators ?? [])
-    .filter((investigator) => Boolean(investigator.investigatorId))
-  const canonicalPairingNames = new Set(
-    canonicalInvestigators.map((investigator) => getInvestigatorPairKey({
-      investigatorName: investigator.name,
-      chapter: investigator.chapter,
-    })),
-  )
+  const canonicalSource = canonicalizePublicSource(input)
+  const canonicalFlattened = flattenGameLogs(canonicalSource).map((playthrough) => ({
+    ...playthrough,
+    sideStories: playthrough.scenarioType === 'side_scenario' && playthrough.scenarioName
+      ? Array.from(new Set([...(playthrough.sideStories ?? []), playthrough.scenarioName]))
+      : playthrough.sideStories,
+  }))
+  const canonicalStats = computeCommunityStats({
+    playthroughs: canonicalFlattened,
+    rootPlaythroughs: canonicalSource.playthroughs,
+    campaignRuns: canonicalSource.campaignRuns,
+    userCount: 1,
+    generatedAt,
+    limits: {
+      campaigns: Number.MAX_SAFE_INTEGER,
+      investigators: Number.MAX_SAFE_INTEGER,
+      standalones: Number.MAX_SAFE_INTEGER,
+      sideScenarios: Number.MAX_SAFE_INTEGER,
+      pairings: Number.MAX_SAFE_INTEGER,
+    },
+  })
   const summary = computeCampaignCountSummary(input.playthroughs, input.campaignRuns)
 
   return {
     schemaVersion: COMMUNITY_STATS_SCHEMA_VERSION,
     generatedAt,
     hasSourceRecords: input.playthroughs.length > 0 || input.campaignRuns.length > 0,
-    totalGames: stats?.totalGames ?? 0,
+    totalGames: allStats?.totalGames ?? 0,
     campaignRunsPlayedCount: summary.campaignRunsPlayedCount,
     campaignFamilyHashes: Array.from(new Set(
       summary.roots.map((root) => hashFamily(root.campaignLineageId)),
     )).sort(),
-    campaigns: (stats?.topCampaigns ?? []).filter((campaign) =>
+    campaigns: (allStats?.topCampaigns ?? []).filter((campaign) =>
       CANONICAL_CAMPAIGNS.has(campaign.name)),
-    investigators: canonicalInvestigators,
-    classes: stats?.topClasses ?? [],
-    standalones: stats?.topStandalones ?? [],
-    sideScenarios: stats?.topSideScenarios ?? [],
-    pairings: (stats?.topPairings ?? []).filter((pairing) =>
-      canonicalPairingNames.has(pairing.investigator1) &&
-      canonicalPairingNames.has(pairing.investigator2)),
-    completionBreakdown: stats?.completionBreakdown ?? {
+    investigators: canonicalStats?.topInvestigators ?? [],
+    classes: allStats?.topClasses ?? [],
+    standalones: allStats?.topStandalones ?? [],
+    sideScenarios: allStats?.topSideScenarios ?? [],
+    pairings: canonicalStats?.topPairings ?? [],
+    completionBreakdown: allStats?.completionBreakdown ?? {
       fullCampaigns: 0,
       smallCampaigns: 0,
       scenarioPacks: 0,
@@ -242,6 +340,19 @@ export function mergeCommunityStatsContributions(
   generation = 1,
   refreshState: 'ready' | 'stale' | 'failed' = 'ready',
 ): CommunityStats {
+  const incompatibleSchemaVersions = Array.from(new Set(
+    contributions
+      .filter((contribution) =>
+        contribution.schemaVersion !== COMMUNITY_STATS_SCHEMA_VERSION)
+      .map((contribution) => contribution.schemaVersion),
+  ))
+  if (incompatibleSchemaVersions.length > 0) {
+    throw new Error(
+      `Community stats contributions require schema ${COMMUNITY_STATS_SCHEMA_VERSION}; ` +
+      `found incompatible schema versions: ${incompatibleSchemaVersions.join(', ')}.`,
+    )
+  }
+
   const campaignCounts = new Map<string, CountedCampaign>()
   const investigatorCounts = new Map<string, CountedInvestigator>()
   const classCounts = new Map<Archetype, number>()
@@ -368,13 +479,18 @@ async function persistContribution(
   })
 }
 
-async function publishWithLease(lease: Lease): Promise<CommunityStats> {
+async function publishWithLease(
+  lease: Lease,
+  options: { afterOutboxPreflight?: () => Promise<void> } = {},
+): Promise<CommunityStats> {
   const db = getBackendFirestore()
-  const [snapshot, pendingOutbox, quarantineSnapshot] = await Promise.all([
+  const pendingOutboxQuery = db.collectionGroup(COMMUNITY_STATS_OUTBOX_COLLECTION).limit(1)
+  await pendingOutboxQuery.get()
+  await options.afterOutboxPreflight?.()
+  const [snapshot, quarantineSnapshot] = await Promise.all([
     db.collection(COMMUNITY_STATS_CONTRIBUTIONS_COLLECTION)
       .limit(MAX_CONTRIBUTIONS + 1)
       .get(),
-    db.collectionGroup(COMMUNITY_STATS_OUTBOX_COLLECTION).limit(1).get(),
     db.collection(COMMUNITY_STATS_QUARANTINE_COLLECTION).limit(1).get(),
   ])
   if (snapshot.size > MAX_CONTRIBUTIONS) {
@@ -386,7 +502,10 @@ async function publishWithLease(lease: Lease): Promise<CommunityStats> {
   const aggregateRef = db.doc(COMMUNITY_STATS_DOC_PATH)
 
   return db.runTransaction(async (transaction) => {
-    const stateSnapshot = await transaction.get(stateRef)
+    const [stateSnapshot, pendingOutbox] = await Promise.all([
+      transaction.get(stateRef),
+      transaction.get(pendingOutboxQuery),
+    ])
     const state = stateSnapshot.data() ?? {}
     if (state.leaseId !== lease.leaseId) {
       throw new Error('Community stats publish lease was lost.')
@@ -572,8 +691,12 @@ async function removeDeletedAuthUserState(activeUserIds: Set<string>): Promise<v
   }
 }
 
-export async function bootstrapCommunityStatsContributions(): Promise<number> {
-  const userIds = await listFirebaseAuthUserIds()
+export async function bootstrapCommunityStatsContributions(options: {
+  listUserIds?: () => Promise<string[]>
+  beforeFinalPublish?: () => Promise<void>
+  afterOutboxPreflight?: () => Promise<void>
+} = {}): Promise<CommunityStatsBootstrapResult> {
+  const userIds = await (options.listUserIds ?? listFirebaseAuthUserIds)()
   for (const uid of userIds) {
     const result = await rebuildUserContribution(uid, { force: true, publish: false })
     if (result.status === 'failed') {
@@ -581,10 +704,30 @@ export async function bootstrapCommunityStatsContributions(): Promise<number> {
     }
   }
   await removeDeletedAuthUserState(new Set(userIds))
+  await options.beforeFinalPublish?.()
   const bootstrapLease = await claimLease(COMMUNITY_STATS_BOOTSTRAP_LEASE_OWNER_ID, true)
   if (!('leaseId' in bootstrapLease)) {
     throw new Error('Unable to claim the final bootstrap publish lease.')
   }
-  await publishWithLease(bootstrapLease)
-  return userIds.length
+  const aggregate = await publishWithLease(bootstrapLease, {
+    afterOutboxPreflight: options.afterOutboxPreflight,
+  })
+  const pipelineGeneration = aggregate.pipelineGeneration
+  if (
+    aggregate.schemaVersion !== COMMUNITY_STATS_SCHEMA_VERSION ||
+    aggregate.refreshState !== 'ready' ||
+    typeof pipelineGeneration !== 'number' ||
+    !Number.isSafeInteger(pipelineGeneration) ||
+    pipelineGeneration < 1
+  ) {
+    throw new Error(
+      `Community stats bootstrap did not publish a ready schema-${COMMUNITY_STATS_SCHEMA_VERSION} aggregate.`,
+    )
+  }
+  return {
+    userCount: userIds.length,
+    schemaVersion: aggregate.schemaVersion,
+    pipelineGeneration,
+    refreshState: aggregate.refreshState,
+  }
 }
