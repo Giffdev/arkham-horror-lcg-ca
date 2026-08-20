@@ -1,7 +1,12 @@
 import { getCommunityStats, getCommunityStatsAvailability } from './community-stats'
 import { computeCommunityStats, COMMUNITY_STATS_SCHEMA_VERSION, COMMUNITY_STATS_STALE_AFTER_MS } from './community-stats-core'
 import { ALL_CAMPAIGNS } from './campaign-data'
-import { CampaignRun, Playthrough, InvestigatorAssignment } from './types'
+import {
+  CampaignRun,
+  CampaignScenarioRosterEntry,
+  Playthrough,
+  InvestigatorAssignment,
+} from './types'
 import { getCommunityStatsFromFirestore } from './firestore'
 
 const mockGetAllPlaythroughs = vi.fn()
@@ -444,6 +449,24 @@ describe('rebuildCommunityStats — campaign count invariants', () => {
       return stats.topInvestigators.find((investigator) => investigator.name === name)?.count ?? 0
     }
 
+    function getClassCount(stats: { topClasses: { archetype: string; count: number }[] }, archetype: string): number {
+      return stats.topClasses.find((entry) => entry.archetype === archetype)?.count ?? 0
+    }
+
+    function getPairingCount(
+      stats: { topPairings?: { investigator1: string; investigator2: string; count: number }[] },
+      firstName: string,
+      secondName: string,
+    ): number {
+      const [investigator1, investigator2] = firstName < secondName
+        ? [firstName, secondName]
+        : [secondName, firstName]
+      return stats.topPairings?.find(
+        (pairing) => pairing.investigator1 === investigator1 &&
+          pairing.investigator2 === investigator2,
+      )?.count ?? 0
+    }
+
     it('counts one investigator across multiple scenarios in one campaign once', async () => {
       const roland = makeInvestigator('Roland Banks', { investigatorId: 'roland-banks' })
       const run = makeCampaignRun('run-1', [roland], [[roland], [roland], [roland]])
@@ -451,7 +474,44 @@ describe('rebuildCommunityStats — campaign count invariants', () => {
 
       await rebuildCommunityStats()
 
-      expect(getInvestigatorCount(mockSaveCommunityStats.mock.calls[0][0], 'Roland Banks')).toBe(1)
+      const stats = mockSaveCommunityStats.mock.calls[0][0]
+      expect(getInvestigatorCount(stats, 'Roland Banks')).toBe(1)
+      expect(getClassCount(stats, 'Guardian')).toBe(1)
+    })
+
+    it('counts an investigator pairing once across multiple scenarios in one campaign', async () => {
+      const roland = makeInvestigator('Roland Banks', { investigatorId: 'roland-banks' })
+      const daisy = makeInvestigator('Daisy Walker', {
+        investigatorId: 'daisy-walker',
+        archetype: 'Seeker',
+      })
+      const run = makeCampaignRun('run-1', [roland, daisy], [
+        [roland, daisy],
+        [roland, daisy],
+        [roland, daisy],
+      ])
+      mockCommunitySource([], { rootPlaythroughs: [], campaignRuns: [run] })
+
+      await rebuildCommunityStats()
+
+      expect(getPairingCount(
+        mockSaveCommunityStats.mock.calls[0][0],
+        'Roland Banks',
+        'Daisy Walker',
+      )).toBe(1)
+    })
+
+    it('counts two distinct investigators of the same class independently in one campaign', async () => {
+      const roland = makeInvestigator('Roland Banks', { investigatorId: 'roland-banks' })
+      const zoey = makeInvestigator('Zoey Samaras', { investigatorId: 'zoey-samaras' })
+      const run = makeCampaignRun('run-1', [roland, zoey], [[roland, zoey]])
+      mockCommunitySource([], { rootPlaythroughs: [], campaignRuns: [run] })
+
+      await rebuildCommunityStats()
+
+      const stats = mockSaveCommunityStats.mock.calls[0][0]
+      expect(getClassCount(stats, 'Guardian')).toBe(2)
+      expect(getPairingCount(stats, 'Roland Banks', 'Zoey Samaras')).toBe(1)
     })
 
     it('counts a replacement found only in rosterChanges.newEntry once with the original', async () => {
@@ -487,6 +547,9 @@ describe('rebuildCommunityStats — campaign count invariants', () => {
       const stats = mockSaveCommunityStats.mock.calls[0][0]
       expect(getInvestigatorCount(stats, 'Roland Banks')).toBe(1)
       expect(getInvestigatorCount(stats, 'Daisy Walker')).toBe(1)
+      expect(getClassCount(stats, 'Guardian')).toBe(1)
+      expect(getClassCount(stats, 'Seeker')).toBe(1)
+      expect(getPairingCount(stats, 'Roland Banks', 'Daisy Walker')).toBe(1)
     })
 
     it('counts an eliminated investigator retained only in rosterBefore', async () => {
@@ -530,7 +593,9 @@ describe('rebuildCommunityStats — campaign count invariants', () => {
 
       await rebuildCommunityStats()
 
-      expect(getInvestigatorCount(mockSaveCommunityStats.mock.calls[0][0], 'Roland Banks')).toBe(2)
+      const stats = mockSaveCommunityStats.mock.calls[0][0]
+      expect(getInvestigatorCount(stats, 'Roland Banks')).toBe(2)
+      expect(getClassCount(stats, 'Guardian')).toBe(2)
     })
 
     it('does not double-count roster, history, and scenario overlap', async () => {
@@ -563,7 +628,33 @@ describe('rebuildCommunityStats — campaign count invariants', () => {
 
       await rebuildCommunityStats()
 
-      expect(getInvestigatorCount(mockSaveCommunityStats.mock.calls[0][0], 'Roland Banks')).toBe(1)
+      const stats = mockSaveCommunityStats.mock.calls[0][0]
+      expect(getInvestigatorCount(stats, 'Roland Banks')).toBe(1)
+      expect(getClassCount(stats, 'Guardian')).toBe(1)
+    })
+
+    it('counts a class added in a later snapshot without recounting the investigator', async () => {
+      const early = makeInvestigator('Custom Multiclass Investigator', {
+        isCustom: true,
+        investigatorId: 'custom-multiclass',
+        archetype: 'Seeker',
+        archetypes: ['Seeker'],
+      })
+      const later = makeInvestigator('Custom Multiclass Investigator', {
+        isCustom: true,
+        investigatorId: 'custom-multiclass',
+        archetype: 'Seeker',
+        archetypes: ['Seeker', 'Mystic'],
+      })
+      const run = makeCampaignRun('run-1', [early], [[later]])
+      mockCommunitySource([], { rootPlaythroughs: [], campaignRuns: [run] })
+
+      await rebuildCommunityStats()
+
+      const stats = mockSaveCommunityStats.mock.calls[0][0]
+      expect(getInvestigatorCount(stats, 'Custom Multiclass Investigator')).toBe(1)
+      expect(getClassCount(stats, 'Seeker')).toBe(1)
+      expect(getClassCount(stats, 'Mystic')).toBe(1)
     })
 
     it('deduplicates unresolved legacy scenario-only assignments by normalized name fallback', async () => {
@@ -613,6 +704,85 @@ describe('rebuildCommunityStats — campaign count invariants', () => {
       )
       expect(customTally).not.toHaveProperty('investigatorSet')
       expect(customTally).not.toHaveProperty('chapter')
+    })
+
+    it('counts every class of a multiclass custom investigator once per legacy root', async () => {
+      const custom = makeInvestigator('Custom Multiclass Investigator', {
+        isCustom: true,
+        investigatorId: 'custom-multiclass',
+        archetype: 'Seeker',
+        archetypes: ['Seeker', 'Mystic'],
+      })
+      const root = makePlaythrough('legacy-1', [custom])
+      mockCommunitySource([root], {
+        rootPlaythroughs: [root],
+        campaignRuns: [],
+      })
+
+      await rebuildCommunityStats()
+
+      const stats = mockSaveCommunityStats.mock.calls[0][0]
+      expect(getClassCount(stats, 'Seeker')).toBe(1)
+      expect(getClassCount(stats, 'Mystic')).toBe(1)
+    })
+
+    it('uses canonical resolved classes for an official multiclass investigator', async () => {
+      const agatha = makeInvestigator('Agatha Crane', {
+        investigatorId: 'agatha-crane',
+        archetype: 'Seeker',
+      })
+      const run = makeCampaignRun('run-1', [agatha], [[agatha]])
+      mockCommunitySource([], { rootPlaythroughs: [], campaignRuns: [run] })
+
+      await rebuildCommunityStats()
+
+      const stats = mockSaveCommunityStats.mock.calls[0][0]
+      expect(getClassCount(stats, 'Seeker')).toBe(1)
+      expect(getClassCount(stats, 'Mystic')).toBe(1)
+    })
+
+    it('preserves standalone playthrough class counting as one unit per standalone log', async () => {
+      const roland = makeInvestigator('Roland Banks', { investigatorId: 'roland-banks' })
+      const first: Playthrough = {
+        ...makePlaythrough('standalone-1', [roland]),
+        campaignName: 'Curse of the Rougarou',
+        campaignType: 'Scenario Pack',
+      }
+      const second: Playthrough = {
+        ...makePlaythrough('standalone-2', [roland]),
+        campaignName: 'Murder at the Excelsior Hotel',
+        campaignType: 'Scenario Pack',
+      }
+      mockCommunitySource([first, second], {
+        rootPlaythroughs: [first, second],
+        campaignRuns: [],
+      })
+
+      await rebuildCommunityStats()
+
+      expect(getClassCount(mockSaveCommunityStats.mock.calls[0][0], 'Guardian')).toBe(2)
+    })
+
+    it('counts legacy root pairings once per root playthrough', async () => {
+      const roland = makeInvestigator('Roland Banks', { investigatorId: 'roland-banks' })
+      const daisy = makeInvestigator('Daisy Walker', {
+        investigatorId: 'daisy-walker',
+        archetype: 'Seeker',
+      })
+      const first = makePlaythrough('legacy-1', [roland, daisy])
+      const second = makePlaythrough('legacy-2', [roland, daisy])
+      mockCommunitySource([first, second], {
+        rootPlaythroughs: [first, second],
+        campaignRuns: [],
+      })
+
+      await rebuildCommunityStats()
+
+      expect(getPairingCount(
+        mockSaveCommunityStats.mock.calls[0][0],
+        'Roland Banks',
+        'Daisy Walker',
+      )).toBe(2)
     })
 
     it('preserves an explicit custom investigator id without official canonical metadata', async () => {
@@ -681,7 +851,9 @@ describe('rebuildCommunityStats — campaign count invariants', () => {
 
       await rebuildCommunityStats()
 
-      expect(getInvestigatorCount(mockSaveCommunityStats.mock.calls[0][0], 'Roland Banks')).toBe(1)
+      const stats = mockSaveCommunityStats.mock.calls[0][0]
+      expect(getInvestigatorCount(stats, 'Roland Banks')).toBe(1)
+      expect(getClassCount(stats, 'Guardian')).toBe(1)
     })
   })
 
@@ -894,17 +1066,19 @@ describe('getCommunityStatsAvailability', () => {
     })).toBe('stale')
   })
 
-  it('classifies failed aggregates as stale', () => {
+  it('classifies failed aggregates separately from stale refreshes', () => {
     expect(getCommunityStatsAvailability({
       ...makePublishedStats(),
       refreshState: 'failed',
-    })).toBe('stale')
+    })).toBe('failed')
   })
 
-  it('classifies legacy aggregates as old-schema instead of ready', () => {
+  it('rejects schema-3 and unversioned aggregates as old-schema instead of ready', () => {
+    expect(COMMUNITY_STATS_SCHEMA_VERSION).toBe(4)
+
     expect(getCommunityStatsAvailability({
       ...makePublishedStats(),
-      schemaVersion: COMMUNITY_STATS_SCHEMA_VERSION - 1,
+      schemaVersion: 3,
     })).toBe('old-schema')
 
     expect(getCommunityStatsAvailability({

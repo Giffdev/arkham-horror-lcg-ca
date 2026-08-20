@@ -23,6 +23,7 @@ import {
 } from 'firebase/firestore'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { COMMUNITY_STATS_SCHEMA_VERSION } from './community-stats-core'
 import type { CampaignRun, Playthrough } from './types'
 
 const firebaseDbHolder = vi.hoisted(() => ({
@@ -187,7 +188,7 @@ beforeEach(async () => {
       sourceGeneration: 1,
       pipelineGeneration: 1,
       snapshotReadAt: 1,
-      schemaVersion: 3,
+      schemaVersion: COMMUNITY_STATS_SCHEMA_VERSION,
       refreshState: 'ready',
     })
   })

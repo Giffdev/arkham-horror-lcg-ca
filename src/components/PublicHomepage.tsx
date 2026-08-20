@@ -86,7 +86,7 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
   // Build StatsListCard items from community stats (with safety defaults for missing fields)
   const investigatorItems = (communityStats?.topInvestigators ?? []).map(investigator => ({
     key: investigator.investigatorId ?? `${investigator.name}__ch${investigator.chapter ?? 1}`,
-    countLabel: `${investigator.count} ${investigator.count === 1 ? 'play' : 'plays'}`,
+    countLabel: `${investigator.count} ${investigator.count === 1 ? 'campaign' : 'campaigns'}`,
     renderContent: () => (
       <div
         className="grid items-center gap-x-2 min-w-0"
@@ -133,7 +133,7 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
   const classTotal = (communityStats?.topClasses ?? []).reduce((s, c) => s + c.count, 0)
   const classItems = (communityStats?.topClasses ?? []).map(cls => ({
     key: cls.archetype,
-    countLabel: `${cls.count} plays (${classTotal > 0 ? Math.round((cls.count / classTotal) * 100) : 0}%)`,
+    countLabel: `${cls.count} ${cls.count === 1 ? 'class assignment' : 'class assignments'} (${classTotal > 0 ? Math.round((cls.count / classTotal) * 100) : 0}% of class assignments)`,
     renderContent: () => <ArchetypeBadge archetype={cls.archetype} />,
   }))
 
@@ -161,7 +161,15 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
   }))
 
   const lastUpdatedLabel = formatLastUpdated(communityStats?.generatedAt ?? communityStats?.lastUpdated)
-  const staleBanner = communityStatsAvailability === 'stale'
+  const aggregateWarning = communityStatsAvailability === 'failed'
+    ? (
+        <Card className="border-red-400/40 bg-red-500/10">
+          <CardContent className="py-3 text-sm text-red-100">
+            Community stats updates are blocked. Showing the last trusted aggregate{lastUpdatedLabel ? ` from ${lastUpdatedLabel}` : ''}.
+          </CardContent>
+        </Card>
+      )
+    : communityStatsAvailability === 'stale'
     ? (
         <Card className="border-amber-400/40 bg-amber-500/10">
           <CardContent className="py-3 text-sm text-amber-100">
@@ -231,7 +239,7 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
                 </Card>
               ) : !communityStats || communityStats.totalGames === 0 ? (
                 <div className="space-y-4">
-                  {staleBanner}
+                  {aggregateWarning}
                   <Card className="p-8 text-center">
                     <p className="text-muted-foreground">
                       No community data available yet. Be the first to log a playthrough!
@@ -240,13 +248,13 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
                 </div>
               ) : (
                 <>
-                  {staleBanner}
+                  {aggregateWarning}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 items-start md:items-stretch">
                     <Card className="md:h-full">
                       <CardHeader className="pb-3">
                         <div className="flex items-center gap-2">
                           <GameController size={20} className="text-primary" weight="duotone" />
-                          <CardTitle className="text-sm text-muted-foreground">Total Campaigns Logged</CardTitle>
+                          <CardTitle className="text-sm text-muted-foreground">Total Games Logged</CardTitle>
                         </div>
                       </CardHeader>
                       <CardContent>
@@ -384,9 +392,9 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
         </div>
       </main>
 
-      <AuthDialog 
-        open={authDialogOpen} 
-        onOpenChange={setAuthDialogOpen} 
+      <AuthDialog
+        open={authDialogOpen}
+        onOpenChange={setAuthDialogOpen}
         onSuccess={onAuthSuccess}
       />
     </div>

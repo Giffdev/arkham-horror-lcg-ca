@@ -43,11 +43,11 @@ describe('PublicHomepage desktop campaign-stat card heights', () => {
     render(<PublicHomepage onAuthSuccess={vi.fn()} />)
 
     await waitFor(() =>
-      expect(screen.getByText('Total Campaigns Logged')).toBeInTheDocument(),
+      expect(screen.getByText('Total Games Logged')).toBeInTheDocument(),
     )
 
     const totalCampaignsCard = screen
-      .getByText('Total Campaigns Logged')
+      .getByText('Total Games Logged')
       .closest('[data-slot="card"]')
     const kpiGrid = totalCampaignsCard?.parentElement
 

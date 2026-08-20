@@ -21,7 +21,7 @@ export interface StandalonePlayBreakdown {
   asSideStory: number
 }
 
-export const COMMUNITY_STATS_SCHEMA_VERSION = 3
+export const COMMUNITY_STATS_SCHEMA_VERSION = 4
 export const COMMUNITY_STATS_STALE_AFTER_MS = 15 * 60_000
 
 export type CommunityStatsRefreshState = 'ready' | 'stale' | 'failed'
@@ -104,6 +104,15 @@ function getInvestigatorTallyIdentity(investigator: Playthrough['investigators']
     `set:${normalizeKey(investigator.investigatorSet ?? '')}`,
     'standard',
   ].join('|')
+}
+
+function getInvestigatorArchetypes(
+  investigator: Playthrough['investigators'][number],
+): Archetype[] {
+  const resolved = investigator.isCustom ? undefined : resolveInvestigator(investigator)
+  return resolved?.archetypes
+    ?? investigator.archetypes
+    ?? (investigator.archetype ? [investigator.archetype] : [])
 }
 
 function collectCampaignRunInvestigators(campaignRun: CampaignRun): Playthrough['investigators'] {
@@ -288,7 +297,6 @@ export function computeCommunityStats(input: CommunityStatsSourceInput): Communi
       }
     }
 
-    const validNames: string[] = []
     for (const investigator of playthrough.investigators) {
       if (investigator.isUnknown || !investigator.investigatorName || investigator.investigatorName === 'Unknown') {
         continue
@@ -301,59 +309,76 @@ export function computeCommunityStats(input: CommunityStatsSourceInput): Communi
         chapter: resolvedChapter,
       })
       uniqueInvestigators.add(pairKey)
-      if (!validNames.includes(pairKey)) {
-        validNames.push(pairKey)
-      }
-
-      const archetypes = investigator.archetypes || (investigator.archetype ? [investigator.archetype] : [])
-      for (const archetype of archetypes) {
-        if (archetype && archetype.toLowerCase() !== 'neutral') {
-          classCounts.set(archetype, (classCounts.get(archetype) || 0) + 1)
-        }
-      }
-    }
-
-    for (let left = 0; left < validNames.length; left++) {
-      for (let right = left + 1; right < validNames.length; right++) {
-        const [first, second] = validNames[left] < validNames[right]
-          ? [validNames[left], validNames[right]]
-          : [validNames[right], validNames[left]]
-        pairCounts.set(`${first}|||${second}`, (pairCounts.get(`${first}|||${second}`) || 0) + 1)
-      }
     }
   }
 
   const addCampaignInvestigatorTallies = (investigators: Playthrough['investigators']) => {
     const seenInCampaign = new Set<string>()
+    const seenClassAssignments = new Set<string>()
+    const pairNames: string[] = []
     for (const investigator of investigators) {
       if (investigator.isUnknown || !investigator.investigatorName || investigator.investigatorName === 'Unknown') {
         continue
       }
 
       const identity = getInvestigatorTallyIdentity(investigator)
-      if (seenInCampaign.has(identity)) continue
-      seenInCampaign.add(identity)
-
       const resolved = investigator.isCustom ? undefined : resolveInvestigator(investigator)
       const resolvedChapter = resolved?.chapter ?? investigator.chapter
-      const chapter = investigator.isCustom
-        ? investigator.chapter
-        : getInvestigatorPairKey({
-            investigatorName: investigator.investigatorName,
-            chapter: resolvedChapter,
-          }) !== investigator.investigatorName
-          ? resolvedChapter ?? 1
-          : resolvedChapter
-      const investigatorEntry = investigatorCounts.get(identity) ?? {
-        name: investigator.investigatorName,
-        count: 0,
-        archetypes: investigator.archetypes || (investigator.archetype ? [investigator.archetype] : []),
-        chapter: chapter as 1 | 2 | undefined,
-        investigatorId: resolved?.id ?? investigator.investigatorId,
-        investigatorSet: resolved?.set ?? investigator.investigatorSet,
+      const archetypes = getInvestigatorArchetypes(investigator)
+      if (!seenInCampaign.has(identity)) {
+        seenInCampaign.add(identity)
+
+        const pairName = getInvestigatorPairKey({
+          investigatorName: investigator.investigatorName,
+          chapter: resolvedChapter,
+        })
+        if (!pairNames.includes(pairName)) {
+          pairNames.push(pairName)
+        }
+        const chapter = investigator.isCustom
+          ? investigator.chapter
+          : getInvestigatorPairKey({
+              investigatorName: investigator.investigatorName,
+              chapter: resolvedChapter,
+            }) !== investigator.investigatorName
+            ? resolvedChapter ?? 1
+            : resolvedChapter
+        const investigatorEntry = investigatorCounts.get(identity) ?? {
+          name: investigator.investigatorName,
+          count: 0,
+          archetypes: [],
+          chapter: chapter as 1 | 2 | undefined,
+          investigatorId: resolved?.id ?? investigator.investigatorId,
+          investigatorSet: resolved?.set ?? investigator.investigatorSet,
+        }
+        investigatorEntry.count++
+        investigatorCounts.set(identity, investigatorEntry)
       }
-      investigatorEntry.count++
-      investigatorCounts.set(identity, investigatorEntry)
+
+      const investigatorEntry = investigatorCounts.get(identity)
+      if (investigatorEntry) {
+        investigatorEntry.archetypes = Array.from(new Set([
+          ...investigatorEntry.archetypes,
+          ...archetypes,
+        ]))
+      }
+
+      for (const archetype of archetypes) {
+        if (!archetype || archetype.toLowerCase() === 'neutral') continue
+        const classAssignmentKey = `${identity}|archetype:${archetype.toLowerCase()}`
+        if (seenClassAssignments.has(classAssignmentKey)) continue
+        seenClassAssignments.add(classAssignmentKey)
+        classCounts.set(archetype, (classCounts.get(archetype) || 0) + 1)
+      }
+    }
+
+    for (let left = 0; left < pairNames.length; left++) {
+      for (let right = left + 1; right < pairNames.length; right++) {
+        const [first, second] = pairNames[left] < pairNames[right]
+          ? [pairNames[left], pairNames[right]]
+          : [pairNames[right], pairNames[left]]
+        pairCounts.set(`${first}|||${second}`, (pairCounts.get(`${first}|||${second}`) || 0) + 1)
+      }
     }
   }
 

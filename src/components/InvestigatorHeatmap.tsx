@@ -40,9 +40,10 @@ function getCellTextColor(value: number, max: number): string {
 
 interface DesktopHeatmapProps {
   data: HeatmapData
+  countUnit: 'campaign' | 'game'
 }
 
-function DesktopHeatmap({ data }: DesktopHeatmapProps) {
+function DesktopHeatmap({ data, countUnit }: DesktopHeatmapProps) {
   const [hoveredCell, setHoveredCell] = useState<{ row: number; col: number } | null>(null)
   const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
   const [highlightedInvestigator, setHighlightedInvestigator] = useState<number | null>(null)
@@ -148,7 +149,7 @@ function DesktopHeatmap({ data }: DesktopHeatmapProps) {
                 aria-label={
                   isDiagonal
                     ? `${rowName} (self)`
-                    : `${rowName} & ${investigators[colIdx]}: ${value} games`
+                    : `${rowName} & ${investigators[colIdx]}: ${value} ${value === 1 ? countUnit : `${countUnit}s`}`
                 }
                 role="gridcell"
               >
@@ -177,6 +178,7 @@ function DesktopHeatmap({ data }: DesktopHeatmapProps) {
             name1={data.investigators[hoveredCell.row]}
             name2={data.investigators[hoveredCell.col]}
             count={data.matrix[hoveredCell.row][hoveredCell.col]}
+            countUnit={countUnit}
           />
         </div>
       )}
@@ -185,11 +187,21 @@ function DesktopHeatmap({ data }: DesktopHeatmapProps) {
 }
 
 // Separate tooltip for the desktop hover - we'll use a simpler approach
-function TooltipContent({ name1, name2, count }: { name1: string; name2: string; count: number }) {
+function TooltipContent({
+  name1,
+  name2,
+  count,
+  countUnit,
+}: {
+  name1: string
+  name2: string
+  count: number
+  countUnit: 'campaign' | 'game'
+}) {
   return (
     <span>
-      <strong>{name1}</strong> &amp; <strong>{name2}</strong>: played together{' '}
-      <strong>{count}</strong> {count === 1 ? 'time' : 'times'}
+      <strong>{name1}</strong> &amp; <strong>{name2}</strong>: shared{' '}
+      <strong>{count}</strong> {count === 1 ? countUnit : `${countUnit}s`}
     </span>
   )
 }
@@ -198,9 +210,10 @@ function TooltipContent({ name1, name2, count }: { name1: string; name2: string;
 
 interface MobileHeatmapProps {
   data: HeatmapData
+  countUnit: 'campaign' | 'game'
 }
 
-function MobileHeatmap({ data }: MobileHeatmapProps) {
+function MobileHeatmap({ data, countUnit }: MobileHeatmapProps) {
   const [selectedInvestigator, setSelectedInvestigator] = useState<string>('')
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -264,7 +277,9 @@ function MobileHeatmap({ data }: MobileHeatmapProps) {
                     aria-label={`Select ${name}`}
                   >
                     <span className="text-sm font-medium text-foreground">{name}</span>
-                    <span className="text-xs text-muted-foreground">{totalPairings} co-plays</span>
+                    <span className="text-xs text-muted-foreground">
+                      {totalPairings} {countUnit === 'campaign' ? 'campaign pairings' : 'co-plays'}
+                    </span>
                   </button>
                   <a
                     href={getInvestigatorLink(name)}
@@ -331,7 +346,7 @@ function MobileHeatmap({ data }: MobileHeatmapProps) {
                         style={{ backgroundColor: getCellColor(pair.count, maxCount) }}
                       />
                       <span className="text-xs text-muted-foreground">
-                        {pair.count} {pair.count === 1 ? 'game' : 'games'}
+                        {pair.count} {pair.count === 1 ? countUnit : `${countUnit}s`}
                       </span>
                     </div>
                   </div>
@@ -394,6 +409,7 @@ export function InvestigatorHeatmap({ playthroughs, communityPairings }: Investi
   }, [communityPairings])
 
   const activeData = viewMode === 'community' ? communityData : personalData
+  const countUnit = viewMode === 'community' ? 'campaign' : 'game'
   const hasCommunity = communityData.investigators.length > 0
   const hasPersonal = personalData.investigators.length > 0
 
@@ -406,7 +422,11 @@ export function InvestigatorHeatmap({ playthroughs, communityPairings }: Investi
     <section aria-label="Investigator Co-occurrence Heatmap" className="space-y-4">
       <div className="text-center">
         <h3 className="text-xl font-bold text-foreground mb-1">Investigator Pairings</h3>
-        <p className="text-sm text-muted-foreground">Who teams up with whom across all campaigns</p>
+        <p className="text-sm text-muted-foreground">
+          {viewMode === 'community'
+            ? 'Campaigns in which investigators participated together'
+            : 'Game sessions in which your investigators played together'}
+        </p>
       </div>
 
       <Card>
@@ -451,7 +471,7 @@ export function InvestigatorHeatmap({ playthroughs, communityPairings }: Investi
           {/* Empty states */}
           {viewMode === 'community' && !hasCommunity && (
             <p className="text-sm text-muted-foreground text-center py-8">
-              No community data yet. Games from all players will appear here as they log sessions.
+              No community data yet. Campaign pairings will appear here as players log campaigns.
             </p>
           )}
           {viewMode === 'personal' && !hasPersonal && (
@@ -470,12 +490,12 @@ export function InvestigatorHeatmap({ playthroughs, communityPairings }: Investi
 
               {/* Desktop: Full grid heatmap */}
               <div className="hidden md:block" role="grid" aria-label="Investigator pairing heatmap grid">
-                <DesktopHeatmap data={activeData} />
+                <DesktopHeatmap data={activeData} countUnit={countUnit} />
               </div>
 
               {/* Mobile: Searchable investigator list */}
               <div className="md:hidden">
-                <MobileHeatmap data={activeData} />
+                <MobileHeatmap data={activeData} countUnit={countUnit} />
               </div>
             </div>
           )}
