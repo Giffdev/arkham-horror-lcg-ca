@@ -77,8 +77,11 @@ export function CampaignScenarioRow({
 
   return (
     <div className="rounded-md border border-border/70 bg-muted/20 p-3 text-foreground">
-      <div className="flex flex-col gap-4 md:flex-row md:items-start md:gap-6">
-        <div className="min-w-0 md:min-w-[320px] md:flex-shrink-0">
+      <div
+        className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-3 md:grid-cols-[minmax(280px,320px)_minmax(0,1fr)_auto] md:gap-x-6"
+        data-slot="scenario-row-layout"
+      >
+        <div className="min-w-0">
           <p className="text-sm font-semibold text-foreground">
             Scenario {index + 1}: {scenarioLog.scenarioName}
           </p>
@@ -121,19 +124,21 @@ export function CampaignScenarioRow({
 
         {playerPairs.length > 0 && (
           <ul
-            className="min-w-0 flex-1 space-y-2.5 text-sm text-muted-foreground md:self-center"
+            className="col-span-2 grid min-w-0 gap-x-3 gap-y-2 text-sm text-muted-foreground min-[380px]:grid-cols-2 md:col-span-1 md:block md:space-y-2.5 md:self-center"
             aria-label={`${scenarioLog.scenarioName} players`}
           >
             {playerPairs.slice(0, 4).map((pair, pairIndex) => (
-              <li key={`${pair.playerName}-${pair.investigatorName}-${pairIndex}`}>
+              <li className="min-w-0" key={`${pair.playerName}-${pair.investigatorName}-${pairIndex}`}>
                 <div
-                  className="flex min-w-0 flex-col items-start gap-0.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-2 sm:gap-y-1"
+                  className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 gap-y-0.5"
                   data-slot="scenario-player-heading"
                 >
-                  <span className="min-w-0 break-words font-medium text-foreground [overflow-wrap:anywhere]">
+                  <span className="min-w-0 break-words hyphens-none font-medium text-foreground">
                     {pair.investigatorName}
                   </span>
-                  <span className="text-muted-foreground">{pair.playerName}</span>
+                  <span className="min-w-0 break-words hyphens-none text-muted-foreground">
+                    · {pair.playerName}
+                  </span>
                 </div>
                 {pair.outcome && (
                   <div
@@ -155,7 +160,7 @@ export function CampaignScenarioRow({
           </ul>
         )}
 
-        <div className="flex flex-shrink-0 items-center justify-end gap-1">
+        <div className="col-start-2 row-start-1 flex flex-shrink-0 items-center justify-end gap-1 md:col-start-3">
           <Button
             type="button"
             variant="ghost"
