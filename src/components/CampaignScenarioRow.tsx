@@ -124,21 +124,34 @@ export function CampaignScenarioRow({
 
         {playerPairs.length > 0 && (
           <ul
-            className="col-span-2 grid min-w-0 gap-x-3 gap-y-2 text-sm text-muted-foreground min-[380px]:grid-cols-2 md:col-span-1 md:block md:space-y-2.5 md:self-center"
+            className="col-span-2 grid min-w-0 grid-cols-[repeat(2,minmax(0,1fr))] gap-x-3 gap-y-2 text-left text-sm text-muted-foreground md:col-span-1 md:block md:space-y-2.5 md:self-center"
             aria-label={`${scenarioLog.scenarioName} players`}
           >
             {playerPairs.slice(0, 4).map((pair, pairIndex) => (
               <li className="min-w-0" key={`${pair.playerName}-${pair.investigatorName}-${pairIndex}`}>
                 <div
-                  className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 gap-y-0.5"
+                  className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 gap-y-0.5 text-left"
                   data-slot="scenario-player-heading"
                 >
-                  <span className="min-w-0 break-words hyphens-none font-medium text-foreground">
-                    {pair.investigatorName}
+                  <span
+                    className="order-1 min-w-0 break-words hyphens-none font-medium text-foreground md:order-3"
+                    data-slot="scenario-player-name"
+                  >
+                    {pair.playerName}
                   </span>
-                  <span className="min-w-0 break-words hyphens-none text-muted-foreground">
-                    · {pair.playerName}
+                  <span
+                    className="order-3 flex min-w-0 items-baseline gap-x-1.5 md:contents"
+                    data-slot="scenario-investigator-label"
+                  >
+                    <span className="text-muted-foreground md:hidden" aria-hidden="true">·</span>
+                    <span
+                      className="min-w-0 break-words hyphens-none text-muted-foreground md:order-1"
+                      data-slot="scenario-investigator-name"
+                    >
+                      {pair.investigatorName}
+                    </span>
                   </span>
+                  <span className="order-2 hidden text-muted-foreground md:inline" aria-hidden="true">·</span>
                 </div>
                 {pair.outcome && (
                   <div

@@ -893,7 +893,8 @@ describe('CampaignRunCard', () => {
     expect(playerList).toHaveClass(
       'grid',
       'min-w-0',
-      'min-[380px]:grid-cols-2',
+      'grid-cols-[repeat(2,minmax(0,1fr))]',
+      'text-left',
       'md:block',
       'md:self-center',
     )
@@ -907,10 +908,17 @@ describe('CampaignRunCard', () => {
     expect(daisyRow!).toHaveTextContent('Defeated (Mental)')
     const daisyHeading = daisyRow!.querySelector('[data-slot="scenario-player-heading"]')
     const daisyOutcome = daisyRow!.querySelector('[data-slot="scenario-player-outcome"]')
-    expect(daisyHeading).toHaveClass('flex-wrap', 'items-baseline')
-    expect(within(daisyHeading as HTMLElement).getByText('Daisy Walker'))
-      .toHaveClass('break-words', 'hyphens-none')
-    expect(within(daisyHeading as HTMLElement).getByText('Daisy Walker'))
+    expect(daisyHeading).toHaveClass('flex-wrap', 'items-baseline', 'text-left')
+    expect(within(daisyHeading as HTMLElement).getByText('Bob')).toHaveClass(
+      'order-1',
+      'md:order-3',
+    )
+    const daisyInvestigator = within(daisyHeading as HTMLElement).getByText('Daisy Walker')
+    expect(daisyInvestigator.closest('[data-slot="scenario-investigator-label"]'))
+      .toHaveClass('order-3', 'flex', 'min-w-0', 'md:contents')
+    expect(daisyInvestigator)
+      .toHaveClass('md:order-1', 'break-words', 'hyphens-none')
+    expect(daisyInvestigator)
       .not.toHaveClass('[overflow-wrap:anywhere]')
     expect(daisyOutcome).toHaveClass('flex', 'flex-wrap')
     expect(Array.from(daisyOutcome!.children).every((child) =>
@@ -1017,7 +1025,13 @@ describe('CampaignRunCard', () => {
 
     for (const scenarioName of ['Curtain Call', 'The Last King']) {
       const players = screen.getByRole('list', { name: `${scenarioName} players` })
-      expect(players).toHaveClass('grid', 'min-[380px]:grid-cols-2', 'md:block')
+      expect(players).toHaveClass(
+        'grid',
+        'grid-cols-[repeat(2,minmax(0,1fr))]',
+        'text-left',
+        'md:block',
+      )
+      expect(players.className).not.toContain('min-[380px]:grid-cols-2')
       expect(within(players).getAllByRole('listitem')).toHaveLength(4)
     }
 
