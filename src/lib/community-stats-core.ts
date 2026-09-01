@@ -140,6 +140,71 @@ function collectCampaignRunInvestigators(campaignRun: CampaignRun): Playthrough[
   return investigators
 }
 
+type PairingSnapshotSource = Pick<
+  Playthrough,
+  'investigators' | 'rosterBefore' | 'rosterChanges' | 'rosterAfter'
+>
+
+function collectActualPlayInvestigatorSnapshot(
+  source: PairingSnapshotSource,
+): Playthrough['investigators'] {
+  if (source.investigators.length > 0) {
+    return source.investigators
+  }
+
+  const rosterBefore = (source.rosterBefore ?? [])
+    .filter((entry) => entry.seatStatus === 'active')
+    .map((entry) => entry.investigator)
+  if (rosterBefore.length > 0) {
+    return rosterBefore
+  }
+
+  const replacementSlotIds = new Set(
+    (source.rosterChanges ?? []).map((change) => change.newEntry.slotId),
+  )
+  return (source.rosterAfter ?? [])
+    .filter((entry) => (
+      entry.seatStatus === 'active' &&
+      !replacementSlotIds.has(entry.slotId)
+    ))
+    .map((entry) => entry.investigator)
+}
+
+function collectPairKeysFromSnapshots(
+  snapshots: Playthrough['investigators'][],
+): Set<string> {
+  const pairKeys = new Set<string>()
+
+  for (const investigators of snapshots) {
+    const pairNames: string[] = []
+    for (const investigator of investigators) {
+      if (investigator.isUnknown || !investigator.investigatorName || investigator.investigatorName === 'Unknown') {
+        continue
+      }
+
+      const resolved = investigator.isCustom ? undefined : resolveInvestigator(investigator)
+      const pairName = getInvestigatorPairKey({
+        investigatorName: investigator.investigatorName,
+        chapter: resolved?.chapter ?? investigator.chapter,
+      })
+      if (!pairNames.includes(pairName)) {
+        pairNames.push(pairName)
+      }
+    }
+
+    for (let left = 0; left < pairNames.length; left++) {
+      for (let right = left + 1; right < pairNames.length; right++) {
+        const [first, second] = pairNames[left] < pairNames[right]
+          ? [pairNames[left], pairNames[right]]
+          : [pairNames[right], pairNames[left]]
+        pairKeys.add(`${first}|||${second}`)
+      }
+    }
+  }
+
+  return pairKeys
+}
+
 export function getCommunityStatsGeneratedAt(
   stats: Pick<CommunityStats, 'generatedAt' | 'lastUpdated'> | null | undefined,
 ): number | null {
@@ -315,7 +380,6 @@ export function computeCommunityStats(input: CommunityStatsSourceInput): Communi
   const addCampaignInvestigatorTallies = (investigators: Playthrough['investigators']) => {
     const seenInCampaign = new Set<string>()
     const seenClassAssignments = new Set<string>()
-    const pairNames: string[] = []
     for (const investigator of investigators) {
       if (investigator.isUnknown || !investigator.investigatorName || investigator.investigatorName === 'Unknown') {
         continue
@@ -328,13 +392,6 @@ export function computeCommunityStats(input: CommunityStatsSourceInput): Communi
       if (!seenInCampaign.has(identity)) {
         seenInCampaign.add(identity)
 
-        const pairName = getInvestigatorPairKey({
-          investigatorName: investigator.investigatorName,
-          chapter: resolvedChapter,
-        })
-        if (!pairNames.includes(pairName)) {
-          pairNames.push(pairName)
-        }
         const chapter = investigator.isCustom
           ? investigator.chapter
           : getInvestigatorPairKey({
@@ -371,14 +428,11 @@ export function computeCommunityStats(input: CommunityStatsSourceInput): Communi
         classCounts.set(archetype, (classCounts.get(archetype) || 0) + 1)
       }
     }
+  }
 
-    for (let left = 0; left < pairNames.length; left++) {
-      for (let right = left + 1; right < pairNames.length; right++) {
-        const [first, second] = pairNames[left] < pairNames[right]
-          ? [pairNames[left], pairNames[right]]
-          : [pairNames[right], pairNames[left]]
-        pairCounts.set(`${first}|||${second}`, (pairCounts.get(`${first}|||${second}`) || 0) + 1)
-      }
+  const addCampaignPairings = (snapshots: Playthrough['investigators'][]) => {
+    for (const pairKey of collectPairKeysFromSnapshots(snapshots)) {
+      pairCounts.set(pairKey, (pairCounts.get(pairKey) || 0) + 1)
     }
   }
 
@@ -386,10 +440,16 @@ export function computeCommunityStats(input: CommunityStatsSourceInput): Communi
   for (const playthrough of rootPlaythroughs) {
     if (!shouldSuppressPromotedPlaythrough(playthrough, campaignRunIds)) {
       addCampaignInvestigatorTallies(playthrough.investigators)
+      addCampaignPairings([playthrough.investigators])
     }
   }
   for (const campaignRun of campaignRuns) {
     addCampaignInvestigatorTallies(collectCampaignRunInvestigators(campaignRun))
+    addCampaignPairings(
+      campaignRun.scenarioLogs
+        .filter((scenarioLog) => scenarioLog.scenarioType !== 'interlude')
+        .map(collectActualPlayInvestigatorSnapshot),
+    )
   }
 
   for (const root of campaignCountSummary.roots) {

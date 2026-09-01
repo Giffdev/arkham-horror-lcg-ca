@@ -501,6 +501,73 @@ describe('rebuildCommunityStats — campaign count invariants', () => {
       )).toBe(1)
     })
 
+    it('counts one explicitly standard campaign scenario pairing exactly once', async () => {
+      const roland = makeInvestigator('Roland Banks', { investigatorId: 'roland-banks' })
+      const daisy = makeInvestigator('Daisy Walker', {
+        investigatorId: 'daisy-walker',
+        archetype: 'Seeker',
+      })
+      const run = makeCampaignRun('run-1', [roland, daisy], [], {
+        scenarioLogs: [{
+          id: 'scenario-1',
+          date: '2026-01-02',
+          scenarioName: 'Curtain Call',
+          scenarioType: 'standard',
+          investigators: [roland, daisy],
+        }],
+      })
+      mockCommunitySource([], { rootPlaythroughs: [], campaignRuns: [run] })
+
+      await rebuildCommunityStats()
+
+      expect(mockSaveCommunityStats.mock.calls[0][0].topPairings).toEqual([{
+        investigator1: 'Daisy Walker',
+        investigator2: 'Roland Banks',
+        count: 1,
+      }])
+    })
+
+    it('does not pair investigators from a setup-only campaign roster', async () => {
+      const roland = makeInvestigator('Roland Banks', { investigatorId: 'roland-banks' })
+      const daisy = makeInvestigator('Daisy Walker', {
+        investigatorId: 'daisy-walker',
+        archetype: 'Seeker',
+      })
+      const run = makeCampaignRun('run-1', [roland, daisy], [])
+      mockCommunitySource([], { rootPlaythroughs: [], campaignRuns: [run] })
+
+      await rebuildCommunityStats()
+
+      const stats = mockSaveCommunityStats.mock.calls[0][0]
+      expect(getInvestigatorCount(stats, 'Roland Banks')).toBe(1)
+      expect(getInvestigatorCount(stats, 'Daisy Walker')).toBe(1)
+      expect(getClassCount(stats, 'Guardian')).toBe(1)
+      expect(getClassCount(stats, 'Seeker')).toBe(1)
+      expect(getPairingCount(stats, 'Roland Banks', 'Daisy Walker')).toBe(0)
+    })
+
+    it('does not pair setup roster members who play only disjoint scenarios', async () => {
+      const roland = makeInvestigator('Roland Banks', { investigatorId: 'roland-banks' })
+      const daisy = makeInvestigator('Daisy Walker', {
+        investigatorId: 'daisy-walker',
+        archetype: 'Seeker',
+      })
+      const run = makeCampaignRun('run-1', [roland, daisy], [
+        [roland],
+        [daisy],
+      ])
+      mockCommunitySource([], { rootPlaythroughs: [], campaignRuns: [run] })
+
+      await rebuildCommunityStats()
+
+      const stats = mockSaveCommunityStats.mock.calls[0][0]
+      expect(getInvestigatorCount(stats, 'Roland Banks')).toBe(1)
+      expect(getInvestigatorCount(stats, 'Daisy Walker')).toBe(1)
+      expect(getClassCount(stats, 'Guardian')).toBe(1)
+      expect(getClassCount(stats, 'Seeker')).toBe(1)
+      expect(getPairingCount(stats, 'Roland Banks', 'Daisy Walker')).toBe(0)
+    })
+
     it('counts two distinct investigators of the same class independently in one campaign', async () => {
       const roland = makeInvestigator('Roland Banks', { investigatorId: 'roland-banks' })
       const zoey = makeInvestigator('Zoey Samaras', { investigatorId: 'zoey-samaras' })
@@ -514,30 +581,57 @@ describe('rebuildCommunityStats — campaign count invariants', () => {
       expect(getPairingCount(stats, 'Roland Banks', 'Zoey Samaras')).toBe(1)
     })
 
-    it('counts a replacement found only in rosterChanges.newEntry once with the original', async () => {
+    it('does not form a pair from replacement-only entries added after a scenario', async () => {
       const roland = makeInvestigator('Roland Banks', { investigatorId: 'roland-banks' })
       const daisy = makeInvestigator('Daisy Walker', {
         investigatorId: 'daisy-walker',
         archetype: 'Seeker',
       })
-      const replacementEntry = makeRosterEntry(daisy, {
+      const zoey = makeInvestigator('Zoey Samaras', { investigatorId: 'zoey-samaras' })
+      const daisyReplacement = makeRosterEntry(daisy, {
         slotId: 'seat-1:slot:2',
         joinedAtScenarioIndex: 1,
         startedAtScenarioIndex: 1,
       })
+      const zoeyReplacement = makeRosterEntry(zoey, {
+        seatId: 'seat-2',
+        slotId: 'seat-2:slot:2',
+        joinedAtScenarioIndex: 1,
+        startedAtScenarioIndex: 1,
+      })
+      const rolandEntry = makeRosterEntry(roland)
       const run = makeCampaignRun('run-1', [roland], [], {
         scenarioLogs: [{
           id: 'scenario-1',
           date: '2026-01-02',
           scenarioName: 'Scenario 1',
           investigators: [],
-          rosterChanges: [{
-            type: 'replacement',
-            seatId: 'seat-1',
-            previousSlotId: 'seat-1:slot:1',
-            reason: 'killed',
-            newEntry: replacementEntry,
-          }],
+          rosterChanges: [
+            {
+              type: 'replacement',
+              seatId: 'seat-1',
+              previousSlotId: 'seat-1:slot:1',
+              reason: 'killed',
+              newEntry: daisyReplacement,
+            },
+            {
+              type: 'replacement',
+              seatId: 'seat-2',
+              previousSlotId: 'seat-2:slot:1',
+              reason: 'driven_insane',
+              newEntry: zoeyReplacement,
+            },
+          ],
+          rosterAfter: [
+            {
+              ...rolandEntry,
+              seatStatus: 'eliminated',
+              endedAtScenarioIndex: 0,
+              endReason: 'killed',
+            },
+            daisyReplacement,
+            zoeyReplacement,
+          ],
         }],
       })
       mockCommunitySource([], { rootPlaythroughs: [], campaignRuns: [run] })
@@ -547,9 +641,209 @@ describe('rebuildCommunityStats — campaign count invariants', () => {
       const stats = mockSaveCommunityStats.mock.calls[0][0]
       expect(getInvestigatorCount(stats, 'Roland Banks')).toBe(1)
       expect(getInvestigatorCount(stats, 'Daisy Walker')).toBe(1)
-      expect(getClassCount(stats, 'Guardian')).toBe(1)
+      expect(getInvestigatorCount(stats, 'Zoey Samaras')).toBe(1)
+      expect(getClassCount(stats, 'Guardian')).toBe(2)
       expect(getClassCount(stats, 'Seeker')).toBe(1)
-      expect(getPairingCount(stats, 'Roland Banks', 'Daisy Walker')).toBe(1)
+      expect(getPairingCount(stats, 'Roland Banks', 'Daisy Walker')).toBe(0)
+      expect(getPairingCount(stats, 'Daisy Walker', 'Zoey Samaras')).toBe(0)
+    })
+
+    it('pairs a persistent investigator with old and new investigators without pairing the replacements', async () => {
+      const roland = makeInvestigator('Roland Banks', { investigatorId: 'roland-banks' })
+      const daisy = makeInvestigator('Daisy Walker', {
+        investigatorId: 'daisy-walker',
+        archetype: 'Seeker',
+      })
+      const zoey = makeInvestigator('Zoey Samaras', { investigatorId: 'zoey-samaras' })
+      const rolandEntry = makeRosterEntry(roland)
+      const daisyEntry = makeRosterEntry(daisy, {
+        slotId: 'seat-1:slot:2',
+        joinedAtScenarioIndex: 1,
+        startedAtScenarioIndex: 1,
+      })
+      const zoeyEntry = makeRosterEntry(zoey, {
+        seatId: 'seat-2',
+        slotId: 'seat-2:slot:1',
+      })
+      const run = makeCampaignRun('run-1', [roland, zoey], [], {
+        scenarioLogs: [
+          {
+            id: 'scenario-1',
+            date: '2026-01-02',
+            scenarioName: 'Scenario 1',
+            investigators: [],
+            rosterBefore: [rolandEntry, zoeyEntry],
+            rosterChanges: [{
+              type: 'replacement',
+              seatId: 'seat-1',
+              previousSlotId: 'seat-1:slot:1',
+              reason: 'killed',
+              newEntry: daisyEntry,
+            }],
+            rosterAfter: [
+              {
+                ...rolandEntry,
+                seatStatus: 'eliminated',
+                endedAtScenarioIndex: 0,
+                endReason: 'killed',
+              },
+              daisyEntry,
+              zoeyEntry,
+            ],
+          },
+          {
+            id: 'scenario-2',
+            date: '2026-01-03',
+            scenarioName: 'Scenario 2',
+            investigators: [],
+            rosterBefore: [daisyEntry, zoeyEntry],
+            rosterAfter: [daisyEntry, zoeyEntry],
+          },
+        ],
+      })
+      mockCommunitySource([], { rootPlaythroughs: [], campaignRuns: [run] })
+
+      await rebuildCommunityStats()
+
+      const stats = mockSaveCommunityStats.mock.calls[0][0]
+      expect(getPairingCount(stats, 'Roland Banks', 'Zoey Samaras')).toBe(1)
+      expect(getPairingCount(stats, 'Daisy Walker', 'Zoey Samaras')).toBe(1)
+      expect(getPairingCount(stats, 'Roland Banks', 'Daisy Walker')).toBe(0)
+    })
+
+    it('counts repeated main and side-scenario overlap once in one campaign run', async () => {
+      const roland = makeInvestigator('Roland Banks', { investigatorId: 'roland-banks' })
+      const daisy = makeInvestigator('Daisy Walker', {
+        investigatorId: 'daisy-walker',
+        archetype: 'Seeker',
+      })
+      const run = makeCampaignRun('run-1', [roland, daisy], [], {
+        scenarioLogs: [
+          {
+            id: 'scenario-1',
+            date: '2026-01-02',
+            scenarioName: 'Curtain Call',
+            scenarioType: 'standard',
+            investigators: [roland, daisy],
+          },
+          {
+            id: 'side-1',
+            date: '2026-01-03',
+            scenarioName: 'Curse of the Rougarou',
+            scenarioType: 'side_scenario',
+            investigators: [roland, daisy],
+          },
+        ],
+      })
+      mockCommunitySource([], { rootPlaythroughs: [], campaignRuns: [run] })
+
+      await rebuildCommunityStats()
+
+      expect(getPairingCount(
+        mockSaveCommunityStats.mock.calls[0][0],
+        'Roland Banks',
+        'Daisy Walker',
+      )).toBe(1)
+    })
+
+    it('does not pair investigators whose only overlap is in an interlude', async () => {
+      const roland = makeInvestigator('Roland Banks', { investigatorId: 'roland-banks' })
+      const daisy = makeInvestigator('Daisy Walker', {
+        investigatorId: 'daisy-walker',
+        archetype: 'Seeker',
+      })
+      const run = makeCampaignRun('run-1', [roland, daisy], [], {
+        scenarioLogs: [{
+          id: 'interlude-1',
+          date: '2026-01-03',
+          scenarioName: 'Interlude I',
+          scenarioType: 'interlude',
+          investigators: [roland, daisy],
+        }],
+      })
+      mockCommunitySource([], { rootPlaythroughs: [], campaignRuns: [run] })
+
+      await rebuildCommunityStats()
+
+      expect(getPairingCount(
+        mockSaveCommunityStats.mock.calls[0][0],
+        'Roland Banks',
+        'Daisy Walker',
+      )).toBe(0)
+    })
+
+    it('counts a pair whose only overlap is in a side scenario', async () => {
+      const roland = makeInvestigator('Roland Banks', { investigatorId: 'roland-banks' })
+      const daisy = makeInvestigator('Daisy Walker', {
+        investigatorId: 'daisy-walker',
+        archetype: 'Seeker',
+      })
+      const rolandEntry = makeRosterEntry(roland)
+      const daisyEntry = makeRosterEntry(daisy, {
+        seatId: 'seat-2',
+        slotId: 'seat-2:slot:1',
+      })
+      const run = makeCampaignRun('run-1', [], [], {
+        scenarioLogs: [
+          {
+            id: 'scenario-1',
+            date: '2026-01-02',
+            scenarioName: 'Curtain Call',
+            scenarioType: 'standard',
+            investigators: [roland],
+          },
+          {
+            id: 'side-1',
+            date: '2026-01-03',
+            scenarioName: 'Curse of the Rougarou',
+            scenarioType: 'side_scenario',
+            investigators: [],
+            rosterAfter: [rolandEntry, daisyEntry],
+          },
+          {
+            id: 'scenario-2',
+            date: '2026-01-04',
+            scenarioName: 'The Last King',
+            scenarioType: 'standard',
+            investigators: [daisy],
+          },
+        ],
+      })
+      mockCommunitySource([], { rootPlaythroughs: [], campaignRuns: [run] })
+
+      await rebuildCommunityStats()
+
+      expect(getPairingCount(
+        mockSaveCommunityStats.mock.calls[0][0],
+        'Roland Banks',
+        'Daisy Walker',
+      )).toBe(1)
+    })
+
+    it('counts the same pair once in each of two campaign runs', async () => {
+      const roland = makeInvestigator('Roland Banks', { investigatorId: 'roland-banks' })
+      const daisy = makeInvestigator('Daisy Walker', {
+        investigatorId: 'daisy-walker',
+        archetype: 'Seeker',
+      })
+      mockCommunitySource([], {
+        rootPlaythroughs: [],
+        campaignRuns: [
+          makeCampaignRun('run-1', [roland, daisy], [[roland, daisy]]),
+          makeCampaignRun('run-2', [roland, daisy], [
+            [roland, daisy],
+            [roland, daisy],
+          ]),
+        ],
+      })
+
+      await rebuildCommunityStats()
+
+      expect(getPairingCount(
+        mockSaveCommunityStats.mock.calls[0][0],
+        'Roland Banks',
+        'Daisy Walker',
+      )).toBe(2)
     })
 
     it('counts an eliminated investigator retained only in rosterBefore', async () => {
