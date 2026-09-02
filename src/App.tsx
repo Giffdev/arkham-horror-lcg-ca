@@ -11,6 +11,7 @@ import { importNormalizedData, promotePlaythroughToCampaignRun } from '@/lib/fir
 import { Playthrough, CampaignRun, CampaignScenarioLog } from '@/lib/types'
 import { User as AuthUser } from '@/lib/auth'
 import { buildTopLevelGameRows } from '@/lib/top-level-game-rows'
+import { collapseCampaignInvestigatorPlays } from '@/lib/investigator-play-history'
 import { getActualCampaignScenarioLogs } from '@/lib/scenario-night-utils'
 import type { NormalizedImportPayload } from '@/lib/import-export'
 
@@ -86,6 +87,11 @@ function AuthenticatedApp({ currentUser, onSignOut }: AuthenticatedAppProps) {
     })
   ), [campaignRuns, playthroughs])
 
+  const investigatorPlaythroughs = useMemo(
+    () => collapseCampaignInvestigatorPlays(flattenedPlaythroughs, campaignRuns),
+    [campaignRuns, flattenedPlaythroughs],
+  )
+
   const topLevelRows = useMemo(() => (
     buildTopLevelGameRows(playthroughs, campaignRuns)
   ), [campaignRuns, playthroughs])
@@ -125,9 +131,9 @@ function AuthenticatedApp({ currentUser, onSignOut }: AuthenticatedAppProps) {
   }, [flattenedPlaythroughs])
 
   const allPlayers = useMemo(() => {
-    if (!flattenedPlaythroughs) return []
+    if (!investigatorPlaythroughs) return []
     const playerSet = new Set<string>()
-    flattenedPlaythroughs.forEach(playthrough => {
+    investigatorPlaythroughs.forEach(playthrough => {
       playthrough.investigators.forEach(inv => {
         if (inv.playerName.trim()) {
           playerSet.add(inv.playerName)
@@ -135,7 +141,7 @@ function AuthenticatedApp({ currentUser, onSignOut }: AuthenticatedAppProps) {
       })
     })
     return Array.from(playerSet).sort((a, b) => a.localeCompare(b))
-  }, [flattenedPlaythroughs])
+  }, [investigatorPlaythroughs])
 
   const editingCampaignRun = useMemo(() => {
     if (editingTarget?.kind !== 'campaign-run') return null
@@ -490,7 +496,7 @@ function AuthenticatedApp({ currentUser, onSignOut }: AuthenticatedAppProps) {
           <TabsContent value="players" className="space-y-6">
             <PlayersTab
               isLoading={isLoadingGames}
-              playthroughs={flattenedPlaythroughs}
+              playthroughs={investigatorPlaythroughs}
               allPlayers={allPlayers}
               selectedPlayer={selectedPlayer}
               onSelectPlayer={setSelectedPlayer}

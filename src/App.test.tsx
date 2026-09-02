@@ -190,7 +190,19 @@ vi.mock('@/components/CampaignScenarioForm', () => ({
 }))
 
 vi.mock('@/components/PlayersTab', () => ({
-  PlayersTab: () => <div data-testid="players-tab" />,
+  PlayersTab: (props: { playthroughs: Playthrough[] }) => (
+    <div data-testid="players-tab">
+      <span data-testid="player-play-root-count">{props.playthroughs.length}</span>
+      <span data-testid="player-investigator-play-count">
+        {props.playthroughs.reduce((count, playthrough) => count + playthrough.investigators.length, 0)}
+      </span>
+      <span data-testid="player-investigators">
+        {props.playthroughs.flatMap(playthrough => playthrough.investigators)
+          .map(investigator => `${investigator.playerName}:${investigator.investigatorName}`)
+          .join(',')}
+      </span>
+    </div>
+  ),
 }))
 
 vi.mock('@/components/CommunityStats', () => ({
@@ -360,5 +372,64 @@ describe('App campaign continuation flow', () => {
     expect(screen.getByRole('button', { name: 'continue-legacy' })).toBeInTheDocument()
     expect(mockToastSuccess).toHaveBeenCalledWith('Campaign run deleted')
     expect(mockToastError).not.toHaveBeenCalled()
+  })
+
+  it('passes one investigator play per campaign run or standalone play to player history', async () => {
+    const user = userEvent.setup()
+    const run = makeRun('run-history')
+    run.scenarioLogs = ['one', 'two', 'three'].map((id, index) => ({
+      id,
+      date: `2026-08-${10 + index}`,
+      scenarioName: `Scenario ${index + 1}`,
+      investigators: [{ ...run.setupSnapshot.investigators[0] }],
+    }))
+    mockCampaignRuns = [run, {
+      ...run,
+      id: 'run-history-2',
+      scenarioLogs: [{
+        ...run.scenarioLogs[0],
+        id: 'other-run-scenario',
+        date: '2026-08-20',
+      }],
+    }]
+    mockPlaythroughs = [
+      makeLegacyPlaythrough('standalone-1'),
+      makeLegacyPlaythrough('standalone-2'),
+    ]
+
+    render(<App />)
+    await user.click(screen.getByRole('tab', { name: /players/i }))
+
+    expect(screen.getByTestId('player-play-root-count')).toHaveTextContent('4')
+    expect(screen.getByTestId('player-investigator-play-count')).toHaveTextContent('4')
+  })
+
+  it('passes the setup investigator from a scenario-less campaign run to player history', async () => {
+    const user = userEvent.setup()
+    mockCampaignRuns = [{
+      ...makeRun('hemlock-hank'),
+      campaignLineageId: 'campaign:the-feast-of-hemlock-vale',
+      campaignName: 'The Feast of Hemlock Vale',
+      campaignSet: 'The Feast of Hemlock Vale',
+      setupSnapshot: {
+        date: '2026-08-01',
+        investigators: [{
+          playerName: 'Devin Sinha',
+          investigatorName: 'Hank Samson',
+          investigatorId: 'hank-samson',
+          chapter: 1,
+          investigatorSet: 'The Feast of Hemlock Vale',
+          archetype: 'Survivor',
+          archetypes: ['Survivor'],
+        }],
+      },
+      scenarioLogs: [],
+    }]
+
+    render(<App />)
+    await user.click(screen.getByRole('tab', { name: /players/i }))
+
+    expect(screen.getByTestId('player-play-root-count')).toHaveTextContent('1')
+    expect(screen.getByTestId('player-investigators')).toHaveTextContent('Devin Sinha:Hank Samson')
   })
 })
