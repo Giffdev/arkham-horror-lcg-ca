@@ -233,6 +233,29 @@ describe('PlayersOverview — played card row structure (D14-D16)', () => {
     expect(within(panel).getByText('time')).toBeInTheDocument()
   })
 
+  it('classifies Hank Samson as played from canonical saved campaign metadata', () => {
+    const hemlockCampaign: Playthrough = {
+      id: 'campaign-run:hemlock-hank:setup',
+      date: '2026-08-01',
+      campaignName: 'The Feast of Hemlock Vale',
+      campaignSet: 'The Feast of Hemlock Vale',
+      campaignType: 'Full Campaign',
+      investigators: [{
+        playerName: 'Devin Sinha',
+        investigatorName: 'Hank Samson',
+        investigatorId: 'hank-samson',
+        chapter: 1,
+        investigatorSet: 'The Feast of Hemlock Vale',
+        archetype: 'Survivor',
+        archetypes: ['Survivor'],
+      }],
+    }
+
+    render(<PlayersOverview playthroughs={[hemlockCampaign]} />)
+
+    expect(screen.getByRole('tabpanel')).toHaveTextContent('Hank Samson')
+  })
+
   it('multi-play card uses plural "times" label', () => {
     const twoPlays: Playthrough[] = [
       makePlayed([{ playerName: 'Alice', investigatorName: 'Roland Banks', archetype: 'Guardian' }]),
