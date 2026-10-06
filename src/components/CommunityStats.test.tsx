@@ -199,6 +199,23 @@ describe('CommunityStats', () => {
       expect(screen.getByText(/class popularity/i)).toBeVisible()
     })
 
+    it('shows all six classes without requiring expansion', async () => {
+      await renderAndWait({
+        ...FULL_STATS,
+        topClasses: [
+          { archetype: 'Guardian', count: 6 },
+          { archetype: 'Seeker', count: 5 },
+          { archetype: 'Rogue', count: 4 },
+          { archetype: 'Mystic', count: 3 },
+          { archetype: 'Survivor', count: 2 },
+          { archetype: 'Neutral', count: 1 },
+        ],
+      })
+
+      expect(screen.getByText('Neutral')).toBeVisible()
+      expect(screen.queryByRole('button', { name: /show all 6/i })).not.toBeInTheDocument()
+    })
+
     it('labels investigator popularity in singular and plural campaigns', async () => {
       await renderAndWait(FULL_STATS)
       expect(screen.getByText('1 campaign')).toBeVisible()

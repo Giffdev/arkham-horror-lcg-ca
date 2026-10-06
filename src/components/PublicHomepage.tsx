@@ -320,6 +320,7 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
                         icon={Shield}
                         title="Class Ranking"
                         items={classItems}
+                        collapseAfter={6}
                         className="h-full"
                       />
                     )}

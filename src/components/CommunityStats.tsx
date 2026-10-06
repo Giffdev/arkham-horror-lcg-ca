@@ -316,6 +316,7 @@ export function CommunityStats() {
             icon={Shield}
             title="Class Popularity"
             items={classItems}
+            collapseAfter={6}
             className="h-full"
           />
         )}

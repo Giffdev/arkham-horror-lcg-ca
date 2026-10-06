@@ -1000,8 +1000,15 @@ export function PlaythroughForm({
                       id="standalone-resolution-value"
                       value={resolutionValue}
                       onChange={event => setResolutionValue(event.target.value)}
+                      placeholder={resolutionType === 'numbered' ? 'e.g. 2' : 'Enter resolution details'}
+                      aria-describedby={resolutionType === 'numbered' ? 'standalone-resolution-value-help' : undefined}
                       className="text-foreground"
                     />
+                    {resolutionType === 'numbered' && (
+                      <p id="standalone-resolution-value-help" className="text-xs text-muted-foreground">
+                        Enter only the resolution number, for example 2.
+                      </p>
+                    )}
                   </div>
                 )}
               </div>

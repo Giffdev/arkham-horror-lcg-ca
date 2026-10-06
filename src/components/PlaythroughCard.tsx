@@ -11,6 +11,7 @@ import type { InvestigatorAssignment } from '@/lib/types'
 import { CampaignSvgIcon } from './CampaignSvgIcon'
 import { hasDedicatedCampaignIcon } from '@/lib/campaign-icon-map'
 import { CardActionArea } from './CardActionArea'
+import { TraumaDisplay } from './TraumaDisplay'
 import { isContinuableCampaignLog } from '@/lib/campaign-data'
 import { isActualLegacyScenarioNight } from '@/lib/scenario-night-utils'
 
@@ -272,9 +273,14 @@ export const PlaythroughCard = memo(function PlaythroughCard({
           {playthrough.campaignType === 'Scenario Pack' && playthrough.investigatorOutcomes?.length ? (
             <div className="space-y-1 text-xs text-muted-foreground" aria-label="Scenario results by investigator">
               {playthrough.investigatorOutcomes.map(outcome => (
-                <p key={outcome.slotId}>
+                <p key={outcome.slotId} className="flex flex-wrap items-center gap-x-1">
                   <span className="font-medium text-foreground">{outcome.investigatorName}</span>
-                  {`: ${outcome.status.replace(/_/g, ' ')} · XP ${outcome.xpEarned} · Trauma P${outcome.traumaGainedPhysical}/M${outcome.traumaGainedMental}`}
+                  <span>{`: ${outcome.status.replace(/_/g, ' ')} · XP ${outcome.xpEarned}`}</span>
+                  <span aria-hidden="true">·</span>
+                  <TraumaDisplay
+                    physical={outcome.traumaGainedPhysical}
+                    mental={outcome.traumaGainedMental}
+                  />
                 </p>
               ))}
             </div>
