@@ -42,6 +42,7 @@ interface PublicHomepageProps {
 }
 
 function campaignSetKey(name: string): string {
+  if (hasDedicatedCampaignIcon(name)) return name
   const c = ALL_CAMPAIGNS.find(x => x.name === name)
   if (c?.type === 'Scenario Pack') return name
   return c?.set ?? name

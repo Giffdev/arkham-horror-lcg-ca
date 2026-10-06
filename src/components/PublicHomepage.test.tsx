@@ -14,6 +14,7 @@ import userEvent from '@testing-library/user-event'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { PublicHomepage } from './PublicHomepage'
+import { getCampaignSvgRaw } from '@/lib/campaign-icon-map'
 
 vi.mock('@/lib/community-stats', () => ({
   getCommunityStats: vi.fn(),
@@ -106,6 +107,38 @@ describe('PublicHomepage', () => {
 
     it('does not crash when stats load successfully', async () => {
       await expect(renderAndWait()).resolves.toBeUndefined()
+    })
+
+    it('uses the dedicated Children of Blood icon instead of the Core 2026 set icon', async () => {
+      await renderAndWait({
+        ...FULL_STATS,
+        topCampaigns: [{ name: 'Children of Blood', count: 4, set: 'Core 2026' }],
+      })
+
+      const renderedSvg = screen.getByText('Children of Blood').parentElement?.querySelector('svg')
+      const expected = document.createElement('div')
+      const core2026 = document.createElement('div')
+      expected.innerHTML = getCampaignSvgRaw('Children of Blood')
+      core2026.innerHTML = getCampaignSvgRaw('Core 2026')
+
+      expect(renderedSvg?.innerHTML).toBe(expected.querySelector('svg')?.innerHTML)
+      expect(renderedSvg?.innerHTML).not.toBe(core2026.querySelector('svg')?.innerHTML)
+    })
+
+    it('retains the catalog-set icon when the campaign name has no dedicated icon', async () => {
+      await renderAndWait({
+        ...FULL_STATS,
+        topCampaigns: [{ name: 'The Night of the Zealot', count: 4, set: 'Core' }],
+      })
+
+      const renderedSvg = screen.getByText('The Night of the Zealot').parentElement?.querySelector('svg')
+      const expected = document.createElement('div')
+      const nameFallback = document.createElement('div')
+      expected.innerHTML = getCampaignSvgRaw('Core')
+      nameFallback.innerHTML = getCampaignSvgRaw('The Night of the Zealot')
+
+      expect(renderedSvg?.innerHTML).toBe(expected.querySelector('svg')?.innerHTML)
+      expect(renderedSvg?.innerHTML).not.toBe(nameFallback.querySelector('svg')?.innerHTML)
     })
 
     it('renders an unavailable message when the trusted aggregate is missing', async () => {
