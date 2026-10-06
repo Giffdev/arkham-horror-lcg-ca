@@ -173,7 +173,7 @@ describe('CommunityStats', () => {
       expect(screen.getByText('7')).toBeVisible()  // registeredUsers
       expect(screen.getByText('23')).toBeVisible() // totalInvestigatorsPlayed
       expect(screen.getByText(/total games logged/i)).toBeVisible()
-      expect(screen.queryByText('6')).not.toBeInTheDocument()
+      expect(screen.queryByText(/total campaigns logged/i)).not.toBeInTheDocument()
     })
 
     it('renders the Most Popular Campaigns list card', async () => {
@@ -199,7 +199,7 @@ describe('CommunityStats', () => {
       expect(screen.getByText(/class popularity/i)).toBeVisible()
     })
 
-    it('shows all six classes without requiring expansion', async () => {
+    it('shows all six classes and fills an absent Neutral count with zero', async () => {
       await renderAndWait({
         ...FULL_STATS,
         topClasses: [
@@ -208,11 +208,11 @@ describe('CommunityStats', () => {
           { archetype: 'Rogue', count: 4 },
           { archetype: 'Mystic', count: 3 },
           { archetype: 'Survivor', count: 2 },
-          { archetype: 'Neutral', count: 1 },
         ],
       })
 
       expect(screen.getByText('Neutral')).toBeVisible()
+      expect(screen.getByText('0 plays (0%)')).toBeVisible()
       expect(screen.queryByRole('button', { name: /show all 6/i })).not.toBeInTheDocument()
     })
 
@@ -291,6 +291,16 @@ describe('CommunityStats', () => {
     it('does not render side-stories card when topSideScenarios is missing', async () => {
       await renderAndWait(LEGACY_STATS)
       expect(screen.queryByText(/popular side stories/i)).not.toBeInTheDocument()
+    })
+
+    it('does not synthesize a class card when topClasses is missing', async () => {
+      await renderAndWait(LEGACY_STATS)
+      expect(screen.queryByText(/class popularity/i)).not.toBeInTheDocument()
+    })
+
+    it('does not synthesize a class card when topClasses is empty', async () => {
+      await renderAndWait({ ...FULL_STATS, topClasses: [] })
+      expect(screen.queryByText(/class popularity/i)).not.toBeInTheDocument()
     })
 
     it('still renders the core metric tiles with legacy data', async () => {
