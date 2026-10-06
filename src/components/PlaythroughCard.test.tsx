@@ -178,8 +178,9 @@ describe('PlaythroughCard campaign log actions', () => {
 
     expect(screen.queryByRole('button', { name: /Continue Campaign/i })).toBeNull()
     expect(document.querySelectorAll('[data-slot="card-action-area"]')).toHaveLength(1)
-    expect(screen.getByLabelText('Scenario results by investigator'))
-      .toHaveTextContent(/Roland Banks.*resigned.*XP 4.*Trauma P1\/M2/i)
+    const results = screen.getByLabelText('Scenario results by investigator')
+    expect(results).toHaveTextContent(/Roland Banks.*resigned.*XP 4/i)
+    expect(within(results).getByLabelText('1 physical trauma, 2 mental trauma')).toBeVisible()
   })
 
   it.each([

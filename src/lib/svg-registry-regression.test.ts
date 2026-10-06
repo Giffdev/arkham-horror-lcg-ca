@@ -53,6 +53,7 @@ import tdccRaw            from '@/components/icons/tdcc.svg?raw'
 import ticRaw             from '@/components/icons/tic.svg?raw'
 import barkhamRaw         from '@/components/icons/barkham_horror.svg?raw'
 import core2026Raw        from '@/components/icons/core_2026.svg?raw'
+import cobRaw             from '@/components/icons/cob.svg?raw'
 import veniceRaw          from '@/components/icons/standalone-venice.svg?raw'
 import rougarouRaw        from '@/components/icons/curse_of_the_rougarou.svg?raw'
 import filmFataleRaw      from '@/components/icons/film_fatale.svg?raw'
@@ -118,6 +119,16 @@ describe('Edge of the Earth — file-identity regression (eoe_campaign, not edge
 
   it('hasDedicatedCampaignIcon is true for Edge of the Earth', () => {
     expect(hasDedicatedCampaignIcon('Edge of the Earth')).toBe(true)
+  })
+})
+
+describe('Children of Blood — file-identity regression', () => {
+  it('resolves to the cob.svg asset', () => {
+    expect(getCampaignSvgRaw('Children of Blood')).toBe(normalise(cobRaw))
+  })
+
+  it('does not reuse the Core 2026 icon', () => {
+    expect(getCampaignSvgRaw('Children of Blood')).not.toBe(normalise(core2026Raw))
   })
 })
 

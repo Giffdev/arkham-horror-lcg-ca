@@ -79,6 +79,57 @@ describe('CampaignScenarioForm', () => {
     }
   })
 
+  it('prompts for only the number when a numbered resolution is selected', async () => {
+    const user = userEvent.setup()
+    render(
+      <CampaignScenarioForm
+        open
+        onOpenChange={vi.fn()}
+        campaignRun={makeRun()}
+        mode="append"
+        onSave={vi.fn()}
+      />,
+    )
+
+    await user.click(screen.getByRole('combobox', { name: 'Resolution' }))
+    await user.click(await screen.findByRole('option', { name: 'Numbered' }))
+
+    expect(screen.getByLabelText('Resolution Detail')).toHaveAttribute('placeholder', 'e.g. 2')
+    expect(screen.getByText('Enter only the resolution number, for example 2.')).toBeVisible()
+    expect(screen.queryByPlaceholderText('e.g. Resolution 2')).not.toBeInTheDocument()
+  })
+
+  it('renders legacy group trauma with accessible colored icons', () => {
+    const run = makeRun({
+      scenarioLogs: [{
+        id: 'scenario-1',
+        date: '2026-08-18',
+        scenarioName: 'Curtain Call',
+        investigators: [],
+        xpEarned: 6,
+        physicalTrauma: 1,
+        mentalTrauma: 2,
+      }],
+    })
+
+    render(
+      <CampaignScenarioForm
+        open
+        onOpenChange={vi.fn()}
+        campaignRun={run}
+        scenarioLog={run.scenarioLogs[0]}
+        mode="edit"
+        onSave={vi.fn()}
+      />,
+    )
+
+    const warning = screen.getByText(/This legacy log contains group-level totals/i)
+    const trauma = within(warning).getByLabelText('1 physical trauma, 2 mental trauma')
+    expect(trauma.querySelector('[data-slot="physical-trauma"]')).toHaveClass('text-red-400')
+    expect(trauma.querySelector('[data-slot="mental-trauma"]')).toHaveClass('text-sky-400')
+    expect(trauma.querySelectorAll('svg')).toHaveLength(2)
+  })
+
   it('builds rich payload with canonical replacement metadata for appended scenarios', async () => {
     const user = userEvent.setup()
     const onSave = vi.fn().mockResolvedValue(undefined)

@@ -205,6 +205,23 @@ describe('PublicHomepage', () => {
       expect(screen.queryByText(/of class assignments/i)).not.toBeInTheDocument()
     })
 
+    it('shows all six classes without requiring expansion', async () => {
+      await renderAndWait({
+        ...FULL_STATS,
+        topClasses: [
+          { archetype: 'Guardian', count: 6 },
+          { archetype: 'Seeker', count: 5 },
+          { archetype: 'Rogue', count: 4 },
+          { archetype: 'Mystic', count: 3 },
+          { archetype: 'Survivor', count: 2 },
+          { archetype: 'Neutral', count: 1 },
+        ],
+      })
+
+      expect(screen.getByText('Neutral')).toBeVisible()
+      expect(screen.queryByRole('button', { name: /show all 6/i })).not.toBeInTheDocument()
+    })
+
     it('keeps class labels on the fixed compact count side of each ranked row', async () => {
       await renderAndWait()
       const countLabel = screen.getByText('3 plays (75%)')

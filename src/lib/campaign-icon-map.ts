@@ -17,6 +17,7 @@
 import coreRaw from '@/components/icons/core.svg?raw'
 import rtnotzRaw from '@/components/icons/rtnotz.svg?raw'
 import core2026Raw from '@/components/icons/core_2026.svg?raw'
+import cobRaw from '@/components/icons/cob.svg?raw'
 import setRaw from '@/components/icons/set.svg?raw'
 import returnDunwichRaw from '@/components/icons/return_to_the_dunwich_legacy.svg?raw'
 import carcosaRaw from '@/components/icons/carcosa.svg?raw'
@@ -111,7 +112,7 @@ const CAMPAIGN_ICONS: Record<string, string> = {
   'Core':                              normalise(coreRaw),
   'Return to The Night of the Zealot': normalise(rtnotzRaw),
   'Core 2026':                         normalise(core2026Raw),
-  'Children of Blood':                 normalise(core2026Raw),
+  'Children of Blood':                 normalise(cobRaw),
   'Brethren of Ash':                   normalise(core2026Raw),
   'The Dunwich Legacy':                normalise(setRaw),
   'Return to The Dunwich Legacy':      normalise(returnDunwichRaw),

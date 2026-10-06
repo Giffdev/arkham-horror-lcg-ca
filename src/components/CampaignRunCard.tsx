@@ -6,6 +6,7 @@ import { ArchetypeBadge } from '@/components/ArchetypeBadge'
 import { CampaignSvgIcon } from '@/components/CampaignSvgIcon'
 import { CampaignScenarioRow } from '@/components/CampaignScenarioRow'
 import { CardActionArea } from '@/components/CardActionArea'
+import { TraumaDisplay } from '@/components/TraumaDisplay'
 import { deriveCampaignRunRosterSummary } from '@/lib/campaign-runs'
 import { formatDate } from '@/lib/date-utils'
 import { getCampaignProgressionScenarioNames, getNextCampaignScenarioResolution } from '@/lib/campaign-progression'
@@ -261,8 +262,12 @@ export const CampaignRunCard = memo(function CampaignRunCard({
                                 XP {investigator.xpTotal}
                                 {investigator.xpSpent > 0 && ` (${investigator.xpSpent} spent)`}
                               </span>
-                              <span className="whitespace-nowrap">
-                                · Trauma P{investigator.physicalTrauma}/M{investigator.mentalTrauma}
+                              <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                                <span aria-hidden="true">·</span>
+                                <TraumaDisplay
+                                  physical={investigator.physicalTrauma}
+                                  mental={investigator.mentalTrauma}
+                                />
                               </span>
                             </div>
                           )}
@@ -323,8 +328,12 @@ export const CampaignRunCard = memo(function CampaignRunCard({
                                           XP {historical.xpTotal}
                                           {historical.xpSpent > 0 && ` (${historical.xpSpent} spent)`}
                                         </span>
-                                        <span className="whitespace-nowrap">
-                                          · Trauma P{historical.physicalTrauma}/M{historical.mentalTrauma}
+                                        <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                                          <span aria-hidden="true">·</span>
+                                          <TraumaDisplay
+                                            physical={historical.physicalTrauma}
+                                            mental={historical.mentalTrauma}
+                                          />
                                         </span>
                                       </div>
                                     )}

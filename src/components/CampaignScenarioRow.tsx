@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge'
 import { PencilSimple, Trash } from '@phosphor-icons/react'
 import { formatDate } from '@/lib/date-utils'
 import { getLegacyGroupScenarioOutcome } from '@/lib/campaign-runs'
+import { TraumaDisplay } from '@/components/TraumaDisplay'
 import type {
   CampaignRun,
   CampaignScenarioInvestigatorOutcome,
@@ -65,9 +66,11 @@ export function CampaignScenarioRow({
   const playerPairs = summarizePlayers(scenarioLog)
   const legacyGroupOutcome = getLegacyGroupScenarioOutcome(scenarioLog)
   const resolutionLabel = scenarioLog.resolution?.type && scenarioLog.resolution.type !== 'no_resolution'
-    ? scenarioLog.resolution.value
-      ? `${scenarioLog.resolution.type}: ${scenarioLog.resolution.value}`
-      : scenarioLog.resolution.type
+    ? scenarioLog.resolution.type === 'numbered' && scenarioLog.resolution.value
+      ? `Resolution - ${scenarioLog.resolution.value}`
+      : scenarioLog.resolution.value
+        ? `${scenarioLog.resolution.type}: ${scenarioLog.resolution.value}`
+        : scenarioLog.resolution.type
     : null
   const typeBadgeLabel = scenarioLog.scenarioType === 'side_scenario'
     ? 'Side Scenario'
@@ -107,8 +110,15 @@ export function CampaignScenarioRow({
               {legacyGroupOutcome.xpEarned !== undefined && ` ${legacyGroupOutcome.xpEarned} XP`}
               {legacyGroupOutcome.victoryDisplayTotal !== undefined && ` victory ${legacyGroupOutcome.victoryDisplayTotal}`}
               {legacyGroupOutcome.xpBonusPenalty !== undefined && ` adjustment ${legacyGroupOutcome.xpBonusPenalty}`}
-              {(legacyGroupOutcome.physicalTrauma !== undefined || legacyGroupOutcome.mentalTrauma !== undefined) &&
-                ` trauma P${legacyGroupOutcome.physicalTrauma ?? 0}/M${legacyGroupOutcome.mentalTrauma ?? 0}`}
+              {(legacyGroupOutcome.physicalTrauma !== undefined || legacyGroupOutcome.mentalTrauma !== undefined) && (
+                <>
+                  {' '}
+                  <TraumaDisplay
+                    physical={legacyGroupOutcome.physicalTrauma ?? 0}
+                    mental={legacyGroupOutcome.mentalTrauma ?? 0}
+                  />
+                </>
+              )}
             </p>
           )}
           {scenarioLog.sideStories && scenarioLog.sideStories.length > 0 && (
@@ -162,8 +172,12 @@ export function CampaignScenarioRow({
                     data-slot="scenario-player-outcome"
                   >
                     <span className="whitespace-nowrap">{pair.outcome.xpEarned} XP</span>
-                    <span className="whitespace-nowrap">
-                      · Trauma P{pair.outcome.traumaGainedPhysical}/M{pair.outcome.traumaGainedMental}
+                    <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                      <span aria-hidden="true">·</span>
+                      <TraumaDisplay
+                        physical={pair.outcome.traumaGainedPhysical}
+                        mental={pair.outcome.traumaGainedMental}
+                      />
                     </span>
                     {pair.outcome.status !== 'survived' && (
                       <span className="whitespace-nowrap">· {renderStatusLabel(pair.outcome.status)}</span>

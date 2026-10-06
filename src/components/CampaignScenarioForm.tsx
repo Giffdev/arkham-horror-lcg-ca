@@ -9,6 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { ArchetypeBadge } from '@/components/ArchetypeBadge'
+import { TraumaDisplay } from '@/components/TraumaDisplay'
 import { getScenarioPackCampaignNames } from '@/lib/campaign-data'
 import { getCampaignProgressionScenarioNames, getNextCampaignScenarioResolution } from '@/lib/campaign-progression'
 import { getLegacyGroupScenarioOutcome, getNextCampaignSeatSlotId } from '@/lib/campaign-runs'
@@ -597,9 +598,6 @@ export function CampaignScenarioForm({
     if (legacyGroupOutcome.xpEarned !== undefined) parts.push(`${legacyGroupOutcome.xpEarned} XP`)
     if (legacyGroupOutcome.victoryDisplayTotal !== undefined) parts.push(`victory ${legacyGroupOutcome.victoryDisplayTotal}`)
     if (legacyGroupOutcome.xpBonusPenalty !== undefined) parts.push(`adjustment ${legacyGroupOutcome.xpBonusPenalty}`)
-    if (legacyGroupOutcome.physicalTrauma !== undefined || legacyGroupOutcome.mentalTrauma !== undefined) {
-      parts.push(`trauma P${legacyGroupOutcome.physicalTrauma ?? 0}/M${legacyGroupOutcome.mentalTrauma ?? 0}`)
-    }
     return parts.join(' · ')
   }, [legacyGroupOutcome])
 
@@ -1076,9 +1074,15 @@ export function CampaignScenarioForm({
                   id="resolution-value"
                   value={resolutionValue}
                   onChange={(event) => setResolutionValue(event.target.value)}
-                  placeholder="e.g. Resolution 2"
+                  placeholder={resolutionType === 'numbered' ? 'e.g. 2' : 'Enter resolution details'}
+                  aria-describedby={resolutionType === 'numbered' ? 'resolution-value-help' : undefined}
                   className="text-foreground"
                 />
+                {resolutionType === 'numbered' && (
+                  <p id="resolution-value-help" className="text-xs text-muted-foreground">
+                    Enter only the resolution number, for example 2.
+                  </p>
+                )}
               </div>
             )}
           </div>
@@ -1093,7 +1097,28 @@ export function CampaignScenarioForm({
             </p>
             {legacyGroupOutcome && (
               <p className="rounded-md border border-amber-400/40 bg-amber-400/10 p-2 text-xs text-amber-200">
-                This legacy log contains group-level totals{legacyGroupOutcomeSummary ? ` (${legacyGroupOutcomeSummary})` : ''}. They remain unallocated and will not be split across investigators automatically.
+                This legacy log contains group-level totals
+                {(legacyGroupOutcomeSummary ||
+                  legacyGroupOutcome.physicalTrauma !== undefined ||
+                  legacyGroupOutcome.mentalTrauma !== undefined) && (
+                  <>
+                    {' ('}
+                    {legacyGroupOutcomeSummary}
+                    {legacyGroupOutcomeSummary &&
+                      (legacyGroupOutcome.physicalTrauma !== undefined ||
+                        legacyGroupOutcome.mentalTrauma !== undefined) &&
+                      ' · '}
+                    {(legacyGroupOutcome.physicalTrauma !== undefined ||
+                      legacyGroupOutcome.mentalTrauma !== undefined) && (
+                      <TraumaDisplay
+                        physical={legacyGroupOutcome.physicalTrauma ?? 0}
+                        mental={legacyGroupOutcome.mentalTrauma ?? 0}
+                      />
+                    )}
+                    {')'}
+                  </>
+                )}
+                . They remain unallocated and will not be split across investigators automatically.
               </p>
             )}
             <div className="space-y-3">

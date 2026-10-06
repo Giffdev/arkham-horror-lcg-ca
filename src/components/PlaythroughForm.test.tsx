@@ -576,6 +576,28 @@ describe('PlaythroughForm — Traces To Nowhere (chapter 2 scenario)', () => {
     expect(screen.getByText('Traces To Nowhere')).toBeInTheDocument()
   })
 
+  it('prompts for only the number for a numbered standalone resolution', async () => {
+    const user = userEvent.setup()
+    render(
+      <PlaythroughForm
+        open
+        onOpenChange={vi.fn()}
+        onSave={vi.fn()}
+        editPlaythrough={{
+          ...SCENARIO_PACK_SEED,
+          campaignName: 'Traces To Nowhere',
+          scenarioName: 'Traces To Nowhere',
+        }}
+      />,
+    )
+
+    await user.click(screen.getByRole('combobox', { name: 'Resolution' }))
+    await user.click(await screen.findByRole('option', { name: 'Numbered' }))
+
+    expect(screen.getByLabelText('Resolution Detail')).toHaveAttribute('placeholder', 'e.g. 2')
+    expect(screen.getByText('Enter only the resolution number, for example 2.')).toBeVisible()
+  })
+
   it('hides side-story controls and persists rich per-investigator standalone results', async () => {
     const user = userEvent.setup()
     const onSave = vi.fn().mockResolvedValue(undefined)

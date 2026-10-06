@@ -818,7 +818,10 @@ describe('CampaignRunCard', () => {
     expect(within(seatRow).getByText('Evergreen Starters (Ch. 2)')).toBeInTheDocument()
     expect(within(seatRow).getByText('Alice')).toHaveClass('break-words', 'hyphens-none', 'md:truncate')
     expect(seatRow).toHaveTextContent('XP 3')
-    expect(seatRow).toHaveTextContent('Trauma P0/M0')
+    const currentTrauma = within(seatRow).getByLabelText('0 physical trauma, 0 mental trauma')
+    expect(currentTrauma.querySelector('[data-slot="physical-trauma"]')).toHaveClass('text-red-400')
+    expect(currentTrauma.querySelector('[data-slot="mental-trauma"]')).toHaveClass('text-sky-400')
+    expect(currentTrauma.querySelectorAll('svg')).toHaveLength(2)
     const tallyGroups = seatRow.querySelectorAll('[data-slot="campaign-roster-tallies"]')
     expect(tallyGroups[0]).toHaveClass('flex', 'flex-wrap')
     expect(tallyGroups[0].children[0]).toHaveClass('whitespace-nowrap')
@@ -834,7 +837,7 @@ describe('CampaignRunCard', () => {
     )
     expect(within(historicalRow as HTMLElement).getByText('Driven insane')).toHaveClass('whitespace-nowrap')
     expect(seatRow).toHaveTextContent('XP 2')
-    expect(seatRow).toHaveTextContent('Trauma P1/M0')
+    expect(within(historicalRow as HTMLElement).getByLabelText('1 physical trauma, 0 mental trauma')).toBeVisible()
 
     expect(screen.getByRole('button', { name: /Delete scenario log Curtain Call/i })).toBeDisabled()
     expect(screen.queryByText(/Historical state is locked for this scenario/i)).not.toBeInTheDocument()
@@ -847,6 +850,7 @@ describe('CampaignRunCard', () => {
         id: 'scenario-1',
         date: '2026-08-18',
         scenarioName: 'Curtain Call',
+        resolution: { type: 'numbered', value: '2' },
         investigators: [
           { playerName: 'Alice', investigatorName: 'Roland Banks', archetype: 'Guardian' },
           { playerName: 'Bob', investigatorName: 'Daisy Walker', archetype: 'Seeker' },
@@ -890,6 +894,8 @@ describe('CampaignRunCard', () => {
     )
 
     const playerList = screen.getByRole('list', { name: /Curtain Call players/i })
+    expect(screen.getByText('Resolution - 2')).toBeVisible()
+    expect(screen.queryByText('numbered: 2')).not.toBeInTheDocument()
     expect(playerList).toHaveClass(
       'min-w-0',
       'space-y-3',
@@ -901,8 +907,8 @@ describe('CampaignRunCard', () => {
     const daisyRow = scenarioRows.find((row) => row.textContent?.includes('Daisy Walker') && row.textContent.includes('4 XP'))
     expect(rolandRow).toBeDefined()
     expect(daisyRow).toBeDefined()
-    expect(rolandRow!).toHaveTextContent('Trauma P1/M0')
-    expect(daisyRow!).toHaveTextContent('Trauma P0/M2')
+    expect(within(rolandRow!).getByLabelText('1 physical trauma, 0 mental trauma')).toBeVisible()
+    expect(within(daisyRow!).getByLabelText('0 physical trauma, 2 mental trauma')).toBeVisible()
     expect(daisyRow!).toHaveTextContent('Defeated (Mental)')
     const daisyHeading = daisyRow!.querySelector('[data-slot="scenario-player-heading"]')
     const daisyOutcome = daisyRow!.querySelector('[data-slot="scenario-player-outcome"]')
@@ -1086,7 +1092,8 @@ describe('CampaignRunCard', () => {
       />,
     )
 
-    expect(screen.getByText(/Legacy group totals \(unallocated\): 6 XP trauma P1\/M2/i)).toBeInTheDocument()
+    const legacySummary = screen.getByText(/Legacy group totals \(unallocated\): 6 XP/i)
+    expect(within(legacySummary).getByLabelText('1 physical trauma, 2 mental trauma')).toBeVisible()
   })
 
   it('does not show Retired when an investigator resigned from a scenario', () => {
