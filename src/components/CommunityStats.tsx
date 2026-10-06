@@ -21,6 +21,7 @@ import { completeClassPopularity } from '@/lib/class-popularity'
  * directly — the asset registry's standalone map is keyed by name.
  */
 function campaignSetKey(name: string): string {
+  if (hasDedicatedCampaignIcon(name)) return name
   const c = ALL_CAMPAIGNS.find(x => x.name === name)
   if (c?.type === 'Scenario Pack') return name
   return c?.set ?? name
