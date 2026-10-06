@@ -15,6 +15,7 @@ import { StatsListCard } from '@/components/StatsListCard'
 import { ALL_CAMPAIGNS, campaignTypeLabel } from '@/lib/campaign-data'
 import { CampaignSvgIcon } from '@/components/CampaignSvgIcon'
 import { getBrandSvgRaw, hasDedicatedCampaignIcon } from '@/lib/campaign-icon-map'
+import { completeClassPopularity } from '@/lib/class-popularity'
 import { cn } from '@/lib/utils'
 
 function injectSize(svgString: string, size: number): string {
@@ -130,8 +131,11 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
     }
   })
 
-  const classTotal = (communityStats?.topClasses ?? []).reduce((s, c) => s + c.count, 0)
-  const classItems = (communityStats?.topClasses ?? []).map(cls => ({
+  const completeClasses = communityStats?.topClasses?.length
+    ? completeClassPopularity(communityStats.topClasses)
+    : []
+  const classTotal = completeClasses.reduce((s, c) => s + c.count, 0)
+  const classItems = completeClasses.map(cls => ({
     key: cls.archetype,
     countLabel: `${cls.count} plays (${classTotal > 0 ? Math.round((cls.count / classTotal) * 100) : 0}%)`,
     renderContent: () => <ArchetypeBadge archetype={cls.archetype} />,

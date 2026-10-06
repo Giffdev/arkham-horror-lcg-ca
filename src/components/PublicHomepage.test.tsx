@@ -205,7 +205,7 @@ describe('PublicHomepage', () => {
       expect(screen.queryByText(/of class assignments/i)).not.toBeInTheDocument()
     })
 
-    it('shows all six classes without requiring expansion', async () => {
+    it('shows all six classes and fills an absent Neutral count with zero', async () => {
       await renderAndWait({
         ...FULL_STATS,
         topClasses: [
@@ -214,12 +214,21 @@ describe('PublicHomepage', () => {
           { archetype: 'Rogue', count: 4 },
           { archetype: 'Mystic', count: 3 },
           { archetype: 'Survivor', count: 2 },
-          { archetype: 'Neutral', count: 1 },
         ],
       })
 
       expect(screen.getByText('Neutral')).toBeVisible()
+      expect(screen.getByText('0 plays (0%)')).toBeVisible()
       expect(screen.queryByRole('button', { name: /show all 6/i })).not.toBeInTheDocument()
+    })
+
+    it.each([
+      ['missing', undefined],
+      ['empty', []],
+    ])('does not synthesize a class ranking when topClasses is %s', async (_label, topClasses) => {
+      const stats = { ...FULL_STATS, topClasses }
+      await renderAndWait(stats)
+      expect(screen.queryByText(/class ranking/i)).not.toBeInTheDocument()
     })
 
     it('keeps class labels on the fixed compact count side of each ranked row', async () => {
