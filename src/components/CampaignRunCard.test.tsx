@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
 import { CampaignRunCard } from './CampaignRunCard'
+import { getCampaignSvgRaw } from '@/lib/campaign-icon-map'
 import type { CampaignRun } from '@/lib/types'
 
 function makeRun(overrides: Partial<CampaignRun> = {}): CampaignRun {
@@ -33,6 +34,37 @@ function makeRun(overrides: Partial<CampaignRun> = {}): CampaignRun {
 }
 
 describe('CampaignRunCard', () => {
+  it('uses the dedicated Children of Blood icon when the persisted set is Core 2026', () => {
+    render(
+      <CampaignRunCard
+        campaignRun={makeRun({
+          campaignLineageId: 'campaign:children-of-blood',
+          campaignName: 'Children of Blood',
+          campaignSet: 'Core 2026',
+          campaignType: 'Small Campaign',
+        })}
+        isExpanded={false}
+        onToggleExpanded={vi.fn()}
+        onContinue={vi.fn()}
+        onEditRun={vi.fn()}
+        onDeleteRun={vi.fn()}
+        onEditScenario={vi.fn()}
+        onDeleteScenario={vi.fn()}
+      />,
+    )
+
+    const renderedSvg = screen
+      .getByRole('heading', { level: 3, name: 'Children of Blood' })
+      .querySelector('svg')
+    const expected = document.createElement('div')
+    const core2026 = document.createElement('div')
+    expected.innerHTML = getCampaignSvgRaw('Children of Blood')
+    core2026.innerHTML = getCampaignSvgRaw('Core 2026')
+
+    expect(renderedSvg?.innerHTML).toBe(expected.querySelector('svg')?.innerHTML)
+    expect(renderedSvg?.innerHTML).not.toBe(core2026.querySelector('svg')?.innerHTML)
+  })
+
   it.each([false, true])('keeps Continue Campaign in the single top-right action area when expansion is %s', (isExpanded) => {
     const run = makeRun({
       scenarioLogs: [{

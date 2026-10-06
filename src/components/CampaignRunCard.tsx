@@ -12,6 +12,7 @@ import { formatDate } from '@/lib/date-utils'
 import { getCampaignProgressionScenarioNames, getNextCampaignScenarioResolution } from '@/lib/campaign-progression'
 import { getChapterBadgeLabel, getDisplaySetName, isChapterBadgeSpecial, resolveInvestigator } from '@/lib/investigator-data'
 import { getActualCampaignScenarioLogs } from '@/lib/scenario-night-utils'
+import { hasDedicatedCampaignIcon } from '@/lib/campaign-icon-map'
 import type { CampaignRun, CampaignScenarioLog } from '@/lib/types'
 import { CaretDown, CaretUp, PencilSimple, Plus, Trash } from '@phosphor-icons/react'
 import { cn } from '@/lib/utils'
@@ -125,6 +126,9 @@ export const CampaignRunCard = memo(function CampaignRunCard({
   const nextScenarioLabel = !isStandaloneScenario && !isFanMadeCampaign
     ? getNextScenarioLabel(campaignRun, actualScenarioLogs)
     : null
+  const campaignIconKey = hasDedicatedCampaignIcon(campaignRun.campaignName)
+    ? campaignRun.campaignName
+    : (campaignRun.campaignSet ?? campaignRun.campaignName)
 
   return (
     <Card className="p-4 md:p-6 border-border/80 bg-card text-foreground">
@@ -138,7 +142,7 @@ export const CampaignRunCard = memo(function CampaignRunCard({
               <h3 className="flex items-center gap-2 text-lg font-semibold leading-snug text-foreground md:text-xl">
                 <span aria-hidden="true" className="flex-shrink-0">
                   <CampaignSvgIcon
-                    campaignSet={campaignRun.campaignSet ?? campaignRun.campaignName}
+                    campaignSet={campaignIconKey}
                     size={18}
                     className="text-primary/80"
                   />
