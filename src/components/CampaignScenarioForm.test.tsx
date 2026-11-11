@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { useState } from 'react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 
@@ -77,6 +78,73 @@ describe('CampaignScenarioForm', () => {
     if (!Element.prototype.releasePointerCapture) {
       Element.prototype.releasePointerCapture = vi.fn()
     }
+  })
+
+  function renderAppendDialog(onSave = vi.fn().mockResolvedValue(undefined)) {
+    const onOpenChange = vi.fn()
+    const run = makeRun()
+    function Form() {
+      const [open, setOpen] = useState(true)
+      return (
+        <CampaignScenarioForm
+          open={open}
+          onOpenChange={(nextOpen) => {
+            onOpenChange(nextOpen)
+            setOpen(nextOpen)
+          }}
+          campaignRun={run}
+          mode="append"
+          onSave={onSave}
+        />
+      )
+    }
+    render(<Form />)
+    return { onOpenChange, onSave }
+  }
+
+  it('retains the scenario draft after backdrop clicks and Escape, but closes with X', async () => {
+    const user = userEvent.setup()
+    const { onOpenChange, onSave } = renderAppendDialog()
+    await user.type(screen.getByLabelText('Notes'), 'Keep this scenario draft')
+
+    await user.click(document.querySelector<HTMLElement>('[data-slot="dialog-overlay"]')!)
+    expect(screen.getByRole('dialog')).toBeVisible()
+    expect(screen.getByLabelText('Notes')).toHaveValue('Keep this scenario draft')
+    expect(onOpenChange).not.toHaveBeenCalled()
+
+    await user.click(screen.getByLabelText('Notes'))
+    await user.keyboard('{Escape}')
+    expect(screen.getByRole('dialog')).toBeVisible()
+    expect(screen.getByLabelText('Notes')).toHaveValue('Keep this scenario draft')
+    expect(onOpenChange).not.toHaveBeenCalled()
+    expect(screen.queryByRole('button', { name: 'Cancel' })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Close' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(onOpenChange).toHaveBeenCalledExactlyOnceWith(false)
+    expect(onSave).not.toHaveBeenCalled()
+  })
+
+  it('keeps the scenario draft on save failure and closes after a successful retry', async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn()
+      .mockRejectedValueOnce(new Error('Scenario save failed'))
+      .mockResolvedValueOnce(undefined)
+    const { onOpenChange } = renderAppendDialog(onSave)
+    await user.type(screen.getByLabelText('Notes'), 'Retry this scenario draft')
+
+    await user.click(screen.getByRole('button', { name: 'Log Scenario' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Scenario save failed')
+    expect(screen.getByLabelText('Notes')).toHaveValue('Retry this scenario draft')
+    expect(onOpenChange).not.toHaveBeenCalled()
+
+    await user.click(screen.getByRole('button', { name: 'Log Scenario' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(onOpenChange).toHaveBeenCalledExactlyOnceWith(false)
+    expect(onSave).toHaveBeenLastCalledWith(expect.objectContaining({
+      scenarioName: 'Curtain Call',
+      notes: 'Retry this scenario draft',
+    }))
   })
 
   it('prompts for only the number when a numbered resolution is selected', async () => {
@@ -1038,10 +1106,16 @@ describe('CampaignScenarioForm', () => {
       'The Eternal Slumber',
       "The Night's Usurper",
     ]))
+    expect(within(sideOptions).getByRole('group', { name: 'Fortune and Folly' })).toBeVisible()
+    expect(within(sideOptions).getByRole('group', { name: 'Guardians of the Abyss' })).toBeVisible()
+    expect(within(sideOptions).queryByRole('option', { name: 'Fortune and Folly', exact: true })).not.toBeInTheDocument()
+    expect(within(sideOptions).queryByRole('option', { name: 'Guardians of the Abyss', exact: true })).not.toBeInTheDocument()
     await user.click(within(sideOptions).getByRole('option', { name: 'Other / Custom Side Scenario' }))
 
     const customInput = screen.getByLabelText('Custom Side Scenario Name')
     await user.type(customInput, 'My Fan Scenario')
+    expect(screen.getByRole('note', { name: 'Campaign entry guidance' }))
+      .toHaveTextContent('Entry XP cost unknown / unverified.')
 
     await user.click(screen.getByRole('button', { name: 'Log Scenario' }))
 
@@ -1050,6 +1124,101 @@ describe('CampaignScenarioForm', () => {
       scenarioType: 'side_scenario',
       scenarioName: 'My Fan Scenario',
     }))
+  })
+
+  it.each([
+    'Fortune and Folly, Part I',
+    'Fortune and Folly, Part II',
+    'The Eternal Slumber',
+    "The Night's Usurper",
+  ])('logs the grouped canonical side scenario %s, including direct second-scenario entry', async (name) => {
+    const user = userEvent.setup()
+    const onSave = vi.fn().mockResolvedValue(undefined)
+    render(
+      <CampaignScenarioForm open onOpenChange={vi.fn()} campaignRun={makeRun()} mode="append" onSave={onSave} />,
+    )
+    await chooseScenarioType(user, 'Side Scenario')
+    await user.click(screen.getByRole('combobox', { name: 'Scenario' }))
+    if (name === "The Night's Usurper") {
+      await user.type(screen.getByPlaceholderText('Search side scenarios...'), 'Guardians')
+      expect(within(screen.getByRole('listbox')).getAllByRole('option').map(option => option.textContent))
+        .toEqual(['The Eternal Slumber', "The Night's Usurper"])
+    }
+    await user.click(await screen.findByRole('option', { name, exact: true }))
+    await user.click(screen.getByRole('button', { name: 'Log Scenario' }))
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
+      scenarioName: name,
+      scenarioType: 'side_scenario',
+    }))
+  })
+
+  it.each(['Fortune and Folly', 'Guardians of the Abyss'])('preserves a historical package-only %s side-scenario log during editing', async (name) => {
+    const user = userEvent.setup()
+    const onSave = vi.fn().mockResolvedValue(undefined)
+    const log: CampaignScenarioLog = {
+      id: 'legacy-package',
+      date: '2026-01-01',
+      scenarioName: name,
+      scenarioType: 'side_scenario',
+      investigators: makeRun().setupSnapshot.investigators,
+    }
+    render(
+      <CampaignScenarioForm
+        open
+        onOpenChange={vi.fn()}
+        campaignRun={makeRun({ scenarioLogs: [log] })}
+        mode="edit"
+        scenarioLog={log}
+        onSave={onSave}
+      />,
+    )
+    const picker = screen.getByRole('combobox', { name: 'Scenario' })
+    expect(picker).toHaveTextContent(name)
+    await user.click(picker)
+    expect(screen.queryByRole('option', { name, exact: true })).not.toBeInTheDocument()
+    await user.keyboard('{Escape}')
+    await user.type(screen.getByLabelText('Notes'), 'Keep the original package record')
+    await user.click(screen.getByRole('button', { name: 'Save Scenario' }))
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
+      scenarioName: name,
+      scenarioType: 'side_scenario',
+      notes: 'Keep the original package record',
+    }))
+  })
+
+  it('shows admission XP separately without changing earnings, balances, or saving rules', async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn().mockResolvedValue(undefined)
+    const run = makeRun()
+    run.currentRoster![0].xpTotal = 1
+    run.currentRoster![0].xpSpent = 1
+    const original = structuredClone(run)
+    render(
+      <CampaignScenarioForm
+        open
+        onOpenChange={vi.fn()}
+        campaignRun={run}
+        mode="append"
+        onSave={onSave}
+      />,
+    )
+
+    await chooseScenarioType(user, 'Side Scenario')
+    await user.click(screen.getByRole('combobox', { name: 'Scenario' }))
+    await user.click(await screen.findByRole('option', { name: 'Traces To Nowhere' }))
+    const guidance = screen.getByRole('note', { name: 'Campaign entry guidance' })
+    expect(guidance).toHaveTextContent('Entry cost: -2 XP per investigator.')
+    expect(guidance).toHaveTextContent('Guidance only; XP and balances are unchanged. Payment is not tracked.')
+    fireEvent.change(screen.getByLabelText('XP earned for Roland Banks'), { target: { value: '4' } })
+    await user.click(screen.getByRole('button', { name: 'Log Scenario' }))
+
+    await waitFor(() => expect(onSave).toHaveBeenCalledOnce())
+    const payload = onSave.mock.calls[0][0]
+    expect(payload.investigatorOutcomes[0].xpEarned).toBe(4)
+    expect(payload.rosterBefore[0]).toMatchObject({ xpTotal: 1, xpSpent: 1 })
+    expect(payload.rosterAfter[0]).toMatchObject({ xpTotal: 5, xpSpent: 1 })
+    expect(payload.preScenarioAdjustments).toBeUndefined()
+    expect(run).toEqual(original)
   })
 
   it('ignores side-scenario history when defaulting next campaign scenario', () => {

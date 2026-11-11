@@ -1,6 +1,8 @@
 import { renderHook, act } from '@testing-library/react'
 import { usePlaythroughFilters } from './usePlaythroughFilters'
 import { Playthrough } from '@/lib/types'
+import { buildTopLevelGameRows } from '@/lib/top-level-game-rows'
+import type { CampaignRun } from '@/lib/types'
 
 function makePlaythrough(overrides: Partial<Playthrough> = {}): Playthrough {
   return {
@@ -32,6 +34,34 @@ const samplePlaythroughs: Playthrough[] = [
 ]
 
 describe('usePlaythroughFilters', () => {
+  it('includes containing campaign runs and legacy sideStories once when filtering scenario packs', () => {
+    const campaign: CampaignRun = {
+      id: 'run', version: 2, campaignLineageId: 'dunwich', campaignName: 'The Dunwich Legacy',
+      campaignType: 'Full Campaign', startedAt: '2026-01-01', updatedAt: '2026-01-03',
+      status: 'active', setupSnapshot: { date: '2026-01-01', investigators: samplePlaythroughs[0].investigators },
+      scenarioLogs: [
+        { id: 'side-1', date: '2026-01-01', scenarioName: 'Curse of the Rougarou', scenarioType: 'side_scenario', investigators: samplePlaythroughs[0].investigators },
+        { id: 'side-2', date: '2026-01-02', scenarioName: 'Curse of the Rougarou', scenarioType: 'side_scenario', investigators: samplePlaythroughs[0].investigators },
+      ],
+    }
+    const rows = buildTopLevelGameRows([
+      makePlaythrough({ id: 'promoted', promotedToCampaignRunId: 'run', sideStories: ['Curse of the Rougarou'] }),
+      makePlaythrough({ id: 'legacy-side', campaignName: 'The Path to Carcosa', sideStories: ['Curse of the Rougarou'] }),
+      makePlaythrough({ id: 'alone', campaignType: 'Scenario Pack', campaignName: 'Curse of the Rougarou' }),
+      makePlaythrough({ id: 'unrelated', notes: 'Curse of the Rougarou' }),
+    ], [campaign])
+    const { result } = renderHook(() => usePlaythroughFilters(rows.map(row => row.filterPlaythrough)))
+    act(() => { result.current.handlers.onCampaignTypeToggle('Scenario Pack') })
+    act(() => { result.current.handlers.onCampaignToggle('Curse of the Rougarou') })
+    expect(result.current.filteredPlaythroughs.map(record => record.id).sort()).toEqual(['alone', 'legacy-side', 'run:run'])
+    act(() => { result.current.handlers.onArchetypeToggle('Seeker') })
+    expect(result.current.filteredPlaythroughs.map(record => record.id)).toEqual(['run:run'])
+    act(() => { result.current.handlers.onCampaignToggle('Curse of the Rougarou'); result.current.handlers.onCampaignToggle('Carnevale of Horrors') })
+    expect(result.current.filteredPlaythroughs).toEqual([])
+    act(() => { result.current.handlers.onClearFilters() })
+    expect(result.current.filteredPlaythroughs).toHaveLength(4)
+  })
+
   describe('initial state', () => {
     it('returns all playthroughs when no filters are active', () => {
       const { result } = renderHook(() => usePlaythroughFilters(samplePlaythroughs))

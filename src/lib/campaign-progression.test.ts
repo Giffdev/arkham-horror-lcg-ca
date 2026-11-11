@@ -50,7 +50,7 @@ describe('campaign-progression — coverage audit', () => {
       ...NON_CAMPAIGN_GUIDE_FILES,
     ])).sort()
 
-    expect(checkedInGuides).toHaveLength(32)
+    expect(checkedInGuides).toHaveLength(34)
     expect(mappedGuides).toEqual(checkedInGuides)
   })
 

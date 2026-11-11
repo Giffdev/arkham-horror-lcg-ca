@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { CampaignSvgIcon } from '@/components/CampaignSvgIcon'
 import { hasDedicatedCampaignIcon } from '@/lib/campaign-icon-map'
 import { cn } from '@/lib/utils'
+import { getRecordCampaignNames, getRecordCampaignTypes } from '@/lib/campaign-play-history'
 
 interface FiltersProps {
   selectedArchetypes: Archetype[]
@@ -39,7 +40,7 @@ function FilterContent({
       'Unknown': 0
     }
     playthroughs.forEach(p => {
-      counts[p.campaignType] = (counts[p.campaignType] || 0) + 1
+      getRecordCampaignTypes(p).forEach(type => { counts[type]++ })
     })
     return counts
   }, [playthroughs])
@@ -60,9 +61,8 @@ function FilterContent({
   const specificCampaignCounts = useMemo(() => {
     const counts: Record<string, number> = {}
     playthroughs.forEach(p => {
-      if (selectedCampaignTypes.includes(p.campaignType)) {
-        const campaignName = p.customCampaignName || p.campaignName
-        counts[campaignName] = (counts[campaignName] || 0) + 1
+      if (getRecordCampaignTypes(p).some(type => selectedCampaignTypes.includes(type))) {
+        getRecordCampaignNames(p).forEach(name => { counts[name] = (counts[name] || 0) + 1 })
       }
     })
     return counts

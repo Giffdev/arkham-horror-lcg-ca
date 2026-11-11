@@ -1,4 +1,4 @@
-import { Playthrough } from '@/lib/types'
+import { CampaignRun, Playthrough } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { BookOpen, User, UsersThree } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/card'
 import { EmptyState } from '@/components/EmptyState'
 import { PlayerStats } from '@/components/PlayerStats'
 import { PlayersOverview } from '@/components/PlayersOverview'
+import { PlayerCampaigns } from '@/components/PlayerCampaigns'
 
 interface PlayersTabProps {
   isLoading: boolean
@@ -13,9 +14,11 @@ interface PlayersTabProps {
   allPlayers: string[]
   selectedPlayer: string | null
   onSelectPlayer: (player: string | null) => void
+  campaignPlaythroughs?: Playthrough[]
+  campaignRuns?: CampaignRun[]
 }
 
-export function PlayersTab({ isLoading, playthroughs, allPlayers, selectedPlayer, onSelectPlayer }: PlayersTabProps) {
+export function PlayersTab({ isLoading, playthroughs, allPlayers, selectedPlayer, onSelectPlayer, campaignPlaythroughs, campaignRuns = [] }: PlayersTabProps) {
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
@@ -93,9 +96,15 @@ export function PlayersTab({ isLoading, playthroughs, allPlayers, selectedPlayer
 
         <div className="lg:col-span-3">
           {selectedPlayer ? (
-            <PlayerStats playerName={selectedPlayer} playthroughs={playthroughs} />
+            <div className="space-y-8">
+              <PlayerCampaigns key={selectedPlayer} playerName={selectedPlayer} playthroughs={campaignPlaythroughs ?? playthroughs} campaignRuns={campaignRuns} />
+              <PlayerStats playerName={selectedPlayer} playthroughs={playthroughs} />
+            </div>
           ) : (
-            <PlayersOverview playthroughs={playthroughs} />
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">Select a player to see their played and not played campaigns and scenario packs.</p>
+              <PlayersOverview playthroughs={playthroughs} />
+            </div>
           )}
         </div>
       </div>

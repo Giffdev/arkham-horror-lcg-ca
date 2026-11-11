@@ -26,6 +26,7 @@ import {
   SCENARIO_PACK_SCENARIOS,
   SMALL_CAMPAIGNS,
   getCampaignLineageId,
+  getScenarioPackOptionGroups,
   orderCampaignsForDisplay,
   resolveCampaignMetadata,
 } from '@/lib/campaign-data'
@@ -556,14 +557,17 @@ export function PlaythroughForm({
     }
   }
 
-  const availableCampaigns = useMemo(() => {
+  const availableCampaignGroups = useMemo(() => {
+    if (campaignType === 'Scenario Pack') return getScenarioPackOptionGroups()
     const campaigns =
       campaignType === 'Full Campaign' ? FULL_CAMPAIGNS :
       campaignType === 'Small Campaign' ? SMALL_CAMPAIGNS :
       SCENARIO_PACK_SCENARIOS
 
-    return orderCampaignsForDisplay(campaigns)
+    return [{ heading: undefined, scenarios: orderCampaignsForDisplay(campaigns) }]
   }, [campaignType])
+
+  const sideStoryGroups = useMemo(() => getScenarioPackOptionGroups(sideStorySearch), [sideStorySearch])
 
   const continuationScenarioHistory = useMemo(() => {
     if (!isContinueMode || !seedPlaythrough) return []
@@ -649,7 +653,11 @@ export function PlaythroughForm({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90dvh] flex flex-col overflow-hidden">
+      <DialogContent
+        className="max-w-3xl max-h-[90dvh] flex flex-col overflow-hidden"
+        onInteractOutside={(event) => event.preventDefault()}
+        onEscapeKeyDown={(event) => event.preventDefault()}
+      >
         <DialogHeader className="flex-shrink-0">
           <DialogTitle>
             {editPlaythrough ? 'Edit Playthrough' : seedPlaythrough ? 'Continue Campaign' : 'Log New Playthrough'}
@@ -721,33 +729,36 @@ export function PlaythroughForm({
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                  <Command filter={(value, search) => {
+                  <Command filter={(value, search, keywords = []) => {
                     if (!search) return 1
-                    return value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0
+                    return [value, ...keywords].some(label => label.toLowerCase().includes(search.trim().toLowerCase())) ? 1 : 0
                   }}>
                     <CommandInput placeholder="Search campaigns..." />
                     <CommandEmpty>No campaign found.</CommandEmpty>
                     <CommandList>
-                      <CommandGroup>
-                        {availableCampaigns.map((campaign) => (
-                          <CommandItem
-                            key={campaign.name}
-                            value={campaign.name}
-                            onSelect={() => handleCampaignNameChange(campaign.name)}
-                          >
-                            <Check
-                              className={cn(
-                                'mr-2 h-4 w-4',
-                                campaignName === campaign.name ? 'opacity-100' : 'opacity-0'
+                      {availableCampaignGroups.map(group => (
+                        <CommandGroup key={group.heading ?? group.scenarios[0].name} heading={group.heading}>
+                          {group.scenarios.map((campaign) => (
+                            <CommandItem
+                              key={campaign.name}
+                              value={campaign.name}
+                              keywords={group.heading ? [group.heading] : undefined}
+                              onSelect={() => handleCampaignNameChange(campaign.name)}
+                            >
+                              <Check
+                                className={cn(
+                                  'mr-2 h-4 w-4',
+                                  campaignName === campaign.name ? 'opacity-100' : 'opacity-0'
+                                )}
+                              />
+                              {campaign.name}
+                              {campaign.chapter === 2 && (
+                                <span className="ml-2 text-xs font-medium text-violet-400">Ch. 2</span>
                               )}
-                            />
-                            {campaign.name}
-                            {campaign.chapter === 2 && (
-                              <span className="ml-2 text-xs font-medium text-violet-400">Ch. 2</span>
-                            )}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      ))}
                     </CommandList>
                   </Command>
                 </PopoverContent>
@@ -899,24 +910,32 @@ export function PlaythroughForm({
                     />
                     <ScrollArea className="h-48">
                       <div className="space-y-2">
-                        {SCENARIO_PACK_SCENARIOS
-                          .filter((scenario) => scenario.name.toLowerCase().includes(sideStorySearch.toLowerCase()))
-                          .map((scenario) => (
-                          <div key={scenario.name} className="flex items-center space-x-2">
-                            <Checkbox
-                              id={`side-${scenario.name}`}
-                              checked={sideStories.includes(scenario.name)}
-                              onCheckedChange={() => handleToggleSideStory(scenario.name)}
-                            />
-                            <Label
-                              htmlFor={`side-${scenario.name}`}
-                              className="text-sm font-normal cursor-pointer flex items-center gap-1.5"
-                            >
-                              {scenario.name}
-                              {scenario.chapter === 2 && (
-                                <span className="text-xs font-medium text-violet-400">Ch. 2</span>
-                              )}
-                            </Label>
+                        {sideStoryGroups.map(group => (
+                          <div
+                            key={group.heading ?? group.scenarios[0].name}
+                            role={group.heading ? 'group' : undefined}
+                            aria-label={group.heading}
+                            className="space-y-2"
+                          >
+                            {group.heading && <p className="text-xs font-medium text-muted-foreground">{group.heading}</p>}
+                            {group.scenarios.map((scenario) => (
+                              <div key={scenario.name} className="flex items-center space-x-2">
+                                <Checkbox
+                                  id={`side-${scenario.name}`}
+                                  checked={sideStories.includes(scenario.name)}
+                                  onCheckedChange={() => handleToggleSideStory(scenario.name)}
+                                />
+                                <Label
+                                  htmlFor={`side-${scenario.name}`}
+                                  className="text-sm font-normal cursor-pointer flex items-center gap-1.5"
+                                >
+                                  {scenario.name}
+                                  {scenario.chapter === 2 && (
+                                    <span className="text-xs font-medium text-violet-400">Ch. 2</span>
+                                  )}
+                                </Label>
+                              </div>
+                            ))}
                           </div>
                         ))}
                       </div>
@@ -1098,9 +1117,6 @@ export function PlaythroughForm({
               {saveError}
             </p>
           )}
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
           <Button onClick={handleSubmit} disabled={!isFormValid || isSaving}>
             {isSaving ? 'Saving…' : `${editPlaythrough ? 'Update' : 'Save'} Playthrough`}
           </Button>

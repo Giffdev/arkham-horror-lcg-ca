@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeAll } from 'vitest'
@@ -26,6 +27,203 @@ beforeAll(() => {
   if (!Element.prototype.releasePointerCapture) {
     Element.prototype.releasePointerCapture = vi.fn()
   }
+})
+
+describe('PlaythroughForm dismissal', () => {
+  function renderNewCampaignDialog(onSave = vi.fn().mockResolvedValue(undefined)) {
+    const onOpenChange = vi.fn()
+    function Form() {
+      const [open, setOpen] = useState(true)
+      return (
+        <PlaythroughForm
+          open={open}
+          onOpenChange={(nextOpen) => {
+            onOpenChange(nextOpen)
+            setOpen(nextOpen)
+          }}
+          onSave={onSave}
+        />
+      )
+    }
+    render(<Form />)
+    return { onOpenChange, onSave }
+  }
+
+  it('retains a new campaign draft after backdrop clicks and Escape, but closes with X', async () => {
+    const user = userEvent.setup()
+    const { onOpenChange, onSave } = renderNewCampaignDialog()
+    const notes = screen.getByPlaceholderText('Any memorable moments, house rules, or session notes...')
+    await user.click(notes)
+    await user.paste('Keep this campaign draft')
+
+    await user.click(document.querySelector<HTMLElement>('[data-slot="dialog-overlay"]')!)
+    expect(screen.getByRole('dialog')).toBeVisible()
+    expect(notes).toHaveValue('Keep this campaign draft')
+    expect(onOpenChange).not.toHaveBeenCalled()
+
+    await user.click(notes)
+    await user.keyboard('{Escape}')
+    expect(screen.getByRole('dialog')).toBeVisible()
+    expect(notes).toHaveValue('Keep this campaign draft')
+    expect(onOpenChange).not.toHaveBeenCalled()
+    expect(screen.queryByRole('button', { name: 'Cancel' })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Close' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(onOpenChange).toHaveBeenCalledExactlyOnceWith(false)
+    expect(onSave).not.toHaveBeenCalled()
+  })
+
+  it('keeps nested pickers usable and only closes a new campaign after a successful save', async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn()
+      .mockRejectedValueOnce(new Error('Campaign save failed'))
+      .mockResolvedValueOnce(undefined)
+    const { onOpenChange } = renderNewCampaignDialog(onSave)
+    const campaignPicker = screen.getByText('Select campaign...')
+    await user.click(campaignPicker)
+    await user.keyboard('{Escape}')
+    expect(screen.queryByPlaceholderText('Search campaigns...')).not.toBeInTheDocument()
+    expect(screen.getByRole('dialog')).toBeVisible()
+    expect(onOpenChange).not.toHaveBeenCalled()
+
+    await user.click(campaignPicker)
+    await user.click(await screen.findByRole('option', { name: 'The Path to Carcosa' }))
+    await user.click(screen.getByText('Player name'))
+    await user.click(screen.getByPlaceholderText('Search or type new...'))
+    await user.paste('Alice')
+    await user.keyboard('{Escape}')
+    const notes = screen.getByPlaceholderText('Any memorable moments, house rules, or session notes...')
+    await user.click(notes)
+    await user.paste('Retry this campaign draft')
+
+    await user.click(screen.getByRole('button', { name: 'Save Playthrough' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Campaign save failed')
+    expect(notes).toHaveValue('Retry this campaign draft')
+    expect(onOpenChange).not.toHaveBeenCalled()
+
+    await user.click(screen.getByRole('button', { name: 'Save Playthrough' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(onOpenChange).toHaveBeenCalledExactlyOnceWith(false)
+    expect(onSave).toHaveBeenLastCalledWith(expect.objectContaining({
+      campaignName: 'The Path to Carcosa',
+      notes: 'Retry this campaign draft',
+      investigators: [expect.objectContaining({ playerName: 'Alice' })],
+    }))
+  })
+})
+
+describe('PlaythroughForm multipart scenario selection', () => {
+  const standaloneSeed: Playthrough = {
+    id: 'legacy-standalone',
+    date: '2026-01-01',
+    campaignName: '',
+    campaignType: 'Scenario Pack',
+    investigators: [{ playerName: 'Alice', investigatorName: 'Roland Banks', archetype: 'Guardian' }],
+  }
+  const leaves = [
+    'Fortune and Folly, Part I',
+    'Fortune and Folly, Part II',
+    'The Eternal Slumber',
+    "The Night's Usurper",
+  ]
+
+  it('groups new standalone choices under nonselectable alphabetized parents and searches by parent', async () => {
+    const user = userEvent.setup()
+    render(<PlaythroughForm open onOpenChange={vi.fn()} onSave={vi.fn()} />)
+    await user.click(screen.getByRole('combobox', { name: 'Campaign Type' }))
+    await user.click(await screen.findByRole('option', { name: 'Scenario Pack' }))
+    await user.click(screen.getByText('Select campaign...'))
+    const list = await screen.findByRole('listbox')
+    const fortune = within(list).getByRole('group', { name: 'Fortune and Folly' })
+    const guardians = within(list).getByRole('group', { name: 'Guardians of the Abyss' })
+    expect(within(fortune).getAllByRole('option').map(option => option.textContent)).toEqual(leaves.slice(0, 2))
+    expect(within(guardians).getAllByRole('option').map(option => option.textContent)).toEqual(leaves.slice(2))
+    expect(within(list).queryByRole('option', { name: 'Fortune and Folly', exact: true })).not.toBeInTheDocument()
+    expect(within(list).queryByRole('option', { name: 'Guardians of the Abyss', exact: true })).not.toBeInTheDocument()
+    const labels = within(list).getAllByRole('option').map(option => option.textContent)
+    expect(labels.indexOf('Film Fatale')).toBeLessThan(labels.indexOf(leaves[0]))
+    expect(labels.indexOf(leaves[1])).toBeLessThan(labels.indexOf(leaves[2]))
+    expect(labels.indexOf(leaves[3])).toBeLessThan(labels.indexOf('Machinations Through Time'))
+
+    await user.type(screen.getByPlaceholderText('Search campaigns...'), 'Guardians')
+    expect(within(list).getAllByRole('option').map(option => option.textContent)).toEqual(leaves.slice(2))
+  })
+
+  it.each(leaves)('selects and saves the canonical standalone leaf %s without prerequisites', async (name) => {
+    const user = userEvent.setup()
+    const onSave = vi.fn().mockResolvedValue(undefined)
+    render(<PlaythroughForm open onOpenChange={vi.fn()} onSave={onSave} editPlaythrough={standaloneSeed} />)
+    await user.click(screen.getByText('Select campaign...'))
+    await user.click(await screen.findByRole('option', { name, exact: true }))
+    await user.click(screen.getByRole('button', { name: 'Update Playthrough' }))
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
+      campaignName: name,
+      scenarioName: name,
+      campaignType: 'Scenario Pack',
+    }))
+  })
+
+  it.each(['Fortune and Folly', 'Guardians of the Abyss'])('keeps historical package-only %s records editable without splitting them', async (name) => {
+    const user = userEvent.setup()
+    const onSave = vi.fn().mockResolvedValue(undefined)
+    render(
+      <PlaythroughForm
+        open
+        onOpenChange={vi.fn()}
+        onSave={onSave}
+        editPlaythrough={{ ...standaloneSeed, campaignName: name, scenarioName: name }}
+      />,
+    )
+    await user.click(screen.getByText(name, { selector: 'button' }))
+    expect(screen.queryByRole('option', { name, exact: true })).not.toBeInTheDocument()
+    await user.keyboard('{Escape}')
+    await user.type(screen.getByPlaceholderText('Any memorable moments, house rules, or session notes...'), 'Legacy package summary')
+    await user.click(screen.getByRole('button', { name: 'Update Playthrough' }))
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
+      id: standaloneSeed.id,
+      campaignName: name,
+      scenarioName: name,
+      notes: 'Legacy package summary',
+    }))
+  })
+
+  it('groups the side-story checklist, saves each leaf, and preserves historical package annotations', async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn().mockResolvedValue(undefined)
+    render(
+      <PlaythroughForm
+        open
+        onOpenChange={vi.fn()}
+        onSave={onSave}
+        editPlaythrough={{
+          ...standaloneSeed,
+          campaignType: 'Full Campaign',
+          campaignName: 'The Path to Carcosa',
+          sideStories: ['Fortune and Folly', 'Guardians of the Abyss'],
+        }}
+      />,
+    )
+    await user.click(screen.getByRole('button', { name: /Side Stories/ }))
+    for (const [heading, expected] of [['Fortune and Folly', leaves.slice(0, 2)], ['Guardians of the Abyss', leaves.slice(2)]] as const) {
+      const group = screen.getByRole('group', { name: heading })
+      expect(within(group).getAllByRole('checkbox').map(checkbox => checkbox.getAttribute('id')))
+        .toEqual(expected.map(name => `side-${name}`))
+      expect(screen.queryByRole('checkbox', { name: heading, exact: true })).not.toBeInTheDocument()
+    }
+    for (const name of leaves) {
+      await user.click(screen.getByRole('checkbox', { name, exact: true }))
+    }
+    await user.click(screen.getByRole('button', { name: 'Update Playthrough' }))
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
+      sideStories: ['Fortune and Folly', 'Guardians of the Abyss', ...leaves],
+    }))
+
+    await user.type(screen.getByPlaceholderText('Search official scenarios...'), 'Guardians')
+    expect(within(screen.getByRole('group', { name: 'Guardians of the Abyss' })).getAllByRole('checkbox')).toHaveLength(2)
+    expect(screen.queryByRole('checkbox', { name: 'Fortune and Folly, Part I' })).not.toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: "The Night's Usurper" })).toBeVisible()
+  })
 })
 
 describe('PlaythroughForm player controls', () => {

@@ -1,4 +1,5 @@
 import { shouldSuppressPromotedPlaythrough } from './campaign-runs'
+import { getCampaignScenarioPackNames } from './campaign-play-history'
 import type { CampaignRun, InvestigatorAssignment, Playthrough } from './types'
 
 export type TopLevelGameRow =
@@ -44,6 +45,7 @@ function buildRunFilterPlaythrough(run: CampaignRun): Playthrough {
     campaignType: run.campaignType,
     campaignLineageId: run.campaignLineageId,
     customCampaignName: run.customCampaignName,
+    sideStories: [...new Set(run.scenarioLogs.flatMap(log => getCampaignScenarioPackNames(run, log)))],
     investigators: collectRunInvestigators(run),
     notes: run.setupSnapshot.notes,
   }

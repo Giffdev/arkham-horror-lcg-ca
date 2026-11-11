@@ -4,6 +4,7 @@ import { PencilSimple, Trash } from '@phosphor-icons/react'
 import { formatDate } from '@/lib/date-utils'
 import { getLegacyGroupScenarioOutcome } from '@/lib/campaign-runs'
 import { TraumaDisplay } from '@/components/TraumaDisplay'
+import { SideScenarioEntryGuidance } from '@/components/SideScenarioEntryGuidance'
 import type {
   CampaignRun,
   CampaignScenarioInvestigatorOutcome,
@@ -65,6 +66,7 @@ export function CampaignScenarioRow({
 }: CampaignScenarioRowProps) {
   const playerPairs = summarizePlayers(scenarioLog)
   const legacyGroupOutcome = getLegacyGroupScenarioOutcome(scenarioLog)
+  const storedScenarioIndex = campaignRun.scenarioLogs.findIndex(log => log.id === scenarioLog.id)
   const resolutionLabel = scenarioLog.resolution?.type && scenarioLog.resolution.type !== 'no_resolution'
     ? scenarioLog.resolution.type === 'numbered' && scenarioLog.resolution.value
       ? `Resolution - ${scenarioLog.resolution.value}`
@@ -104,6 +106,11 @@ export function CampaignScenarioRow({
               </>
             )}
           </div>
+          <SideScenarioEntryGuidance
+            campaignRun={campaignRun}
+            scenario={scenarioLog}
+            previousScenarioLogs={campaignRun.scenarioLogs.slice(0, Math.max(0, storedScenarioIndex))}
+          />
           {legacyGroupOutcome && (
             <p className="mt-2 text-xs text-amber-300">
               Legacy group totals (unallocated):

@@ -33,6 +33,20 @@ const playthroughs: Playthrough[] = [
 ]
 
 describe('Filters campaign semantics', () => {
+  it('offers scenario packs embedded in campaigns and counts each containing record once', () => {
+    render(
+      <Filters selectedArchetypes={[]} selectedCampaignTypes={['Scenario Pack']} selectedCampaigns={[]}
+        onArchetypeToggle={vi.fn()} onCampaignTypeToggle={vi.fn()} onCampaignToggle={vi.fn()} onClearFilters={vi.fn()}
+        playthroughs={[{
+          ...playthroughs[0],
+          sideStories: ['Curse of the Rougarou', 'Curse of the Rougarou'],
+        }]} />,
+    )
+    expect(screen.getByRole('button', { name: /Scenario Pack\s*\(1\)/ })).toBeVisible()
+    expect(screen.getByRole('button', { name: /Curse of the Rougarou\s*\(1\)/ })).toBeVisible()
+    expect(screen.queryByRole('button', { name: /Carnevale of Horrors/ })).not.toBeInTheDocument()
+  })
+
   it('uses campaign-log wording and does not present campaigns and game nights as peer filters', () => {
     render(
       <Filters

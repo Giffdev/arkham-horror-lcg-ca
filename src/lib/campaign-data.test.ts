@@ -10,6 +10,7 @@ import {
   orderCampaignsForDisplay,
   getSmallCampaignNames,
   getScenarioPackCampaignNames,
+  getScenarioPackOptionGroups,
   campaignTypeLabel,
   getCampaignLineageId,
   getCampaignProgressionEntries,
@@ -90,6 +91,40 @@ describe('campaign-data — ordering stability (pinning current sort output)', (
   it('getScenarioPackCampaignNames includes Traces To Nowhere', () => {
     const names = getScenarioPackCampaignNames()
     expect(names).toContain('Traces To Nowhere')
+  })
+})
+
+describe('campaign-data — grouped logging choices', () => {
+  it('orders multipart leaves under their parent while retaining the historical flat catalog', () => {
+    const groups = getScenarioPackOptionGroups()
+    expect(groups.filter(group => group.heading).map(group => ({
+      heading: group.heading,
+      scenarios: group.scenarios.map(scenario => scenario.name),
+    }))).toEqual([
+      { heading: 'Fortune and Folly', scenarios: ['Fortune and Folly, Part I', 'Fortune and Folly, Part II'] },
+      { heading: 'Guardians of the Abyss', scenarios: ['The Eternal Slumber', "The Night's Usurper"] },
+    ])
+    const selectableNames = groups.flatMap(group => group.scenarios.map(scenario => scenario.name))
+    expect(selectableNames).not.toContain('Fortune and Folly')
+    expect(selectableNames).not.toContain('Guardians of the Abyss')
+    expect(new Set(selectableNames).size).toBe(selectableNames.length)
+    expect([...selectableNames].sort()).toEqual(
+      SCENARIO_PACK_SCENARIOS
+        .filter(scenario => scenario.name !== 'Fortune and Folly' && scenario.name !== 'Guardians of the Abyss')
+        .map(scenario => scenario.name)
+        .sort(),
+    )
+    expect(getScenarioPackCampaignNames()).toEqual(expect.arrayContaining(['Fortune and Folly', 'Guardians of the Abyss']))
+  })
+
+  it('matches either a parent or a leaf without detaching the result from its heading', () => {
+    expect(getScenarioPackOptionGroups(' Guardians ')[0].scenarios.map(scenario => scenario.name))
+      .toEqual(['The Eternal Slumber', "The Night's Usurper"])
+    expect(getScenarioPackOptionGroups('usurper').map(group => ({
+      heading: group.heading,
+      names: group.scenarios.map(scenario => scenario.name),
+    }))).toEqual([{ heading: 'Guardians of the Abyss', names: ["The Night's Usurper"] }])
+    expect(getScenarioPackOptionGroups('No such published scenario')).toEqual([])
   })
 })
 

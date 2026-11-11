@@ -497,6 +497,8 @@ function AuthenticatedApp({ currentUser, onSignOut }: AuthenticatedAppProps) {
             <PlayersTab
               isLoading={isLoadingGames}
               playthroughs={investigatorPlaythroughs}
+              campaignPlaythroughs={playthroughs}
+              campaignRuns={campaignRuns}
               allPlayers={allPlayers}
               selectedPlayer={selectedPlayer}
               onSelectPlayer={setSelectedPlayer}

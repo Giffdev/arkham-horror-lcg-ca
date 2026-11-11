@@ -10,7 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea'
 import { ArchetypeBadge } from '@/components/ArchetypeBadge'
 import { TraumaDisplay } from '@/components/TraumaDisplay'
-import { getScenarioPackCampaignNames } from '@/lib/campaign-data'
+import { SideScenarioEntryGuidance } from '@/components/SideScenarioEntryGuidance'
+import { getScenarioPackCampaignNames, getScenarioPackOptionGroups } from '@/lib/campaign-data'
 import { getCampaignProgressionScenarioNames, getNextCampaignScenarioResolution } from '@/lib/campaign-progression'
 import { getLegacyGroupScenarioOutcome, getNextCampaignSeatSlotId } from '@/lib/campaign-runs'
 import { toDateInputValue } from '@/lib/date-utils'
@@ -534,11 +535,7 @@ export function CampaignScenarioForm({
     if (!normalizedSearch) return availableScenarios
     return availableScenarios.filter((option) => option.toLowerCase().includes(normalizedSearch))
   }, [availableScenarios, campaignScenarioSearch])
-  const filteredSideScenarios = useMemo(() => {
-    const normalizedSearch = sideScenarioSearch.trim().toLowerCase()
-    if (!normalizedSearch) return sideScenarioOptions
-    return sideScenarioOptions.filter((option) => option.toLowerCase().includes(normalizedSearch))
-  }, [sideScenarioOptions, sideScenarioSearch])
+  const sideScenarioGroups = useMemo(() => getScenarioPackOptionGroups(sideScenarioSearch), [sideScenarioSearch])
 
   const selectScenarioType = (nextType: 'standard' | 'side_scenario') => {
     if (isStandaloneScenario && nextType === 'side_scenario') return
@@ -821,7 +818,11 @@ export function CampaignScenarioForm({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90dvh] flex flex-col overflow-hidden">
+      <DialogContent
+        className="max-w-4xl max-h-[90dvh] flex flex-col overflow-hidden"
+        onInteractOutside={(event) => event.preventDefault()}
+        onEscapeKeyDown={(event) => event.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle>
             {mode === 'append'
@@ -991,7 +992,9 @@ export function CampaignScenarioForm({
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                    <Command>
+                    <Command filter={(value, search, keywords = []) =>
+                      [value, ...keywords].some(label => label.toLowerCase().includes(search.trim().toLowerCase())) ? 1 : 0
+                    }>
                       <CommandInput
                         placeholder="Search side scenarios..."
                         value={sideScenarioSearch}
@@ -999,22 +1002,27 @@ export function CampaignScenarioForm({
                       />
                       <CommandList>
                         <CommandEmpty>No side scenario found.</CommandEmpty>
+                        {sideScenarioGroups.map(group => (
+                          <CommandGroup key={group.heading ?? group.scenarios[0].name} heading={group.heading}>
+                            {group.scenarios.map((option) => (
+                              <CommandItem
+                                key={option.name}
+                                value={option.name}
+                                keywords={group.heading ? [group.heading] : undefined}
+                                onSelect={() => handleSelectSideScenario(option.name)}
+                              >
+                                <Check
+                                  className={cn(
+                                    'mr-2 h-4 w-4',
+                                    sideScenarioSelection === option.name ? 'opacity-100' : 'opacity-0',
+                                  )}
+                                />
+                                {option.name}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        ))}
                         <CommandGroup>
-                          {filteredSideScenarios.map((option) => (
-                            <CommandItem
-                              key={option}
-                              value={option}
-                              onSelect={() => handleSelectSideScenario(option)}
-                            >
-                              <Check
-                                className={cn(
-                                  'mr-2 h-4 w-4',
-                                  sideScenarioSelection === option ? 'opacity-100' : 'opacity-0',
-                                )}
-                              />
-                              {option}
-                            </CommandItem>
-                          ))}
                           <CommandItem
                             value="Other / Custom Side Scenario"
                             onSelect={() => handleSelectSideScenario(CUSTOM_SIDE_SCENARIO_OPTION)}
@@ -1051,6 +1059,12 @@ export function CampaignScenarioForm({
               </>
             )}
           </div>
+
+          <SideScenarioEntryGuidance
+            campaignRun={campaignRun}
+            scenario={{ scenarioName, scenarioType }}
+            previousScenarioLogs={campaignRun.scenarioLogs.slice(0, scenarioIndex)}
+          />
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
@@ -1283,9 +1297,6 @@ export function CampaignScenarioForm({
 
         <DialogFooter>
           {saveError && <p className="text-xs text-destructive mr-auto" role="alert">{saveError}</p>}
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
           <Button onClick={handleSubmit} disabled={isSaving}>
             {isSaving ? 'Saving…' : mode === 'append' ? 'Log Scenario' : 'Save Scenario'}
           </Button>

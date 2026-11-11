@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import { buildTopLevelGameRows } from './top-level-game-rows'
+import { buildCampaignRunFromSourcePlaythrough } from './campaign-runs'
+import { getScenarioPackNames } from './campaign-play-history'
 import type { CampaignRun, Playthrough } from './types'
 
 function makePlaythrough(id: string, overrides: Partial<Playthrough> = {}): Playthrough {
@@ -85,6 +87,23 @@ describe('buildTopLevelGameRows', () => {
     expect(new Set(filterIds).size).toBe(2)
     expect(filterIds).toContain(`run:${run.id}`)
     expect(filterIds).toContain('standalone-z')
+  })
+
+  it('retains explicit side-story filter identities after promoting a campaign-title shell without duplicate rows', () => {
+    const source = makePlaythrough('legacy-shell', {
+      campaignName: 'The Dunwich Legacy',
+      scenarioName: 'The Dunwich Legacy',
+      sideStories: ['Curse of the Rougarou', 'Curse of the Rougarou'],
+    })
+    const run = buildCampaignRunFromSourcePlaythrough(source, { campaignRunId: 'promoted' })
+    const before = buildTopLevelGameRows([source], [])
+    const after = buildTopLevelGameRows([{ ...source, promotedToCampaignRunId: run.id }], [run])
+    expect(before).toHaveLength(1)
+    expect(after).toHaveLength(1)
+    expect(after[0].kind).toBe('campaign-run')
+    expect(getScenarioPackNames(before[0].filterPlaythrough)).toEqual(['Curse of the Rougarou'])
+    expect(getScenarioPackNames(after[0].filterPlaythrough)).toEqual(['Curse of the Rougarou'])
+    expect(after[0].filterPlaythrough.sideStories).toEqual(['Curse of the Rougarou'])
   })
 
   it('orders campaigns started on the same day by their full start timestamps', () => {

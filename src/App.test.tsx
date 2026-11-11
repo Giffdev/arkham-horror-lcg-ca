@@ -190,9 +190,10 @@ vi.mock('@/components/CampaignScenarioForm', () => ({
 }))
 
 vi.mock('@/components/PlayersTab', () => ({
-  PlayersTab: (props: { playthroughs: Playthrough[] }) => (
+  PlayersTab: (props: { playthroughs: Playthrough[]; campaignPlaythroughs: Playthrough[]; campaignRuns: CampaignRun[] }) => (
     <div data-testid="players-tab">
       <span data-testid="player-play-root-count">{props.playthroughs.length}</span>
+      <span data-testid="player-campaign-source-count">{props.campaignPlaythroughs.length}:{props.campaignRuns.length}</span>
       <span data-testid="player-investigator-play-count">
         {props.playthroughs.reduce((count, playthrough) => count + playthrough.investigators.length, 0)}
       </span>
@@ -401,6 +402,7 @@ describe('App campaign continuation flow', () => {
     await user.click(screen.getByRole('tab', { name: /players/i }))
 
     expect(screen.getByTestId('player-play-root-count')).toHaveTextContent('4')
+    expect(screen.getByTestId('player-campaign-source-count')).toHaveTextContent('2:2')
     expect(screen.getByTestId('player-investigator-play-count')).toHaveTextContent('4')
   })
 

@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import { Archetype, CampaignType, Playthrough } from '@/lib/types'
+import { getRecordCampaignNames, getRecordCampaignTypes } from '@/lib/campaign-play-history'
 
 export function usePlaythroughFilters(playthroughs: Playthrough[] | undefined) {
   const [selectedArchetypes, setSelectedArchetypes] = useState<Archetype[]>([])
@@ -19,14 +20,13 @@ export function usePlaythroughFilters(playthroughs: Playthrough[] | undefined) {
       }
 
       if (selectedCampaignTypes.length > 0) {
-        if (!selectedCampaignTypes.includes(playthrough.campaignType)) {
+        if (!getRecordCampaignTypes(playthrough).some(type => selectedCampaignTypes.includes(type))) {
           return false
         }
       }
 
       if (selectedCampaigns.length > 0) {
-        const campaignName = playthrough.customCampaignName || playthrough.campaignName
-        if (!selectedCampaigns.includes(campaignName)) {
+        if (!getRecordCampaignNames(playthrough).some(name => selectedCampaigns.includes(name))) {
           return false
         }
       }

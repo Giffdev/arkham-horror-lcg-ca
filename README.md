@@ -9,6 +9,9 @@ A web application for logging and exploring play history for *Arkham Horror: The
 - Log standalone games, short campaigns, full campaigns, and individual scenario nights.
 - Track investigators, players, dates, campaign progress, outcomes, and notes.
 - Continue an active campaign while preserving its investigator roster and scenario history.
+- See published side-story entry costs separately from XP earned, without automatic deductions. Multipart entries and The Scarlet Keys include conditional guidance; unknown costs are labeled rather than assumed free.
+- Entry guidance also appears on existing saved scenario logs; it does not rewrite records or establish whether entry XP was paid.
+- Logging pickers group Fortune and Folly and Guardians of the Abyss under nonselectable headings, with their individual parts/scenarios kept together. Either second scenario may be selected directly; historical package-only entries remain unchanged.
 - Filter and browse your game history across desktop and mobile layouts.
 - Review player statistics, investigator usage, completion progress, and investigator pairings.
 - Explore community-wide campaign, investigator, class, and standalone-scenario popularity.

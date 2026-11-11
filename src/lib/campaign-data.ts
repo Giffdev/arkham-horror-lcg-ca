@@ -96,6 +96,20 @@ export interface StandaloneScenarioGuideEvidence {
 
 export const STANDALONE_SCENARIO_GUIDES: StandaloneScenarioGuideEvidence[] = [
   {
+    guideFile: 'campaign/standalone campaigns/curse of the rougarou.pdf',
+    pages: '1',
+    campaignNames: ['Curse of the Rougarou'],
+    scenarioNames: ['Curse of the Rougarou'],
+    selectionNames: ['Curse of the Rougarou'],
+  },
+  {
+    guideFile: 'campaign/standalone campaigns/carnavale of horrors.pdf',
+    pages: '1',
+    campaignNames: ['Carnevale of Horrors'],
+    scenarioNames: ['Carnevale of Horrors'],
+    selectionNames: ['Carnevale of Horrors'],
+  },
+  {
     guideFile: 'campaign/standalone campaigns/Fortune and folly campaign guide.pdf',
     pages: '8, 11',
     campaignNames: ['Fortune and Folly'],
@@ -230,6 +244,38 @@ export function getSmallCampaignNames(): string[] {
 
 export function getScenarioPackCampaignNames(): string[] {
   return orderCampaignsForDisplay(SCENARIO_PACK_SCENARIOS).map(c => c.name)
+}
+
+export interface ScenarioPackOptionGroup {
+  heading?: string
+  scenarios: Campaign[]
+}
+
+const MULTIPART_SCENARIO_PACKS = new Map([
+  ['Fortune and Folly', ['Fortune and Folly, Part I', 'Fortune and Folly, Part II']],
+  ['Guardians of the Abyss', ['The Eternal Slumber', "The Night's Usurper"]],
+])
+
+export function getScenarioPackOptionGroups(search = ''): ScenarioPackOptionGroup[] {
+  const memberNames = new Set([...MULTIPART_SCENARIO_PACKS.values()].flat())
+  const normalizedSearch = search.trim().toLowerCase()
+  return orderCampaignsForDisplay(SCENARIO_PACK_SCENARIOS.filter(scenario => !memberNames.has(scenario.name)))
+    .map(parent => {
+      const members = MULTIPART_SCENARIO_PACKS.get(parent.name)
+      const scenarios = members
+        ? members.flatMap(name => {
+            const scenario = SCENARIO_PACK_SCENARIOS.find(entry => entry.name === name)
+            return scenario ? [scenario] : []
+          })
+        : [parent]
+      return {
+        heading: members ? parent.name : undefined,
+        scenarios: parent.name.toLowerCase().includes(normalizedSearch)
+          ? scenarios
+          : scenarios.filter(scenario => scenario.name.toLowerCase().includes(normalizedSearch)),
+      }
+    })
+    .filter(group => group.scenarios.length > 0)
 }
 
 export function getCampaignSet(campaignName: string): string {
