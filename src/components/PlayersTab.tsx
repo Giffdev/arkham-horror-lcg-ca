@@ -7,6 +7,7 @@ import { EmptyState } from '@/components/EmptyState'
 import { PlayerStats } from '@/components/PlayerStats'
 import { PlayersOverview } from '@/components/PlayersOverview'
 import { PlayerCampaigns } from '@/components/PlayerCampaigns'
+import { PlayerDrilldowns } from '@/components/PlayerDrilldowns'
 
 interface PlayersTabProps {
   isLoading: boolean
@@ -96,15 +97,15 @@ export function PlayersTab({ isLoading, playthroughs, allPlayers, selectedPlayer
 
         <div className="lg:col-span-3">
           {selectedPlayer ? (
-            <div className="space-y-8">
+            <PlayerStats playerName={selectedPlayer} playthroughs={playthroughs} campaigns={
               <PlayerCampaigns key={selectedPlayer} playerName={selectedPlayer} playthroughs={campaignPlaythroughs ?? playthroughs} campaignRuns={campaignRuns} />
-              <PlayerStats playerName={selectedPlayer} playthroughs={playthroughs} />
-            </div>
+            } />
           ) : (
-            <div className="space-y-4">
+            <PlayerDrilldowns campaigns={
               <p className="text-sm text-muted-foreground">Select a player to see their played and not played campaigns and scenario packs.</p>
+            }>
               <PlayersOverview playthroughs={playthroughs} />
-            </div>
+            </PlayerDrilldowns>
           )}
         </div>
       </div>

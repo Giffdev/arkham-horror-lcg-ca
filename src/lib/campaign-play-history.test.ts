@@ -51,6 +51,12 @@ describe('player campaign play evidence', () => {
     expect(JSON.stringify(records)).toBe(before)
   })
 
+  it('preserves legacy campaign-name metadata matching for independent standalones', () => {
+    expect(getPlayerPlayedCampaignNames('Alice', [legacy({
+      campaignName: ' Carnevale of Horrors ', campaignType: 'Scenario Pack',
+    })], [])).toEqual(new Set(['Carnevale of Horrors']))
+  })
+
   it('credits standalone campaign-run logs and uses legacy outcome participants for side stories', () => {
     const outcome: NonNullable<Playthrough['investigatorOutcomes']>[number] = {
       seatId: 'alice', slotId: 'roland', playerName: 'Alice', investigatorName: 'Roland Banks',
@@ -158,12 +164,167 @@ describe('player campaign play evidence', () => {
     ], [])]).toEqual([])
   })
 
-  it('credits the catalog parent of a multipart scenario without crediting its unplayed sibling', () => {
+  it('does not credit a multipart parent or sibling from one in-campaign child', () => {
     const played = getPlayerPlayedCampaignNames('Alice', [], [
       run({ scenarioLogs: [scenario({ scenarioName: 'The Eternal Slumber', scenarioType: 'side_scenario' })] }),
     ])
-    expect([...played]).toEqual(['Guardians of the Abyss', 'The Eternal Slumber'])
+    expect([...played]).toEqual(['The Eternal Slumber'])
     expect(played.has("The Night's Usurper")).toBe(false)
+  })
+
+  describe.each([
+    ['Guardians of the Abyss', 'The Eternal Slumber', "The Night's Usurper"],
+    ['Fortune and Folly', 'Fortune and Folly, Part I', 'Fortune and Folly, Part II'],
+  ])('%s multipart history', (parent, first, second) => {
+    const pack = (name: string, overrides: Partial<Playthrough> = {}) => legacy({
+      campaignName: name, campaignType: 'Scenario Pack', ...overrides,
+    })
+
+    it('expands explicit legacy and standalone-run parent records to both children without mutating history', () => {
+      const record = pack(parent)
+      const campaign = run({
+        campaignName: parent, campaignType: 'Scenario Pack',
+        scenarioLogs: [scenario({ scenarioName: parent })],
+      })
+      const before = JSON.stringify([record, campaign])
+      for (const played of [
+        getPlayerPlayedCampaignNames('Alice', [record], []),
+        getPlayerPlayedCampaignNames('Alice', [pack(` ${parent} `)], []),
+        getPlayerPlayedCampaignNames('Alice', [], [campaign]),
+      ]) {
+        expect(played).toEqual(new Set([parent, first, second]))
+      }
+      expect(JSON.stringify([record, campaign])).toBe(before)
+    })
+
+    it('combines both children across standalone records and different campaign runs for the same player', () => {
+      const campaigns = [first, second].map((name, index) => run({
+        id: `run-${index}`,
+        scenarioLogs: [scenario({ scenarioName: name, scenarioType: 'side_scenario' })],
+      }))
+      expect(getPlayerPlayedCampaignNames('Alice', [pack(first), pack(second, { id: 'second' })], []))
+        .toEqual(new Set([parent, first, second]))
+      expect(getPlayerPlayedCampaignNames('Alice', [], campaigns))
+        .toEqual(new Set([parent, first, second]))
+    })
+
+    it('does not treat a standalone parent container with only one logged child as the whole package', () => {
+      const campaign = run({
+        campaignName: parent, campaignType: 'Scenario Pack',
+        scenarioLogs: [scenario({ scenarioName: first })],
+      })
+      expect(getPlayerPlayedCampaignNames('Alice', [pack(parent, { scenarioName: first })], []))
+        .toEqual(new Set([first]))
+      expect(getPlayerPlayedCampaignNames('Alice', [], [campaign])).toEqual(new Set([first]))
+      campaign.scenarioLogs.push(scenario({ id: 'second', scenarioName: second }))
+      expect(getPlayerPlayedCampaignNames('Alice', [], [campaign])).toEqual(new Set([parent, first, second]))
+    })
+
+    it('does not pool different players or count duplicate logs of one child as both children', () => {
+      const records = [
+        pack(first, { investigators: [investigators[0]] }),
+        pack(first, { id: 'duplicate', investigators: [investigators[0]] }),
+        pack(second, { id: 'bob', investigators: [investigators[1]] }),
+      ]
+      expect(getPlayerPlayedCampaignNames('Alice', records, [])).toEqual(new Set([first]))
+      expect(getPlayerPlayedCampaignNames('Bob', records, [])).toEqual(new Set([second]))
+      expect(getPlayerPlayedCampaignNames('Ali', records, [])).toEqual(new Set())
+    })
+
+    it('uses each standalone-run log’s outcomes instead of pooling the package roster', () => {
+      const campaign = run({
+        campaignName: parent, campaignType: 'Scenario Pack',
+        scenarioLogs: [first, first, second].map((name, index) => {
+          const participant = investigators[index === 2 ? 1 : 0]
+          return scenario({
+            id: `part-${index}`, scenarioName: name,
+            investigatorOutcomes: [{
+              seatId: participant.playerName, slotId: participant.investigatorName,
+              playerName: participant.playerName, investigatorName: participant.investigatorName,
+              status: 'survived', xpEarned: 0, traumaGainedPhysical: 0, traumaGainedMental: 0,
+            }],
+          })
+        }),
+      })
+      expect(getPlayerPlayedCampaignNames('Alice', [], [campaign])).toEqual(new Set([first]))
+      expect(getPlayerPlayedCampaignNames('Bob', [], [campaign])).toEqual(new Set([second]))
+    })
+
+    it('combines legacy side stories and in-campaign logs, retaining side-story evidence after promotion', () => {
+      const source = legacy({ scenarioName: 'The Dunwich Legacy', sideStories: [first] })
+      const promoted = buildCampaignRunFromSourcePlaythrough(source, { campaignRunId: 'promoted' })
+      const campaign = run({
+        id: 'other-run', scenarioLogs: [scenario({ scenarioName: second, scenarioType: 'side_scenario' })],
+      })
+      expect(getPlayerPlayedCampaignNames('Alice', [source], [])).toEqual(new Set([first, 'The Dunwich Legacy']))
+      expect(getPlayerPlayedCampaignNames('Alice', [{ ...source, promotedToCampaignRunId: promoted.id }], [promoted]))
+        .toEqual(new Set([first]))
+      expect(getPlayerPlayedCampaignNames('Alice', [source], [campaign]))
+        .toEqual(new Set(['The Dunwich Legacy', parent, first, second]))
+      expect(getPlayerPlayedCampaignNames('Alice', [{ ...source, promotedToCampaignRunId: promoted.id }], [promoted, campaign]))
+        .toEqual(new Set([parent, first, second]))
+    })
+
+    describe.each([undefined, ''])('promoted source with scenarioName %s', scenarioName => {
+      it.each([
+        { evidence: 'absent outcomes', participants: undefined, alice: true, bob: true },
+        { evidence: 'empty outcomes', participants: [], alice: false, bob: false },
+        { evidence: 'Alice-only outcomes', participants: [investigators[0]], alice: true, bob: false },
+      ])('retains explicit side stories with $evidence without crediting the root', ({ participants, alice, bob }) => {
+        const source = legacy({
+          scenarioName, sideStories: [first, first], xpEarned: 4,
+          investigatorOutcomes: participants?.map(participant => ({
+            seatId: participant.playerName, slotId: participant.investigatorName,
+            playerName: participant.playerName, investigatorName: participant.investigatorName,
+            status: 'survived', xpEarned: 4, traumaGainedPhysical: 0, traumaGainedMental: 0,
+          })),
+        })
+        const promoted = buildCampaignRunFromSourcePlaythrough(source, { campaignRunId: 'promoted' })
+        const suppressedSource = { ...source, promotedToCampaignRunId: promoted.id }
+        const other = run({
+          id: 'other-run', scenarioLogs: [scenario({
+            scenarioName: second, scenarioType: 'side_scenario',
+            investigators: [investigators[0]], xpEarned: 3,
+          })],
+        })
+        const before = JSON.stringify([source, suppressedSource, promoted, other])
+        expect(promoted.scenarioLogs).toEqual([])
+        for (const [player, participated] of [['Alice', alice], ['Bob', bob], ['Ali', false]] as const) {
+          expect(getPlayerPlayedCampaignNames(player, [suppressedSource], [promoted]))
+            .toEqual(new Set(participated ? [first] : []))
+          const expected = player === 'Alice'
+            ? participated ? [parent, first, second] : [second]
+            : participated ? [first] : []
+          expect(getPlayerPlayedCampaignNames(player, [suppressedSource], [promoted, other]))
+            .toEqual(new Set(expected))
+        }
+        expect(JSON.stringify([source, suppressedSource, promoted, other])).toBe(before)
+      })
+    })
+
+    it('does not complete from explicitly empty outcomes, interludes, or inexact identities', () => {
+      const campaign = run({ scenarioLogs: [
+        scenario({ scenarioName: first, scenarioType: 'side_scenario' }),
+        scenario({ id: 'empty', scenarioName: second, investigatorOutcomes: [], scenarioType: 'side_scenario' }),
+        scenario({ id: 'interlude', scenarioName: parent, scenarioType: 'interlude' }),
+      ] })
+      expect(getPlayerPlayedCampaignNames('Alice', [
+        pack(parent, { investigatorOutcomes: [] }),
+        legacy({ sideStories: [second], investigatorOutcomes: [] }),
+        pack(`${second} remix`),
+      ], [campaign])).toEqual(new Set([first]))
+    })
+
+    it('expands explicit parent side stories but retains broad parent matching only for catalog filters', () => {
+      const source = legacy({ scenarioName: 'The Dunwich Legacy', sideStories: [parent] })
+      const promoted = buildCampaignRunFromSourcePlaythrough(source, { campaignRunId: 'promoted' })
+      expect(getPlayerPlayedCampaignNames('Alice', [{ ...source, promotedToCampaignRunId: promoted.id }], [promoted]))
+        .toEqual(new Set([parent, first, second]))
+      expect(getPlayerPlayedCampaignNames('Alice', [], [run({
+        scenarioLogs: [scenario({ scenarioName: parent, scenarioType: 'side_scenario' })],
+      })])).toEqual(new Set([parent, first, second]))
+      expect(getScenarioPackNames(pack(first))).toEqual(expect.arrayContaining([parent, first]))
+    })
   })
 
   it('requires exact side-scenario catalog identities, not note text or substring matches', () => {

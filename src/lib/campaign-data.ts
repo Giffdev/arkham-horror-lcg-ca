@@ -251,7 +251,7 @@ export interface ScenarioPackOptionGroup {
   scenarios: Campaign[]
 }
 
-const MULTIPART_SCENARIO_PACKS = new Map([
+export const MULTIPART_SCENARIO_PACKS: ReadonlyMap<string, readonly string[]> = new Map([
   ['Fortune and Folly', ['Fortune and Folly, Part I', 'Fortune and Folly, Part II']],
   ['Guardians of the Abyss', ['The Eternal Slumber', "The Night's Usurper"]],
 ])

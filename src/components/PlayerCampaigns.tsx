@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react'
 import { ALL_CAMPAIGNS, orderCampaignsForDisplay } from '@/lib/campaign-data'
 import { getPlayerPlayedCampaignNames } from '@/lib/campaign-play-history'
+import { hasDedicatedCampaignIcon } from '@/lib/campaign-icon-map'
 import type { CampaignRun, Playthrough } from '@/lib/types'
+import { CampaignSvgIcon } from '@/components/CampaignSvgIcon'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -34,7 +36,7 @@ export function PlayerCampaigns({ playerName, playthroughs, campaignRuns }: Play
       <div>
         <h2 className="text-xl font-semibold">Campaigns &amp; Scenario Packs</h2>
         <p className="text-sm text-muted-foreground">
-          Played means at least one logged scenario, not campaign completion. Includes legacy play records and side scenarios played alone or within campaigns.
+          Played means at least one logged scenario, not campaign completion. Multipart scenario packs require both parts or an explicit whole-pack record, which also counts both parts as played. Includes legacy play records and side scenarios played alone or within campaigns.
         </p>
       </div>
       <div className="space-y-2">
@@ -64,7 +66,15 @@ export function PlayerCampaigns({ playerName, playthroughs, campaignRuns }: Play
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {entries.map(campaign => (
                   <Card key={campaign.name} className="p-4">
-                    <h3 className="font-semibold">{campaign.name}</h3>
+                    <h3 className="flex items-center gap-2 font-semibold">
+                      <CampaignSvgIcon
+                        campaignSet={hasDedicatedCampaignIcon(campaign.name) ? campaign.name : campaign.set}
+                        size={18}
+                        className="text-primary/80"
+                        aria-hidden="true"
+                      />
+                      <span>{campaign.name}</span>
+                    </h3>
                     <p className="text-xs text-muted-foreground mt-1">{campaign.type} · {campaign.set}</p>
                   </Card>
                 ))}

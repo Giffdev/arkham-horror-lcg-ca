@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { Playthrough, Archetype } from '@/lib/types'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -10,19 +10,20 @@ import { ALL_CAMPAIGNS, getCampaignChapter } from '@/lib/campaign-data'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
+import { PlayerDrilldowns } from '@/components/PlayerDrilldowns'
 
 interface PlayerStatsProps {
   playerName: string
   playthroughs: Playthrough[]
+  campaigns?: ReactNode
 }
 
-export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
+export function PlayerStats({ playerName, playthroughs, campaigns }: PlayerStatsProps) {
   const [selectedArchetypes, setSelectedArchetypes] = useState<Archetype[]>([])
   const [selectedSets, setSelectedSets] = useState<string[]>([])
   const [selectedChapter, setSelectedChapter] = useState<'all' | 1 | 2>('all')
   const [activeTab, setActiveTab] = useState<string>('played')
   const [filtersExpanded, setFiltersExpanded] = useState(false)
-  const [statsExpanded, setStatsExpanded] = useState(false)
 
   const playerData = useMemo(() => {
     const playerGames = playthroughs.filter(p =>
@@ -307,18 +308,7 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
         </div>
       </div>
 
-      {/* Stats section - collapsible on mobile */}
-      <div className="lg:block">
-        <button
-          className="lg:hidden flex items-center gap-2 text-sm text-muted-foreground mb-2 w-full"
-          onClick={() => setStatsExpanded(!statsExpanded)}
-        >
-          <Book size={16} />
-          <span>Player Stats</span>
-          {statsExpanded ? <CaretUp size={14} /> : <CaretDown size={14} />}
-        </button>
-        <div className={cn("lg:block", statsExpanded ? "block" : "hidden lg:block")}>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="p-4">
           <div className="flex items-center gap-3 mb-3">
             <Book size={20} weight="duotone" className="text-primary" />
@@ -435,10 +425,9 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
               ))}
           </div>
         </Card>
-          </div>
-        </div>
       </div>
 
+      <PlayerDrilldowns campaigns={campaigns}>
       <Tabs defaultValue="played" className="space-y-4" onValueChange={(v) => {
         setActiveTab(v)
         setSelectedSets([])
@@ -771,6 +760,7 @@ export function PlayerStats({ playerName, playthroughs }: PlayerStatsProps) {
           )}
         </TabsContent>
       </Tabs>
+      </PlayerDrilldowns>
     </div>
   )
 }
