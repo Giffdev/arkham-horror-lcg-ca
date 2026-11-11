@@ -30,6 +30,69 @@ function run(overrides: Partial<CampaignRun> = {}): CampaignRun {
 }
 
 describe('player campaign play evidence', () => {
+  it.each([undefined, '', 'The Drowned City'])(
+    'retains whole-campaign participation after real promotion without inventing a scenario: %s',
+    scenarioName => {
+      const source = legacy({
+        campaignName: 'The Drowned City', date: '2026-11-03', scenarioName,
+        investigatorOutcomes: [{
+          seatId: 'alice', slotId: 'roland', playerName: 'Alice', investigatorName: 'Roland Banks',
+          status: 'survived', xpEarned: 0, traumaGainedPhysical: 0, traumaGainedMental: 0,
+        }],
+      })
+      const promoted = buildCampaignRunFromSourcePlaythrough(source, { campaignRunId: 'promoted' })
+      const records = [{ ...source, promotedToCampaignRunId: promoted.id }]
+      const before = JSON.stringify([records, promoted])
+      for (const [sources, runs] of [[records, [promoted]], [[source], []]] as const) {
+        for (const player of [null, 'Alice', ' Alice ']) {
+          expect(getPlayerCampaignHistory(player, [...sources], [...runs]).get('The Drowned City'))
+            .toMatchObject([{ id: 'legacy:legacy', date: '2026-11-03', scenarioName: undefined,
+              investigators: [{ playerName: 'Alice' }] }])
+        }
+        expect(getPlayerPlayedCampaignNames('Bob', [...sources], [...runs]).has('The Drowned City')).toBe(false)
+        expect(getPlayerPlayedCampaignNames('Ali', [...sources], [...runs]).has('The Drowned City')).toBe(false)
+      }
+      expect(getActualCampaignScenarioLogs(promoted)).toEqual([])
+      expect(JSON.stringify([records, promoted])).toBe(before)
+    },
+  )
+
+  it('uses a copied legacy whole-campaign log when the source is absent, never the setup roster', () => {
+    const source = legacy({ campaignName: 'The Drowned City', scenarioName: 'The Drowned City',
+      investigators: [investigators[0]] })
+    const promoted = buildCampaignRunFromSourcePlaythrough(source)
+    promoted.setupSnapshot.investigators = [investigators[1]]
+    expect(getPlayerCampaignHistory('Alice', [], [promoted]).get('The Drowned City'))
+      .toMatchObject([{ id: 'legacy:legacy', scenarioName: undefined, investigators: [{ playerName: 'Alice' }] }])
+    expect(getPlayerPlayedCampaignNames('Bob', [], [promoted]).size).toBe(0)
+    promoted.scenarioLogs[0].investigatorOutcomes = []
+    expect(getPlayerCampaignHistory(null, [], [promoted]).size).toBe(0)
+  })
+
+  it('keeps source outcomes authoritative over a copied shell and never invents participants from setup', () => {
+    const source = legacy({ scenarioName: 'The Dunwich Legacy', investigatorOutcomes: [] })
+    const promoted = buildCampaignRunFromSourcePlaythrough(source)
+    promoted.scenarioLogs[0].investigatorOutcomes = undefined
+    expect(getPlayerCampaignHistory(null, [{ ...source, promotedToCampaignRunId: promoted.id }], [promoted]))
+      .toEqual(new Map())
+    // A source pointer alone cannot recover lost outcomes or certify the setup roster as participants.
+    promoted.scenarioLogs = []
+    expect(getPlayerCampaignHistory(null, [], [promoted])).toEqual(new Map())
+  })
+
+  it('retains explicit side stories on a copied whole-campaign log alongside its original source', () => {
+    const source = legacy({ scenarioName: 'The Dunwich Legacy', investigators: [investigators[0]] })
+    const promoted = buildCampaignRunFromSourcePlaythrough(source)
+    promoted.scenarioLogs[0].sideStories = ['Curse of the Rougarou']
+    const history = getPlayerCampaignHistory('Alice', [
+      { ...source, promotedToCampaignRunId: promoted.id },
+    ], [promoted])
+    expect(history.get('The Dunwich Legacy')).toHaveLength(1)
+    expect(history.get('Curse of the Rougarou')).toHaveLength(1)
+    expect(history.get('Curse of the Rougarou')?.[0].scenarioName).toBeUndefined()
+    expect(getActualCampaignScenarioLogs(promoted)).toEqual([])
+  })
+
   it.each(['run', 'legacy'] as const)('preserves distinct historical slot identities for %s outcomes', sourceKind => {
     const assignments: Playthrough['investigators'] = [
       { playerName: 'Alice', investigatorName: 'Joe Diamond', investigatorId: 'joe-diamond',
@@ -149,7 +212,7 @@ describe('player campaign play evidence', () => {
       const history = getPlayerCampaignHistory('Alice', records, [promoted])
       expect(history.get('Curse of the Rougarou')).toHaveLength(1)
       expect(history.get('Curse of the Rougarou')?.[0].investigators.map(inv => inv.playerName)).toEqual(['Alice'])
-      expect(history.has('The Dunwich Legacy')).toBe(scenarioName === 'Extracurricular Activity')
+      expect(history.get('The Dunwich Legacy')).toHaveLength(1)
       expect(JSON.stringify([records, promoted])).toBe(before)
     },
   )
@@ -252,7 +315,7 @@ describe('player campaign play evidence', () => {
       const after = getPlayerPlayedCampaignNames(player, [suppressedSource], [promoted])
       expect(before.has('Curse of the Rougarou')).toBe(expected)
       expect(after.has('Curse of the Rougarou')).toBe(expected)
-      expect(after.has('The Dunwich Legacy')).toBe(false)
+      expect(after.has('The Dunwich Legacy')).toBe(expected)
     }
   })
 
@@ -278,14 +341,18 @@ describe('player campaign play evidence', () => {
     expect([...getPlayerPlayedCampaignNames('Bob', records, [campaign])]).toEqual(['The Dunwich Legacy', 'Carnevale of Horrors'])
   })
 
-  it('does not count run setup, interludes, promoted root shells, or suppressed legacy rosters', () => {
+  it('keeps promoted whole-campaign evidence but does not count setup or interludes', () => {
     const campaign = run({ scenarioLogs: [
       scenario({ scenarioName: 'The Dunwich Legacy', legacySourcePlaythroughId: 'legacy' }),
       scenario({ id: 'interlude', scenarioName: 'Interlude I', scenarioType: 'interlude' }),
     ] })
     expect([...getPlayerPlayedCampaignNames('Alice', [
       legacy({ promotedToCampaignRunId: 'run' }),
-    ], [campaign, run({ id: 'setup', scenarioLogs: [] })])]).toEqual([])
+    ], [campaign, run({ id: 'setup', scenarioLogs: [] })])]).toEqual(['The Dunwich Legacy'])
+    expect(getPlayerCampaignHistory(null, [], [
+      run({ scenarioLogs: [scenario({ scenarioName: 'Interlude I', scenarioType: 'interlude' })] }),
+      run({ id: 'setup', scenarioLogs: [] }),
+    ])).toEqual(new Map())
   })
 
   it('ignores unknown/custom campaign identity and does not guess ambiguous sets', () => {
@@ -389,11 +456,11 @@ describe('player campaign play evidence', () => {
       })
       expect(getPlayerPlayedCampaignNames('Alice', [source], [])).toEqual(new Set([first, 'The Dunwich Legacy']))
       expect(getPlayerPlayedCampaignNames('Alice', [{ ...source, promotedToCampaignRunId: promoted.id }], [promoted]))
-        .toEqual(new Set([first]))
+        .toEqual(new Set(['The Dunwich Legacy', first]))
       expect(getPlayerPlayedCampaignNames('Alice', [source], [campaign]))
         .toEqual(new Set(['The Dunwich Legacy', parent, first, second]))
       expect(getPlayerPlayedCampaignNames('Alice', [{ ...source, promotedToCampaignRunId: promoted.id }], [promoted, campaign]))
-        .toEqual(new Set([parent, first, second]))
+        .toEqual(new Set(['The Dunwich Legacy', parent, first, second]))
     })
 
     describe.each([undefined, ''])('promoted source with scenarioName %s', scenarioName => {
@@ -401,7 +468,7 @@ describe('player campaign play evidence', () => {
         { evidence: 'absent outcomes', participants: undefined, alice: true, bob: true },
         { evidence: 'empty outcomes', participants: [], alice: false, bob: false },
         { evidence: 'Alice-only outcomes', participants: [investigators[0]], alice: true, bob: false },
-      ])('retains explicit side stories with $evidence without crediting the root', ({ participants, alice, bob }) => {
+      ])('retains whole-campaign and explicit side-story evidence with $evidence', ({ participants, alice, bob }) => {
         const source = legacy({
           scenarioName, sideStories: [first, first], xpEarned: 4,
           investigatorOutcomes: participants?.map(participant => ({
@@ -422,10 +489,10 @@ describe('player campaign play evidence', () => {
         expect(promoted.scenarioLogs).toEqual([])
         for (const [player, participated] of [['Alice', alice], ['Bob', bob], ['Ali', false]] as const) {
           expect(getPlayerPlayedCampaignNames(player, [suppressedSource], [promoted]))
-            .toEqual(new Set(participated ? [first] : []))
+            .toEqual(new Set(participated ? ['The Dunwich Legacy', first] : []))
           const expected = player === 'Alice'
-            ? participated ? [parent, first, second] : [second]
-            : participated ? [first] : []
+            ? participated ? ['The Dunwich Legacy', parent, first, second] : [second]
+            : participated ? ['The Dunwich Legacy', first] : []
           expect(getPlayerPlayedCampaignNames(player, [suppressedSource], [promoted, other]))
             .toEqual(new Set(expected))
         }
@@ -450,7 +517,7 @@ describe('player campaign play evidence', () => {
       const source = legacy({ scenarioName: 'The Dunwich Legacy', sideStories: [parent] })
       const promoted = buildCampaignRunFromSourcePlaythrough(source, { campaignRunId: 'promoted' })
       expect(getPlayerPlayedCampaignNames('Alice', [{ ...source, promotedToCampaignRunId: promoted.id }], [promoted]))
-        .toEqual(new Set([parent, first, second]))
+        .toEqual(new Set(['The Dunwich Legacy', parent, first, second]))
       expect(getPlayerPlayedCampaignNames('Alice', [], [run({
         scenarioLogs: [scenario({ scenarioName: parent, scenarioType: 'side_scenario' })],
       })])).toEqual(new Set([parent, first, second]))

@@ -15,6 +15,7 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { PublicHomepage } from './PublicHomepage'
 import { getCampaignSvgRaw } from '@/lib/campaign-icon-map'
+import tracesRaw from '@/components/icons/traces_to_nowhere.svg?raw'
 
 vi.mock('@/lib/community-stats', () => ({
   getCommunityStats: vi.fn(),
@@ -95,6 +96,18 @@ describe('PublicHomepage', () => {
   })
 
   describe('basic render', () => {
+    it.each(['topCampaigns', 'topStandalones'] as const)('renders the supplied Traces icon in public %s rather than the Scenario Pack fallback', async (list) => {
+      await renderAndWait({
+        ...FULL_STATS,
+        topStandalones: [],
+        topCampaigns: [],
+        [list]: [{ name: 'Traces To Nowhere', count: 6, set: 'Scenario Pack', breakdown: { asStandalone: 3, asSideStory: 3 } }],
+      })
+      const source = new DOMParser().parseFromString(tracesRaw, 'image/svg+xml')
+      const svg = screen.getByText('Traces To Nowhere').parentElement?.querySelector('svg')
+      expect(svg?.querySelector('path')?.getAttribute('d')).toBe(source.querySelector('path')?.getAttribute('d'))
+    })
+
     it('renders the page header and sign-in button', () => {
       mockGetCommunityStats.mockReturnValue(new Promise(() => {}))
       render(<PublicHomepage onAuthSuccess={vi.fn()} />)

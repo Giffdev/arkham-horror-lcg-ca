@@ -42,6 +42,7 @@ import { Filters } from './Filters'
 import { CommunityStats } from './CommunityStats'
 import { PlaythroughCard } from './PlaythroughCard'
 import type { Playthrough } from '@/lib/types'
+import tracesRaw from '@/components/icons/traces_to_nowhere.svg?raw'
 
 // matchMedia is not implemented in jsdom
 beforeAll(() => {
@@ -300,6 +301,20 @@ const GALA_PLAYTHROUGH: Playthrough = {
 }
 
 describe('PlaythroughCard — Midwinter Gala icon identity (M)', () => {
+  it('renders traces_to_nowhere.svg for a Traces record persisted with the generic Scenario Pack set', () => {
+    render(
+      <PlaythroughCard
+        playthrough={{ ...GALA_PLAYTHROUGH, campaignName: 'Traces To Nowhere' }}
+        onEdit={noop}
+        onDelete={noop}
+      />,
+    )
+    const source = new DOMParser().parseFromString(tracesRaw, 'image/svg+xml')
+    const svg = screen.getByRole('heading', { name: 'Traces To Nowhere' }).querySelector('svg')
+    expect(svg?.querySelector('path')?.getAttribute('d')).toBe(source.querySelector('path')?.getAttribute('d'))
+    expect(svg?.innerHTML).not.toContain(ELDER_SIGN_PATH_PREFIX)
+  })
+
   it('renders gala.svg path (not Elder Sign) when campaignSet="Scenario Pack" and campaignName="The Midwinter Gala"', () => {
     const { container } = render(
       <PlaythroughCard playthrough={GALA_PLAYTHROUGH} onEdit={noop} onDelete={noop} />,

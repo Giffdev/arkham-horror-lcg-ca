@@ -15,10 +15,24 @@
 import { render } from '@testing-library/react'
 import { describe, it, expect } from 'vitest'
 import { CampaignSvgIcon } from './CampaignSvgIcon'
+import tracesRaw from '@/components/icons/traces_to_nowhere.svg?raw'
 
 // ─── 1–4. CampaignSvgIcon component contract ──────────────────────────────────
 
 describe('CampaignSvgIcon — rendering contract', () => {
+  it('renders the exact Traces artwork at the requested size while retaining its viewBox and theme fill', () => {
+    const source = new DOMParser().parseFromString(tracesRaw, 'image/svg+xml')
+    const { container } = render(<CampaignSvgIcon campaignSet="Traces To Nowhere" size={24} />)
+    const svg = container.querySelector('svg')!
+    expect(svg).toHaveAttribute('viewBox', '0 0 1112 1024')
+    expect(svg).toHaveAttribute('width', '24')
+    expect(svg).toHaveAttribute('height', '24')
+    expect(svg).toHaveAttribute('fill', 'currentColor')
+    expect(svg.querySelectorAll('path')).toHaveLength(1)
+    expect(svg.querySelector('path')).toHaveAttribute('d', source.querySelector('path')!.getAttribute('d'))
+    expect(svg.querySelector('path')).toHaveAttribute('fill', 'currentColor')
+  })
+
   it('renders a container span with an inline SVG', () => {
     const { container } = render(<CampaignSvgIcon campaignSet="Core" />)
     const span = container.querySelector('span')

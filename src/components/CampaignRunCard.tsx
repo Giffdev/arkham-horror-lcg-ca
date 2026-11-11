@@ -11,7 +11,7 @@ import { deriveCampaignRunRosterSummary } from '@/lib/campaign-runs'
 import { formatDate } from '@/lib/date-utils'
 import { getCampaignProgressionScenarioNames, getNextCampaignScenarioResolution } from '@/lib/campaign-progression'
 import { getChapterBadgeLabel, getDisplaySetName, isChapterBadgeSpecial, resolveInvestigator } from '@/lib/investigator-data'
-import { getActualCampaignScenarioLogs } from '@/lib/scenario-night-utils'
+import { getActualCampaignScenarioLogs, hasUntrackedLegacyScenarioProgress } from '@/lib/scenario-night-utils'
 import { hasDedicatedCampaignIcon } from '@/lib/campaign-icon-map'
 import type { CampaignRun, CampaignScenarioLog } from '@/lib/types'
 import { CaretDown, CaretUp, PencilSimple, Plus, Trash } from '@phosphor-icons/react'
@@ -109,6 +109,7 @@ export const CampaignRunCard = memo(function CampaignRunCard({
   const isStandaloneScenario = campaignRun.campaignType === 'Scenario Pack'
   const isFanMadeCampaign = campaignRun.campaignType === 'Fan-Made'
   const actualScenarioLogs = getActualCampaignScenarioLogs(campaignRun)
+  const untrackedLegacyProgress = hasUntrackedLegacyScenarioProgress(campaignRun)
   const rosterSummary = deriveCampaignRunRosterSummary(campaignRun)
   const scenarioRegionId = `campaign-run-scenarios-${campaignRun.id}`
   const canonicalScenarioNames = getCampaignProgressionScenarioNames({
@@ -123,7 +124,7 @@ export const CampaignRunCard = memo(function CampaignRunCard({
   const progressLabel = canonicalScenarioNames.length > 0
     ? `${loggedCount} of ${canonicalScenarioNames.length}`
     : `${loggedCount} logged`
-  const nextScenarioLabel = !isStandaloneScenario && !isFanMadeCampaign
+  const nextScenarioLabel = !isStandaloneScenario && !isFanMadeCampaign && !untrackedLegacyProgress
     ? getNextScenarioLabel(campaignRun, actualScenarioLogs)
     : null
   const campaignIconKey = hasDedicatedCampaignIcon(campaignRun.campaignName)
@@ -157,7 +158,8 @@ export const CampaignRunCard = memo(function CampaignRunCard({
               </div>
               <div className="flex flex-wrap gap-2 text-xs">
                 <Badge variant="outline" className="text-foreground">
-                  {isFanMadeCampaign ? `Scenarios: ${loggedCount} logged` : `Progress: ${progressLabel}`}
+                  {untrackedLegacyProgress ? 'Scenario progress not tracked'
+                    : isFanMadeCampaign ? `Scenarios: ${loggedCount} logged` : `Progress: ${progressLabel}`}
                 </Badge>
                 {showTotalGameNightsBadge && (
                   <Badge variant="outline" className="text-foreground">
@@ -367,7 +369,7 @@ export const CampaignRunCard = memo(function CampaignRunCard({
                 <Plus size={16} weight="bold" />
                 {isStandaloneScenario
                   ? 'Log Scenario Result'
-                  : (totalGameNightsLogged === 0 ? 'Log First Scenario' : 'Continue Campaign')}
+                  : (totalGameNightsLogged === 0 && !untrackedLegacyProgress ? 'Log First Scenario' : 'Continue Campaign')}
               </Button>
             )}
             <Button
@@ -414,7 +416,7 @@ export const CampaignRunCard = memo(function CampaignRunCard({
         <div id={scenarioRegionId}>
           {isExpanded && totalGameNightsLogged === 0 && (
             <div className="rounded-md border border-dashed border-border/80 bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
-              No scenario nights yet.
+              {untrackedLegacyProgress ? 'Historical campaign recorded without individual scenario details.' : 'No scenario nights yet.'}
             </div>
           )}
 

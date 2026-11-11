@@ -7,6 +7,7 @@ import { ALL_CAMPAIGNS } from '@/lib/campaign-data'
 import { getCampaignSvgRaw } from '@/lib/campaign-icon-map'
 import { buildCampaignRunFromSourcePlaythrough } from '@/lib/campaign-runs'
 import type { CampaignRun, Playthrough } from '@/lib/types'
+import tracesRaw from '@/components/icons/traces_to_nowhere.svg?raw'
 
 const records: Playthrough[] = [
   { id: 'legacy', date: '2026-01-01', campaignName: 'The Dunwich Legacy', campaignType: 'Full Campaign',
@@ -23,6 +24,55 @@ function Harness() {
 }
 
 describe('Players tab campaign view', () => {
+  it.each([null, 'Alice', 'Bob'])('keeps promoted whole-campaign history in the correct played scope for %s', async player => {
+    const user = userEvent.setup()
+    const source: Playthrough = {
+      ...records[0], campaignName: 'The Drowned City', campaignSet: 'The Drowned City',
+      date: '2026-11-03', scenarioName: undefined, sideStories: undefined,
+    }
+    const run = buildCampaignRunFromSourcePlaythrough(source)
+    render(<PlayersTab isLoading={false} playthroughs={[source]}
+      campaignPlaythroughs={[{ ...source, promotedToCampaignRunId: run.id }]} campaignRuns={[run]}
+      allPlayers={['Alice', 'Bob']} selectedPlayer={player} onSelectPlayer={vi.fn()} />)
+    await user.click(screen.getByRole('tab', { name: 'Campaigns & Scenarios' }))
+    const panel = within(screen.getByRole('region', {
+      name: player ? `${player}'s campaigns` : 'All players’ campaigns',
+    }))
+    await user.type(panel.getByRole('textbox', { name: 'Search campaigns and scenario packs' }), 'Drowned')
+    if (player === 'Bob') {
+      expect(panel.getByRole('tab', { name: 'Played (0)' })).toBeVisible()
+      await user.click(panel.getByRole('tab', { name: 'Not Played (1)' }))
+      expect(panel.getByRole('heading', { name: 'The Drowned City' })).toBeVisible()
+    } else {
+      expect(panel.getByRole('tab', { name: 'Played (1)' })).toBeVisible()
+      await user.click(panel.getByRole('button', { name: 'Full Campaign', exact: true }))
+      await user.click(panel.getByRole('button', { name: 'History for The Drowned City (1)' }))
+      expect(panel.getByRole('link', { name: 'Roland Banks' })).toBeVisible()
+      expect(panel.queryByText(/0 of 8/)).toBeNull()
+      await user.click(panel.getByRole('tab', { name: 'Not Played (0)' }))
+      expect(panel.queryByRole('heading', { name: 'The Drowned City' })).toBeNull()
+    }
+  })
+
+  it('keeps the Traces artwork when searching the played catalog and opening its history', async () => {
+    const user = userEvent.setup()
+    const record: Playthrough = {
+      ...records[0], campaignName: 'Traces To Nowhere', campaignSet: 'Scenario Pack',
+      campaignType: 'Scenario Pack', scenarioName: 'Traces To Nowhere', sideStories: undefined,
+    }
+    render(<PlayersTab isLoading={false} playthroughs={[record]} campaignPlaythroughs={[record]} campaignRuns={[]}
+      allPlayers={['Alice']} selectedPlayer="Alice" onSelectPlayer={vi.fn()} />)
+    await user.click(screen.getByRole('tab', { name: 'Campaigns & Scenarios' }))
+    const panel = within(screen.getByRole('region', { name: "Alice's campaigns" }))
+    await user.type(panel.getByRole('textbox', { name: 'Search campaigns and scenario packs' }), 'traces')
+    const heading = panel.getByRole('heading', { name: 'Traces To Nowhere' })
+    const source = new DOMParser().parseFromString(tracesRaw, 'image/svg+xml')
+    expect(heading.querySelector('svg path')?.getAttribute('d')).toBe(source.querySelector('path')?.getAttribute('d'))
+    await user.click(panel.getByRole('button', { name: 'History for Traces To Nowhere (1)' }))
+    expect(panel.getByRole('link', { name: 'Roland Banks' })).toBeVisible()
+    expect(heading.querySelector('svg path')?.getAttribute('d')).toBe(source.querySelector('path')?.getAttribute('d'))
+  })
+
   it('renders distinct historical Joe Diamond chapters and link targets in aggregate and selected-player history', async () => {
     const user = userEvent.setup()
     const source: Playthrough = {
@@ -92,7 +142,7 @@ describe('Players tab campaign view', () => {
       ['Fortune and Folly', 'Fortune and Folly'],
       ['Fortune and Folly, Part I', 'Fortune and Folly'],
       ['Fortune and Folly, Part II', 'Fortune and Folly'],
-      ['Traces To Nowhere', 'Scenario Pack'],
+      ['Traces To Nowhere', 'Traces To Nowhere'],
     ]) {
       const heading = panel.getByRole('heading', { name, exact: true })
       const decorative = heading.querySelector('[aria-hidden="true"]')

@@ -1,6 +1,6 @@
 import { ALL_CAMPAIGNS, MULTIPART_SCENARIO_PACKS, SCENARIO_PACK_SCENARIOS, STANDALONE_SCENARIO_GUIDES, resolveCampaignMetadata } from './campaign-data'
 import { shouldSuppressPromotedPlaythrough } from './campaign-runs'
-import { isActualCampaignScenarioNight } from './scenario-night-utils'
+import { isActualCampaignScenarioNight, isActualLegacyScenarioNight, isLegacyCampaignParticipationLog } from './scenario-night-utils'
 import { INVESTIGATORS, resolveInvestigator } from './investigator-data'
 import type { CampaignRun, CampaignScenarioInvestigatorOutcome, CampaignScenarioLog, CampaignType, InvestigatorAssignment, Playthrough } from './types'
 
@@ -125,6 +125,7 @@ export function getPlayerCampaignHistory(
     scenario: Playthrough | CampaignScenarioLog,
     id: string,
     actualScenario = true,
+    wholeCampaign = false,
   ) => {
     if (scenario.scenarioType === 'interlude') return
     const participants = scenario.investigatorOutcomes == null
@@ -135,7 +136,7 @@ export function getPlayerCampaignHistory(
     if (investigators.length === 0) return
     const identity = {
       ...root,
-      campaignName: actualScenario ? root.campaignName : '',
+      campaignName: actualScenario || wholeCampaign ? root.campaignName : '',
       scenarioName: actualScenario ? scenario.scenarioName : undefined,
       sideStories: scenario.sideStories,
     }
@@ -145,7 +146,7 @@ export function getPlayerCampaignHistory(
       scenarioName: actualScenario ? scenario.scenarioName : undefined, investigators,
     }
     resolveScenarioPackNames(identity, false).forEach(name => addRecord(name, record))
-    if (actualScenario && scenario.scenarioType !== 'side_scenario' &&
+    if ((actualScenario || wholeCampaign) && scenario.scenarioType !== 'side_scenario' &&
       root.campaignType !== 'Fan-Made' && root.campaignType !== 'Unknown') {
       const campaign = resolveCampaignMetadata({ campaignName: root.campaignName })
       if (campaign && !MULTIPART_SCENARIO_PACKS.get(campaign.name)?.includes(scenario.scenarioName ?? '')) {
@@ -155,15 +156,21 @@ export function getPlayerCampaignHistory(
   }
 
   const runIds = new Set(campaignRuns.map(run => run.id))
+  const sourceIds = new Set(playthroughs.map(playthrough => playthrough.id))
   for (const playthrough of playthroughs) {
-    // Promotion suppresses root credit, but explicit source side stories remain play evidence.
+    // Suppress copied scenarios, not historical whole-campaign participation or explicit side stories.
     const promoted = shouldSuppressPromotedPlaythrough(playthrough, runIds)
-    recordPlay(playthrough, playthrough, `legacy:${playthrough.id}`, !promoted)
+    const actualScenario = isActualLegacyScenarioNight(playthrough)
+    const wholeCampaign = !actualScenario && playthrough.scenarioType !== 'side_scenario'
+    recordPlay(playthrough, playthrough, `legacy:${playthrough.id}`, !promoted && actualScenario, wholeCampaign)
   }
   for (const run of campaignRuns) {
     for (const log of run.scenarioLogs) {
       const id = log.legacySourcePlaythroughId ? `legacy:${log.legacySourcePlaythroughId}` : `run:${run.id}:${log.id}`
-      recordPlay(run, log, id, isActualCampaignScenarioNight(run, log))
+      // The source supplies root credit; copied logs still retain their explicit side-story evidence.
+      const wholeCampaign = isLegacyCampaignParticipationLog(run, log) &&
+        !sourceIds.has(log.legacySourcePlaythroughId ?? '')
+      recordPlay(run, log, id, isActualCampaignScenarioNight(run, log), wholeCampaign)
     }
   }
   for (const [parent, children] of MULTIPART_SCENARIO_PACKS) {

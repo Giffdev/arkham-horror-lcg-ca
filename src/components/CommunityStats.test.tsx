@@ -20,6 +20,7 @@ import { render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { CommunityStats } from './CommunityStats'
 import { getCampaignSvgRaw } from '@/lib/campaign-icon-map'
+import tracesRaw from '@/components/icons/traces_to_nowhere.svg?raw'
 
 // ─── mock community-stats module ─────────────────────────────────────────────
 vi.mock('@/lib/community-stats', () => ({
@@ -97,6 +98,18 @@ describe('CommunityStats', () => {
   beforeEach(() => {
     vi.resetAllMocks()
     mockGetCommunityStatsAvailability.mockImplementation((stats: unknown) => (stats ? 'ready' : 'unavailable'))
+  })
+
+  it.each(['topCampaigns', 'topStandalones'] as const)('renders the supplied Traces icon in %s rather than the Scenario Pack fallback', async (list) => {
+    await renderAndWait({
+      ...FULL_STATS,
+      topStandalones: [],
+      topCampaigns: [],
+      [list]: [{ name: 'Traces To Nowhere', count: 7, set: 'Scenario Pack' }],
+    })
+    const source = new DOMParser().parseFromString(tracesRaw, 'image/svg+xml')
+    const svg = screen.getByText('Traces To Nowhere').parentElement?.querySelector('svg')
+    expect(svg?.querySelector('path')?.getAttribute('d')).toBe(source.querySelector('path')?.getAttribute('d'))
   })
 
   describe('loading state', () => {

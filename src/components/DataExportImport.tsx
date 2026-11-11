@@ -16,6 +16,7 @@ interface DataExportImportProps {
   playthroughs: Playthrough[]
   campaignRuns: CampaignRun[]
   onImport: (payload: NormalizedImportPayload) => Promise<void> | void
+  showImport?: boolean
 }
 
 interface DataImportDialogProps {
@@ -196,7 +197,7 @@ export function DataImportDialog({ open, onOpenChange, onImport, onCloseAutoFocu
   )
 }
 
-export function DataExportImport({ playthroughs, campaignRuns, onImport }: DataExportImportProps) {
+export function DataExportImport({ playthroughs, campaignRuns, onImport, showImport = false }: DataExportImportProps) {
   const [importDialogOpen, setImportDialogOpen] = useState(false)
 
   return (
@@ -212,17 +213,21 @@ export function DataExportImport({ playthroughs, campaignRuns, onImport }: DataE
           Export Data
         </Button>
 
-        <Button variant="outline" className="gap-2" onClick={() => setImportDialogOpen(true)}>
-          <Upload size={18} weight="bold" />
-          Import Data
-        </Button>
+        {showImport && (
+          <Button variant="outline" className="gap-2" onClick={() => setImportDialogOpen(true)}>
+            <Upload size={18} weight="bold" />
+            Import Data
+          </Button>
+        )}
       </div>
 
-      <DataImportDialog
-        open={importDialogOpen}
-        onOpenChange={setImportDialogOpen}
-        onImport={onImport}
-      />
+      {showImport && (
+        <DataImportDialog
+          open={importDialogOpen}
+          onOpenChange={setImportDialogOpen}
+          onImport={onImport}
+        />
+      )}
     </>
   )
 }

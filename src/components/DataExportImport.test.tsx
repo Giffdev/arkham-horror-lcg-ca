@@ -79,6 +79,9 @@ describe('DataExportImport', () => {
       />,
     )
 
+    expect(screen.queryByRole('button', { name: /Import/i, hidden: true })).not.toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { hidden: true })).not.toBeInTheDocument()
+    expect(document.querySelector('input[type="file"], textarea')).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /Export Data/i }))
 
     expect(createObjectURL).toHaveBeenCalledOnce()
@@ -102,6 +105,7 @@ describe('DataExportImport', () => {
         playthroughs={[makePlaythrough('p1')]}
         campaignRuns={[]}
         onImport={onImport}
+        showImport
       />,
     )
 
@@ -134,6 +138,7 @@ describe('DataExportImport', () => {
         playthroughs={[makePlaythrough('p1')]}
         campaignRuns={[]}
         onImport={onImport}
+        showImport
       />,
     )
 
@@ -161,6 +166,7 @@ describe('DataExportImport', () => {
         playthroughs={[makePlaythrough('p1')]}
         campaignRuns={[]}
         onImport={onImport}
+        showImport
       />,
     )
 

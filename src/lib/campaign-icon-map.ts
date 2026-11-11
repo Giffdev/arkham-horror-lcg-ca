@@ -45,6 +45,7 @@ import blobRaw from '@/components/icons/blob_set.svg?raw'
 import mttRaw from '@/components/icons/mtt.svg?raw'
 import galaRaw from '@/components/icons/gala.svg?raw'
 import lolRaw from '@/components/icons/lol.svg?raw'
+import tracesRaw from '@/components/icons/traces_to_nowhere.svg?raw'
 
 // ── Starter investigator deck icons ───────────────────────────────────────────
 import nateRaw from '@/components/icons/nate.svg?raw'
@@ -154,6 +155,7 @@ const STANDALONE_ICONS: Record<string, string> = {
   'Machinations Through Time': normalise(mttRaw),
   'The Midwinter Gala': normalise(galaRaw),
   'The Labyrinths of Lunacy': normalise(lolRaw),
+  'Traces To Nowhere': normalise(tracesRaw),
   'Barkham Horror: The Meddling of Meowlathotep': normalise(barkhamRaw),
   'The Meddling of Meowlathotep': normalise(barkhamRaw),
 }

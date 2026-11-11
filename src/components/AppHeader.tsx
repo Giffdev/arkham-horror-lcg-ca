@@ -19,6 +19,7 @@ interface AppHeaderProps {
   playthroughs: Playthrough[]
   campaignRuns: CampaignRun[]
   onImportData: (payload: NormalizedImportPayload) => Promise<void> | void
+  showImport?: boolean
 }
 
 function injectSize(svgString: string, size: number): string {
@@ -58,6 +59,7 @@ export function AppHeader({
   playthroughs,
   campaignRuns,
   onImportData,
+  showImport = false,
 }: AppHeaderProps) {
   const profileMenuTriggerId = useId()
   const [importDialogOpen, setImportDialogOpen] = useState(false)
@@ -106,13 +108,15 @@ export function AppHeader({
                   <Download size={16} weight="bold" />
                   Export Data
                 </DropdownMenuItem>
-                <DropdownMenuItem
-                  onSelect={() => setImportDialogOpen(true)}
-                  className="gap-2 cursor-pointer"
-                >
-                  <Upload size={16} weight="bold" />
-                  Import Data
-                </DropdownMenuItem>
+                {showImport && (
+                  <DropdownMenuItem
+                    onSelect={() => setImportDialogOpen(true)}
+                    className="gap-2 cursor-pointer"
+                  >
+                    <Upload size={16} weight="bold" />
+                    Import Data
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuSeparator />
                 {isGoogleUser && !hasPasswordLinked && (
                   <DropdownMenuItem 
@@ -136,15 +140,17 @@ export function AppHeader({
           </div>
         </div>
       </div>
-      <DataImportDialog
-        open={importDialogOpen}
-        onOpenChange={setImportDialogOpen}
-        onImport={onImportData}
-        onCloseAutoFocus={(event) => {
-          event.preventDefault()
-          restoreProfileTriggerFocus()
-        }}
-      />
+      {showImport && (
+        <DataImportDialog
+          open={importDialogOpen}
+          onOpenChange={setImportDialogOpen}
+          onImport={onImportData}
+          onCloseAutoFocus={(event) => {
+            event.preventDefault()
+            restoreProfileTriggerFocus()
+          }}
+        />
+      )}
     </header>
   )
 }

@@ -78,6 +78,7 @@ import survivorRaw        from '@/components/icons/survivor.svg?raw'
 import neutralRaw         from '@/components/icons/neutral.svg?raw'
 import galaRaw            from '@/components/icons/gala.svg?raw'
 import lolRaw             from '@/components/icons/lol.svg?raw'
+import tracesRaw          from '@/components/icons/traces_to_nowhere.svg?raw'
 
 // ─── local normalise — mirrors campaign-icon-map.ts private normalise() ───────
 // IMPORTANT: Keep in sync with the production function.
@@ -377,7 +378,7 @@ describe('Faction icons — getFactionSvgRaw file-identity contracts', () => {
 // when called with the scenario name directly.
 //
 // Unresolved packs (as of 2026-08-12):
-//   War of the Outer Gods, Traces To Nowhere
+//   War of the Outer Gods
 //
 // Resolved 2026-08-12 (hotfix/neutral-icon-contrast): The Midwinter Gala → gala.svg
 // Resolved 2026-08-12 (hotfix/neutral-icon-contrast): The Labyrinths of Lunacy → lol.svg
@@ -393,7 +394,6 @@ describe('Unresolved standalone packs — generic Elder Sign fallback (no guessi
 
   const UNRESOLVED = [
     'War of the Outer Gods',
-    'Traces To Nowhere',
   ]
 
   for (const name of UNRESOLVED) {
@@ -417,6 +417,31 @@ describe('Unresolved standalone packs — generic Elder Sign fallback (no guessi
     expect(hasDedicatedCampaignIcon('Return to The Innsmouth Conspiracy')).toBe(false)
     // Falling through the registry returns the Elder Sign
     expect(getCampaignSvgRaw('Return to The Innsmouth Conspiracy')).toBe(ELDER_SIGN)
+  })
+})
+
+describe('Traces To Nowhere — confirmed traces_to_nowhere.svg identity', () => {
+  it('resolves both lookup paths to the exact normalised asset, not the generic fallback', () => {
+    expect(hasDedicatedCampaignIcon('Traces To Nowhere')).toBe(true)
+    expect(getStandaloneSvgRaw('Traces To Nowhere')).toBe(normalise(tracesRaw))
+    expect(getCampaignSvgRaw('Traces To Nowhere')).toBe(normalise(tracesRaw))
+    expect(getCampaignSvgRaw('Traces To Nowhere')).not.toBe(getCampaignSvgRaw('Scenario Pack'))
+  })
+
+  it('is a valid static SVG containing only the expected root and path attributes', () => {
+    const doc = new DOMParser().parseFromString(tracesRaw, 'image/svg+xml')
+    expect(doc.querySelector('parsererror')).toBeNull()
+    const svg = doc.documentElement
+    expect(svg.namespaceURI).toBe('http://www.w3.org/2000/svg')
+    expect(svg.localName).toBe('svg')
+    expect(svg.getAttribute('viewBox')).toBe('0 0 1112 1024')
+    expect(svg.getAttribute('width')).toBe('1112')
+    expect(svg.getAttribute('height')).toBe('1024')
+    expect(svg.children).toHaveLength(1)
+    expect(svg.firstElementChild?.localName).toBe('path')
+    expect(svg.firstElementChild?.getAttribute('d')).toBeTruthy()
+    expect(svg.getAttributeNames().sort()).toEqual(['height', 'viewBox', 'width', 'xmlns'])
+    expect(svg.firstElementChild?.getAttributeNames()).toEqual(['d'])
   })
 })
 

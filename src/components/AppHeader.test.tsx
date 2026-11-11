@@ -58,6 +58,7 @@ function renderHeader(options?: {
   playthroughs?: Playthrough[]
   campaignRuns?: CampaignRun[]
   onImportData?: (payload: NormalizedImportPayload) => Promise<void> | void
+  showImport?: boolean
 }) {
   const onImportData = options?.onImportData ?? vi.fn().mockResolvedValue(undefined)
   render(
@@ -76,6 +77,7 @@ function renderHeader(options?: {
       playthroughs={options?.playthroughs ?? [makePlaythrough('p1')]}
       campaignRuns={options?.campaignRuns ?? [makeRun('run-1')]}
       onImportData={onImportData}
+      showImport={options?.showImport}
     />,
   )
 
@@ -92,7 +94,7 @@ describe('AppHeader data actions', () => {
     vi.restoreAllMocks()
   })
 
-  it('removes standalone data buttons and keeps export reachable from the profile menu', async () => {
+  it('hides import and keeps export reachable from the profile menu by keyboard', async () => {
     const user = userEvent.setup()
     const createObjectURL = vi.spyOn(URL, 'createObjectURL').mockImplementation(() => 'blob:1')
     const revokeObjectURL = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
@@ -108,16 +110,22 @@ describe('AppHeader data actions', () => {
     await user.keyboard('{Enter}')
 
     expect(screen.getByRole('menuitem', { name: /^Export Data$/i })).toBeInTheDocument()
-    expect(screen.getByRole('menuitem', { name: /^Import Data$/i })).toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: /^Import Data$/i })).not.toBeInTheDocument()
 
     await user.keyboard('{Enter}')
 
     await waitFor(() => expect(createObjectURL).toHaveBeenCalledOnce())
+    const blob = createObjectURL.mock.calls[0][0] as Blob
+    expect(JSON.parse(await blob.text())).toMatchObject({
+      version: 2,
+      playthroughs: [{ id: 'p1' }],
+      campaignRuns: [{ id: 'run-1' }],
+    })
     expect(clickSpy).toHaveBeenCalledOnce()
     expect(revokeObjectURL).toHaveBeenCalled()
   })
 
-  it('keeps import reachable from the profile menu and restores focus after closing the dialog', async () => {
+  it('skips import during keyboard navigation and never mounts import controls', async () => {
     const user = userEvent.setup()
     const onImportData = vi.fn().mockResolvedValue(undefined)
 
@@ -126,7 +134,26 @@ describe('AppHeader data actions', () => {
     const profileButton = screen.getByRole('button', { name: /user@example\.com/i })
     profileButton.focus()
     await user.keyboard('{Enter}')
-    await user.keyboard('{ArrowDown}{Enter}')
+    await user.keyboard('{ArrowDown}')
+
+    expect(screen.getByRole('menuitem', { name: /^Sign Out$/i })).toHaveFocus()
+    expect(screen.queryByText(/^Import Data$/i)).not.toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { hidden: true })).not.toBeInTheDocument()
+    expect(document.querySelector('input[type="file"], textarea')).not.toBeInTheDocument()
+    expect(onImportData).not.toHaveBeenCalled()
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(profileButton).toHaveFocus())
+  })
+
+  it('retains import behavior and focus restoration when explicitly enabled', async () => {
+    const user = userEvent.setup()
+    const onImportData = vi.fn().mockResolvedValue(undefined)
+
+    renderHeader({ onImportData, showImport: true })
+
+    const profileButton = screen.getByRole('button', { name: /user@example\.com/i })
+    profileButton.focus()
+    await user.keyboard('{Enter}{ArrowDown}{Enter}')
 
     const textarea = await screen.findByPlaceholderText('{"version":2,"playthroughs":[...],"campaignRuns":[...]}')
     await user.click(textarea)
@@ -134,6 +161,10 @@ describe('AppHeader data actions', () => {
     await user.click(screen.getByRole('button', { name: /^Import$/i }))
 
     await waitFor(() => expect(onImportData).toHaveBeenCalledTimes(1))
+    expect(onImportData).toHaveBeenCalledWith(expect.objectContaining({
+      version: 1,
+      playthroughs: [expect.objectContaining({ id: 'legacy-1' })],
+    }))
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     await waitFor(() => expect(profileButton).toHaveFocus())
   })

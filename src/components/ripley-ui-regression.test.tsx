@@ -18,7 +18,7 @@
  *  - CampaignSvgIcon renders an <svg> element; we look for role=img / svg tag presence.
  *  - PlaythroughCard SVG icon wrapper already has aria-hidden="true" on the outer span.
  *  - Unknown archetype is excluded from the "six factions" glyph requirement.
- *  - Do NOT assert War/Traces dedicated icons — fallback is intentional.
+ *  - War of the Outer Gods retains its intentional fallback; Traces uses its supplied asset.
  *  - The Midwinter Gala icon (gala.svg) confirmed 2026-08-12; moved to KNOWN_STANDALONES.
  *  - The Labyrinths of Lunacy icon (lol.svg) confirmed 2026-08-12; moved to KNOWN_STANDALONES.
  *  - Barkham Horror: The Meddling of Meowlathotep (barkham_horror.svg alias) confirmed
@@ -220,6 +220,7 @@ describe('PlaythroughCard — standalone icon resolution', () => {
     'The Midwinter Gala',
     'The Labyrinths of Lunacy',
     'Barkham Horror: The Meddling of Meowlathotep',
+    'Traces To Nowhere',
   ]
 
   it.each(KNOWN_STANDALONES)('"%s" renders an svg icon without crashing', (scenarioName) => {
@@ -254,7 +255,6 @@ describe('PlaythroughCard — unconfirmed standalone uses safe fallback (no cras
    */
   const UNCONFIRMED_STANDALONES = [
     'War of the Outer Gods',
-    'Traces To Nowhere',
   ]
 
   it.each(UNCONFIRMED_STANDALONES)('"%s" renders a fallback svg without crashing', (scenarioName) => {

@@ -11,6 +11,7 @@ import {
   type CommunityStatsAvailability,
 } from '@/lib/community-stats'
 import { ArchetypeBadge } from '@/components/ArchetypeBadge'
+import { mostPlayedInvestigatorItem } from '@/components/MostPlayedInvestigator'
 import { StatsListCard } from '@/components/StatsListCard'
 import { ALL_CAMPAIGNS, campaignTypeLabel } from '@/lib/campaign-data'
 import { CampaignSvgIcon } from '@/components/CampaignSvgIcon'
@@ -86,25 +87,7 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
   }
 
   // Build StatsListCard items from community stats (with safety defaults for missing fields)
-  const investigatorItems = (communityStats?.topInvestigators ?? []).map(investigator => ({
-    key: investigator.investigatorId ?? `${investigator.name}__ch${investigator.chapter ?? 1}`,
-    countLabel: `${investigator.count} ${investigator.count === 1 ? 'campaign' : 'campaigns'}`,
-    renderContent: () => (
-      <div
-        className="grid items-center gap-x-2 min-w-0"
-        style={{ gridTemplateColumns: 'max-content 1fr' }}
-      >
-        <div data-badge className="flex gap-1 flex-shrink-0 items-center">
-          {investigator.archetypes.map((archetype) => (
-            <ArchetypeBadge key={archetype} archetype={archetype} />
-          ))}
-        </div>
-        <div data-name className="min-w-0">
-          <span className="font-medium text-foreground min-w-0">{investigator.name}</span>
-        </div>
-      </div>
-    ),
-  }))
+  const investigatorItems = (communityStats?.topInvestigators ?? []).map(investigator => mostPlayedInvestigatorItem(investigator))
 
   const campaignItems = (communityStats?.topCampaigns ?? []).map(campaign => {
     const typeLabel = campaignTypeLabel(campaign.name)

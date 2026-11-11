@@ -28,6 +28,20 @@ export function getActualCampaignScenarioLogs(campaignRun: CampaignRun): Campaig
   return campaignRun.scenarioLogs.filter((scenarioLog) => isActualCampaignScenarioNight(campaignRun, scenarioLog))
 }
 
+/** A copied campaign-level record is participation evidence, not an individual scenario. */
+export function isLegacyCampaignParticipationLog(campaignRun: CampaignRun, scenarioLog: CampaignScenarioLog): boolean {
+  return Boolean(scenarioLog.legacySourcePlaythroughId) &&
+    scenarioLog.scenarioType !== 'interlude' && scenarioLog.scenarioType !== 'side_scenario' &&
+    !isActualCampaignScenarioNight(campaignRun, scenarioLog)
+}
+
+export function hasUntrackedLegacyScenarioProgress(campaignRun: CampaignRun): boolean {
+  const hasLegacyEvidence = Boolean(campaignRun.sourcePlaythroughId) ||
+    campaignRun.scenarioLogs.some(log => isLegacyCampaignParticipationLog(campaignRun, log))
+  return hasLegacyEvidence && !getActualCampaignScenarioLogs(campaignRun)
+    .some(log => log.scenarioType !== 'side_scenario' && log.scenarioType !== 'interlude')
+}
+
 export function hasActualCampaignScenarioNights(campaignRun: CampaignRun): boolean {
   return getActualCampaignScenarioLogs(campaignRun).length > 0
 }

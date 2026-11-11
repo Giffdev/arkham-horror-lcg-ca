@@ -14,6 +14,7 @@ A web application for logging and exploring play history for *Arkham Horror: The
 - Logging pickers group Fortune and Folly and Guardians of the Abyss under nonselectable headings, with their individual parts/scenarios kept together. Either second scenario may be selected directly; historical package-only entries remain unchanged.
 - Filter and browse your game history across desktop and mobile layouts.
 - Review player statistics, investigator usage, completion progress, and investigator pairings.
+- Historical whole-campaign records count as played for their recorded participants, including after promotion to campaign tracking. Without individual scenario details, cards show “Scenario progress not tracked”; no scenarios, completion, or XP are inferred. New setup-only runs do not count as played.
 - Explore community-wide campaign, investigator, class, and standalone-scenario popularity.
 - Import and export tracker data for backup or migration.
 - Sign in with email/password or Google through Firebase Authentication.

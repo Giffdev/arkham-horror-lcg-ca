@@ -8,7 +8,7 @@ import {
   type CommunityStatsAvailability,
 } from '@/lib/community-stats'
 import { ArchetypeBadge } from '@/components/ArchetypeBadge'
-import { getArkhamDBUrl, getArkhamDBUrlById, getChapterBadgeLabel, isChapterBadgeSpecial, resolveInvestigator } from '@/lib/investigator-data'
+import { mostPlayedInvestigatorItem } from '@/components/MostPlayedInvestigator'
 import { StatsListCard } from '@/components/StatsListCard'
 import { ALL_CAMPAIGNS, campaignTypeLabel } from '@/lib/campaign-data'
 import { CampaignSvgIcon } from '@/components/CampaignSvgIcon'
@@ -156,56 +156,7 @@ export function CommunityStats() {
     }
   })
 
-  const investigatorItems = (communityStats.topInvestigators ?? []).map(investigator => {
-    const resolved = resolveInvestigator({
-      investigatorId: investigator.investigatorId,
-      investigatorName: investigator.name,
-      chapter: investigator.chapter,
-      investigatorSet: investigator.investigatorSet,
-    })
-    const arkhamDBUrl = resolved
-      ? getArkhamDBUrlById(resolved.id, investigator.archetypes[0])
-      : getArkhamDBUrl(investigator.name, investigator.archetypes[0], investigator.chapter)
-    const chapterInfo = resolved || { set: undefined, chapter: investigator.chapter || 1 }
-
-    return {
-      key: investigator.investigatorId ?? `${investigator.name}__ch${investigator.chapter ?? 1}`,
-      countLabel: `${investigator.count} ${investigator.count === 1 ? 'campaign' : 'campaigns'}`,
-      renderContent: () => (
-        <div
-          className="grid items-center gap-x-2 min-w-0"
-          style={{ gridTemplateColumns: 'max-content 1fr' }}
-        >
-          {/* col 1: badge(s) — max-content column matches PlaythroughCard InvestigatorGrid */}
-          <div data-badge className="flex gap-1 flex-shrink-0 items-center">
-            {investigator.archetypes.map((archetype) => (
-              <ArchetypeBadge key={archetype} archetype={archetype} />
-            ))}
-          </div>
-          {/* col 2: name + chapter — takes remaining width; wraps text without truncation */}
-          <div data-name className="flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-0">
-            {arkhamDBUrl ? (
-              <a
-                href={arkhamDBUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-medium text-foreground hover:text-primary transition-colors underline decoration-transparent hover:decoration-primary min-w-0"
-              >
-                {investigator.name}
-              </a>
-            ) : (
-              <span className="font-medium text-foreground min-w-0">{investigator.name}</span>
-            )}
-            <span className={`text-xs font-medium flex-shrink-0 ${
-              isChapterBadgeSpecial(chapterInfo) ? 'text-violet-400' : 'text-muted-foreground opacity-60'
-            }`}>
-              · {getChapterBadgeLabel(chapterInfo)}
-            </span>
-          </div>
-        </div>
-      ),
-    }
-  })
+  const investigatorItems = (communityStats.topInvestigators ?? []).map(investigator => mostPlayedInvestigatorItem(investigator, true))
 
   const completeClasses = communityStats.topClasses?.length
     ? completeClassPopularity(communityStats.topClasses)

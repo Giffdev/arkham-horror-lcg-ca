@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { CampaignRunCard } from './CampaignRunCard'
 import { getCampaignSvgRaw } from '@/lib/campaign-icon-map'
+import { appendCampaignScenarioLog, buildCampaignRunFromSourcePlaythrough } from '@/lib/campaign-runs'
 import type { CampaignRun } from '@/lib/types'
 
 function makeRun(overrides: Partial<CampaignRun> = {}): CampaignRun {
@@ -34,6 +35,51 @@ function makeRun(overrides: Partial<CampaignRun> = {}): CampaignRun {
 }
 
 describe('CampaignRunCard', () => {
+  it.each([undefined, 'The Drowned City', 'One Last Job'])(
+    'shows unknown legacy scenario progress only when individual history is absent: %s',
+    scenarioName => {
+      const run = buildCampaignRunFromSourcePlaythrough({
+        id: 'historical', campaignName: 'The Drowned City', campaignType: 'Full Campaign',
+        date: '2026-11-03', investigators: makeRun().setupSnapshot.investigators, scenarioName,
+      })
+      const props = {
+        isExpanded: true, onToggleExpanded: vi.fn(), onContinue: vi.fn(), onEditRun: vi.fn(),
+        onDeleteRun: vi.fn(), onEditScenario: vi.fn(), onDeleteScenario: vi.fn(),
+      }
+      const before = JSON.stringify(run)
+      const { rerender } = render(<CampaignRunCard {...props} campaignRun={run} />)
+      if (scenarioName === 'One Last Job') {
+        expect(screen.getByText('Progress: 1 of 10')).toBeVisible()
+        expect(screen.queryByText(/Scenario progress not tracked/i)).toBeNull()
+      } else {
+        expect(screen.getByText('Scenario progress not tracked')).toBeVisible()
+        expect(screen.queryByText(/Progress: 0 of/)).toBeNull()
+        expect(screen.queryByText(/^Next:/)).toBeNull()
+        expect(screen.queryByText('No scenario nights yet.')).toBeNull()
+        expect(screen.getByRole('button', { name: 'Continue Campaign' })).toBeVisible()
+        const withSideStory = appendCampaignScenarioLog(run, {
+          id: 'side', date: '2026-11-04', scenarioName: 'Curse of the Rougarou',
+          scenarioType: 'side_scenario', investigators: run.setupSnapshot.investigators,
+        })
+        rerender(<CampaignRunCard {...props} campaignRun={withSideStory} />)
+        expect(screen.getByText('Scenario progress not tracked')).toBeVisible()
+        expect(screen.getByText('Game nights: 1 logged')).toBeVisible()
+        const withIndividualHistory = appendCampaignScenarioLog(withSideStory, {
+          id: 'individual', date: '2026-11-05', scenarioName: 'One Last Job',
+          investigators: run.setupSnapshot.investigators,
+        })
+        rerender(<CampaignRunCard {...props} campaignRun={withIndividualHistory} />)
+        expect(screen.getByText('Progress: 1 of 10')).toBeVisible()
+        expect(screen.queryByText('Scenario progress not tracked')).toBeNull()
+      }
+      expect(JSON.stringify(run)).toBe(before)
+      rerender(<CampaignRunCard {...props} campaignRun={{ ...run, sourcePlaythroughId: undefined, scenarioLogs: [] }} />)
+      expect(screen.getByText('Progress: 0 of 10')).toBeVisible()
+      expect(screen.queryByText('Scenario progress not tracked')).toBeNull()
+      expect(screen.getByRole('button', { name: 'Log First Scenario' })).toBeVisible()
+    },
+  )
+
   it('uses the dedicated Children of Blood icon when the persisted set is Core 2026', () => {
     render(
       <CampaignRunCard
@@ -271,7 +317,7 @@ describe('CampaignRunCard', () => {
     expect(screen.getByRole('button', { name: /Continue Campaign/i })).toBeInTheDocument()
   })
 
-  it('treats a legacy root shell as empty and keeps Log First Scenario', () => {
+  it('keeps whole-campaign legacy evidence out of scenario counts without calling it an empty run', () => {
     render(
       <CampaignRunCard
         campaignRun={makeRun({
@@ -295,8 +341,9 @@ describe('CampaignRunCard', () => {
       />,
     )
 
-    expect(screen.getByRole('button', { name: /Log First Scenario/i })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /Continue Campaign/i })).toBeNull()
+    expect(screen.getByRole('button', { name: /Continue Campaign/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Log First Scenario/i })).toBeNull()
+    expect(screen.getByText('Scenario progress not tracked')).toBeVisible()
   })
 
   it('shows Continue Campaign when only side-scenario nights are logged', () => {
