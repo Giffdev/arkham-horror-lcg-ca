@@ -4,26 +4,31 @@ import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ArchetypeBadge } from './ArchetypeBadge'
 import { User, UsersThree, Check, X, Funnel, Book, ClockCounterClockwise, CaretDown, CaretUp } from '@phosphor-icons/react'
-import { formatDate } from '@/lib/date-utils'
 import { getDisplaySetName, INVESTIGATORS, getArkhamDBUrl, resolveInvestigator, getInvestigatorDisplayName, getArkhamDBUrlById, getChapterBadgeLabel } from '@/lib/investigator-data'
 import { ALL_CAMPAIGNS, getCampaignChapter } from '@/lib/campaign-data'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
 import { PlayerDrilldowns } from '@/components/PlayerDrilldowns'
+import { PlayerHistoryRecord } from '@/components/PlayerHistoryRecord'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 
 interface PlayerStatsProps {
   playerName: string
   playthroughs: Playthrough[]
   campaigns?: ReactNode
+  drilldownView?: string
+  onDrilldownChange?: (view: string) => void
 }
 
-export function PlayerStats({ playerName, playthroughs, campaigns }: PlayerStatsProps) {
+export function PlayerStats({ playerName, playthroughs, campaigns, drilldownView, onDrilldownChange }: PlayerStatsProps) {
   const [selectedArchetypes, setSelectedArchetypes] = useState<Archetype[]>([])
   const [selectedSets, setSelectedSets] = useState<string[]>([])
   const [selectedChapter, setSelectedChapter] = useState<'all' | 1 | 2>('all')
   const [activeTab, setActiveTab] = useState<string>('played')
   const [filtersExpanded, setFiltersExpanded] = useState(false)
+  const [search, setSearch] = useState('')
 
   const playerData = useMemo(() => {
     const playerGames = playthroughs.filter(p =>
@@ -177,6 +182,7 @@ export function PlayerStats({ playerName, playthroughs, campaigns }: PlayerStats
   const filteredCampaigns = useMemo(() => {
     if (!playerData) return []
     return playerData.campaigns.filter(campaign => {
+      if (!campaign.investigator.investigatorName.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase())) return false
       // Filter by campaign set
       if (selectedSets.length > 0 && !selectedSets.includes(campaign.set || '')) {
         return false
@@ -194,7 +200,7 @@ export function PlayerStats({ playerName, playthroughs, campaigns }: PlayerStats
       }
       return true
     })
-  }, [playerData, selectedSets, selectedChapter, selectedArchetypes])
+  }, [playerData, selectedSets, selectedChapter, selectedArchetypes, search])
 
   const { playedInvestigators, unplayedInvestigators } = useMemo(() => {
     const playedInvestigatorArchetypes = playthroughs
@@ -215,6 +221,9 @@ export function PlayerStats({ playerName, playthroughs, campaigns }: PlayerStats
     let filteredInvestigators = selectedChapter === 'all'
       ? INVESTIGATORS
       : INVESTIGATORS.filter(inv => inv.chapter === selectedChapter)
+
+    filteredInvestigators = filteredInvestigators.filter(inv =>
+      inv.name.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()))
 
     if (selectedArchetypes.length > 0) {
       filteredInvestigators = filteredInvestigators.filter(inv => 
@@ -292,7 +301,7 @@ export function PlayerStats({ playerName, playthroughs, campaigns }: PlayerStats
       .sort((a, b) => a.name.localeCompare(b.name))
 
     return { playedInvestigators: playedList, unplayedInvestigators: unplayedList }
-  }, [playerData.investigatorCounts, selectedArchetypes, selectedSets, selectedChapter, playthroughs, playerName])
+  }, [playerData.investigatorCounts, selectedArchetypes, selectedSets, selectedChapter, playthroughs, playerName, search])
 
   return (
     <div className="space-y-6">
@@ -427,10 +436,15 @@ export function PlayerStats({ playerName, playthroughs, campaigns }: PlayerStats
         </Card>
       </div>
 
-      <PlayerDrilldowns campaigns={campaigns}>
+      <PlayerDrilldowns campaigns={campaigns} view={drilldownView} onViewChange={onDrilldownChange}>
+      <div className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="player-investigator-search">Search investigators</Label>
+        <Input id="player-investigator-search" value={search} onChange={event => setSearch(event.target.value)} placeholder="Search by name..." />
+      </div>
       <Tabs defaultValue="played" className="space-y-4" onValueChange={(v) => {
         setActiveTab(v)
-        setSelectedSets([])
+        if ((activeTab === 'history') !== (v === 'history')) setSelectedSets([])
       }}>
         {/* Sticky tabs + filter bar */}
         <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b pb-3 -mx-1 px-1 space-y-3">
@@ -633,7 +647,9 @@ export function PlayerStats({ playerName, playthroughs, campaigns }: PlayerStats
             <Card className="p-6 text-center">
               <Check size={48} weight="duotone" className="mx-auto mb-4 text-accent" />
               <p className="text-muted-foreground">
-                {selectedArchetypes.length === 0 && selectedSets.length === 0
+                {search.trim() || selectedChapter !== 'all'
+                  ? 'No unplayed investigators match the selected filters'
+                  : selectedArchetypes.length === 0 && selectedSets.length === 0
                   ? 'You\'ve played all investigators!'
                   : 'All investigators in this category have been played!'}
               </p>
@@ -696,70 +712,14 @@ export function PlayerStats({ playerName, playthroughs, campaigns }: PlayerStats
             </Card>
           ) : (
             <div className="space-y-3">
-              {filteredCampaigns.map((campaign, idx) => {
-                const inv = campaign.investigator
-                const investigatorName = inv.isUnknown || inv.investigatorName === 'Unknown' 
-                  ? 'Unknown' 
-                  : inv.investigatorName
-                const investigatorArchetypes = inv.archetypes || [inv.archetype]
-                const resolved = !inv.isUnknown && !inv.isCustom && investigatorName !== 'Unknown'
-                  ? resolveInvestigator(inv)
-                  : null
-                const arkhamDBUrl = resolved ? getArkhamDBUrlById(resolved.id) : null
-                const chapterLabel = resolved ? getChapterBadgeLabel(resolved) : null
-                
-                return (
-                  <Card key={idx} className="p-4">
-                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-medium truncate">{campaign.name}</h4>
-                        <div className="flex flex-wrap items-center gap-2 mt-2 text-sm text-muted-foreground">
-                          <span>{formatDate(campaign.date)}</span>
-                          <Badge variant="secondary" className="text-xs">
-                            {campaign.type}
-                          </Badge>
-                          {campaign.set && (
-                            <Badge variant="outline" className="text-xs">
-                              {campaign.set}
-                            </Badge>
-                          )}
-
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3 lg:flex-shrink-0">
-                        <div className="flex items-center gap-2 min-w-0">
-                          {arkhamDBUrl ? (
-                            <a
-                              href={arkhamDBUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-sm font-medium whitespace-nowrap hover:underline hover:text-accent transition-colors"
-                            >
-                              {investigatorName}
-                            </a>
-                          ) : (
-                            <span className="text-sm font-medium whitespace-nowrap">
-                              {investigatorName}
-                            </span>
-                          )}
-                          {chapterLabel && (
-                            <span className="text-xs text-muted-foreground opacity-60">· {chapterLabel}</span>
-                          )}
-                        </div>
-                        <div className="flex gap-1 flex-wrap justify-end">
-                          {investigatorArchetypes.map((archetype, aIdx) => (
-                            <ArchetypeBadge key={aIdx} archetype={archetype} className="w-20 justify-center" />
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </Card>
-                )
-              })}
+              {filteredCampaigns.map((campaign, idx) => (
+                <PlayerHistoryRecord key={idx} {...campaign} investigators={[campaign.investigator]} />
+              ))}
             </div>
           )}
         </TabsContent>
       </Tabs>
+      </div>
       </PlayerDrilldowns>
     </div>
   )

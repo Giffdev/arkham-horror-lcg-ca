@@ -127,6 +127,30 @@ describe('PlayersOverview — tab navigation (D13-D17)', () => {
 })
 
 describe('PlayersOverview — filter interaction (D15, D17)', () => {
+  it('combines trimmed case-insensitive investigator search with status, class, set and chapter filters', async () => {
+    const user = userEvent.setup()
+    render(<PlayersOverview playthroughs={[ROLAND_PLAYTHROUGH]} />)
+    const search = screen.getByRole('textbox', { name: 'Search investigators' })
+    await user.type(search, ' roLAND ')
+    expect(screen.getByRole('tab', { name: 'Played (1)' })).toBeVisible()
+    await user.click(screen.getByRole('button', { name: /filters/i }))
+    await user.click(screen.getByRole('button', { name: 'Guardian' }))
+    await user.click(screen.getByRole('button', { name: 'Chapter 2' }))
+    expect(screen.getByText('No played investigators match the selected filters.')).toBeVisible()
+    await user.click(screen.getByRole('button', { name: 'Chapter 1' }))
+    await user.click(screen.getByRole('button', { name: 'Core', exact: true }))
+    expect(screen.getByRole('tab', { name: 'Played (1)' })).toBeVisible()
+    await user.click(screen.getByRole('tab', { name: /^Never Played/ }))
+    expect(screen.getByText('No unplayed investigators match the selected filters.')).toBeVisible()
+    await user.clear(search)
+    await user.type(search, 'Zoey')
+    expect(screen.getByText('No unplayed investigators match the selected filters.')).toBeVisible()
+    await user.click(screen.getByRole('button', { name: 'Core', exact: true }))
+    await user.click(screen.getByRole('button', { name: 'The Dunwich Legacy', exact: true }))
+    expect(screen.getByRole('tab', { name: 'Never Played (1)' })).toBeVisible()
+    expect(screen.getByRole('heading', { name: 'Zoey Samaras' })).toBeVisible()
+  })
+
   it('shows active filters badge and reduces played count when a class is applied', async () => {
     const user = userEvent.setup()
     const twoPlayerPT = makePlayed([
@@ -189,7 +213,7 @@ describe('PlayersOverview — empty states', () => {
     await user.click(screen.getByRole('button', { name: /filters/i }))
     await user.click(screen.getByRole('button', { name: 'Guardian' }))
     expect(
-      screen.getByText(/no investigators played yet|log games to see statistics/i),
+      screen.getByText('No played investigators match the selected filters.'),
     ).toBeVisible()
   })
 

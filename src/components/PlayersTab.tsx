@@ -1,12 +1,12 @@
+import { useState } from 'react'
 import { CampaignRun, Playthrough } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { BookOpen, User, UsersThree } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { EmptyState } from '@/components/EmptyState'
 import { PlayerStats } from '@/components/PlayerStats'
 import { PlayersOverview } from '@/components/PlayersOverview'
-import { PlayerCampaigns } from '@/components/PlayerCampaigns'
+import { PlayerCampaigns, type PlayerCampaignFilters } from '@/components/PlayerCampaigns'
 import { PlayerDrilldowns } from '@/components/PlayerDrilldowns'
 
 interface PlayersTabProps {
@@ -20,6 +20,8 @@ interface PlayersTabProps {
 }
 
 export function PlayersTab({ isLoading, playthroughs, allPlayers, selectedPlayer, onSelectPlayer, campaignPlaythroughs, campaignRuns = [] }: PlayersTabProps) {
+  const [drilldownView, setDrilldownView] = useState('investigators')
+  const [campaignFilters, setCampaignFilters] = useState<PlayerCampaignFilters>({ view: 'played', scope: 'all', search: '' })
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
@@ -29,21 +31,10 @@ export function PlayersTab({ isLoading, playthroughs, allPlayers, selectedPlayer
     )
   }
 
-  if (playthroughs && playthroughs.length === 0) {
-    return <EmptyState />
-  }
+  if (!playthroughs) return null
 
-  if (playthroughs && playthroughs.length > 0 && allPlayers.length === 0) {
-    return (
-      <Card className="p-12 text-center">
-        <p className="text-muted-foreground">
-          No players found. Add player names when logging games to see player statistics.
-        </p>
-      </Card>
-    )
-  }
-
-  if (!playthroughs || playthroughs.length === 0) return null
+  const campaigns = <PlayerCampaigns playerName={selectedPlayer} playthroughs={campaignPlaythroughs ?? playthroughs}
+    campaignRuns={campaignRuns} filters={campaignFilters} onFiltersChange={setCampaignFilters} />
 
   return (
     <div>
@@ -97,13 +88,10 @@ export function PlayersTab({ isLoading, playthroughs, allPlayers, selectedPlayer
 
         <div className="lg:col-span-3">
           {selectedPlayer ? (
-            <PlayerStats playerName={selectedPlayer} playthroughs={playthroughs} campaigns={
-              <PlayerCampaigns key={selectedPlayer} playerName={selectedPlayer} playthroughs={campaignPlaythroughs ?? playthroughs} campaignRuns={campaignRuns} />
-            } />
+            <PlayerStats playerName={selectedPlayer} playthroughs={playthroughs} campaigns={campaigns}
+              drilldownView={drilldownView} onDrilldownChange={setDrilldownView} />
           ) : (
-            <PlayerDrilldowns campaigns={
-              <p className="text-sm text-muted-foreground">Select a player to see their played and not played campaigns and scenario packs.</p>
-            }>
+            <PlayerDrilldowns campaigns={campaigns} view={drilldownView} onViewChange={setDrilldownView}>
               <PlayersOverview playthroughs={playthroughs} />
             </PlayerDrilldowns>
           )}

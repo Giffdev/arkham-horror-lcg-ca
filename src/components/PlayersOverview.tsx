@@ -10,6 +10,8 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 
 interface PlayersOverviewProps {
   playthroughs: Playthrough[]
@@ -21,6 +23,7 @@ export function PlayersOverview({ playthroughs }: PlayersOverviewProps) {
   const [selectedChapter, setSelectedChapter] = useState<'all' | 1 | 2>('all')
   const [filtersExpanded, setFiltersExpanded] = useState(false)
   const [activeTab, setActiveTab] = useState<'played' | 'never-played'>('played')
+  const [search, setSearch] = useState('')
 
   const { investigatorsPlayed, investigatorsNeverPlayed } = useMemo(() => {
     const investigatorPlayCount = new Map<string, { investigator: Investigator; timesPlayed: number }>()
@@ -49,6 +52,7 @@ export function PlayersOverview({ playthroughs }: PlayersOverviewProps) {
       .sort((a, b) => a.name.localeCompare(b.name))
 
     const filteredPlayed = playedArray.filter(({ investigator }) => {
+      if (!investigator.name.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase())) return false
       if (selectedChapter !== 'all' && investigator.chapter !== selectedChapter) return false
       if (selectedArchetypes.length > 0 && !investigator.archetypes.some(a => selectedArchetypes.includes(a))) return false
       if (selectedSets.length > 0 && !selectedSets.includes(investigator.set)) return false
@@ -56,6 +60,7 @@ export function PlayersOverview({ playthroughs }: PlayersOverviewProps) {
     })
 
     const filteredNeverPlayed = neverPlayed.filter(investigator => {
+      if (!investigator.name.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase())) return false
       if (selectedChapter !== 'all' && investigator.chapter !== selectedChapter) return false
       if (selectedArchetypes.length > 0 && !investigator.archetypes.some(a => selectedArchetypes.includes(a))) return false
       if (selectedSets.length > 0 && !selectedSets.includes(investigator.set)) return false
@@ -63,7 +68,7 @@ export function PlayersOverview({ playthroughs }: PlayersOverviewProps) {
     })
 
     return { investigatorsPlayed: filteredPlayed, investigatorsNeverPlayed: filteredNeverPlayed }
-  }, [playthroughs, selectedArchetypes, selectedSets, selectedChapter])
+  }, [playthroughs, selectedArchetypes, selectedSets, selectedChapter, search])
 
   const handleArchetypeToggle = (archetype: Archetype) => {
     setSelectedArchetypes(current =>
@@ -90,6 +95,10 @@ export function PlayersOverview({ playthroughs }: PlayersOverviewProps) {
 
   return (
     <div className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="overview-investigator-search">Search investigators</Label>
+        <Input id="overview-investigator-search" value={search} onChange={event => setSearch(event.target.value)} placeholder="Search by name..." />
+      </div>
       <div className="space-y-4">
         <button
           className="flex items-center gap-2 w-full rounded-md border border-border bg-card/50 px-3 py-2"
@@ -190,7 +199,9 @@ export function PlayersOverview({ playthroughs }: PlayersOverviewProps) {
         <TabsContent value="played" className="mt-4">
           {investigatorsPlayed.length === 0 ? (
             <Card className="p-12 text-center">
-              <p className="text-muted-foreground">No investigators played yet. Log games to see statistics.</p>
+              <p className="text-muted-foreground">
+                {search.trim() || hasActiveFilters ? 'No played investigators match the selected filters.' : 'No investigators played yet. Log games to see statistics.'}
+              </p>
             </Card>
           ) : (
             <>
@@ -237,11 +248,17 @@ export function PlayersOverview({ playthroughs }: PlayersOverviewProps) {
         <TabsContent value="never-played" className="mt-4">
           {investigatorsNeverPlayed.length === 0 ? (
             <Card className="p-12 text-center">
-              <Check size={48} weight="duotone" className="mx-auto mb-4 text-accent" />
-              <p className="text-lg font-medium mb-2">Every investigator has made it to the table!</p>
-              <p className="text-muted-foreground">
-                All {investigatorsPlayed.length + investigatorsNeverPlayed.length} investigators have been played at least once.
-              </p>
+              {search.trim() || hasActiveFilters ? (
+                <p className="text-muted-foreground">No unplayed investigators match the selected filters.</p>
+              ) : (
+                <>
+                  <Check size={48} weight="duotone" className="mx-auto mb-4 text-accent" />
+                  <p className="text-lg font-medium mb-2">Every investigator has made it to the table!</p>
+                  <p className="text-muted-foreground">
+                    All {investigatorsPlayed.length + investigatorsNeverPlayed.length} investigators have been played at least once.
+                  </p>
+                </>
+              )}
             </Card>
           ) : (
             <>

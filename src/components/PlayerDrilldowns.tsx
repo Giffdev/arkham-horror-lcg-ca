@@ -4,15 +4,18 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 interface PlayerDrilldownsProps {
   children: ReactNode
   campaigns?: ReactNode
+  view?: string
+  onViewChange?: (view: string) => void
 }
 
-export function PlayerDrilldowns({ children, campaigns }: PlayerDrilldownsProps) {
-  const [view, setView] = useState('investigators')
+export function PlayerDrilldowns({ children, campaigns, view: controlledView, onViewChange }: PlayerDrilldownsProps) {
+  const [localView, setLocalView] = useState('investigators')
+  const view = controlledView ?? localView
 
   if (!campaigns) return children
 
   return (
-    <Tabs value={view} onValueChange={setView}>
+    <Tabs value={view} onValueChange={onViewChange ?? setLocalView}>
       <TabsList aria-label="Player drilldown" className="w-full sm:w-fit">
         <TabsTrigger value="investigators">Investigators</TabsTrigger>
         <TabsTrigger value="campaigns">Campaigns &amp; Scenarios</TabsTrigger>

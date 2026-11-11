@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getPlayerPlayedCampaignNames, getScenarioPackNames } from './campaign-play-history'
+import { getPlayerCampaignHistory, getPlayerPlayedCampaignNames, getScenarioPackNames } from './campaign-play-history'
 import { buildCampaignRunFromSourcePlaythrough } from './campaign-runs'
 import { getActualCampaignScenarioLogs } from './scenario-night-utils'
 import type { CampaignRun, CampaignScenarioLog, Playthrough } from './types'
@@ -30,6 +30,137 @@ function run(overrides: Partial<CampaignRun> = {}): CampaignRun {
 }
 
 describe('player campaign play evidence', () => {
+  it.each(['run', 'legacy'] as const)('preserves distinct historical slot identities for %s outcomes', sourceKind => {
+    const assignments: Playthrough['investigators'] = [
+      { playerName: 'Alice', investigatorName: 'Joe Diamond', investigatorId: 'joe-diamond',
+        chapter: 1, investigatorSet: 'The Circle Undone', archetype: 'Seeker', archetypes: ['Seeker'] },
+      { playerName: 'Alice', investigatorName: 'Joe Diamond', investigatorId: 'joe-diamond-ch2',
+        chapter: 2, investigatorSet: 'Core 2026', archetype: 'Seeker', archetypes: ['Seeker'] },
+      { playerName: 'Alice', investigatorName: 'Joe Diamond', investigatorId: 'custom-joe',
+        isCustom: true, customInvestigatorName: 'Joe Diamond', archetype: 'Mystic' },
+    ]
+    const source = legacy({ scenarioName: 'Extracurricular Activity', investigators: assignments })
+    const campaign = buildCampaignRunFromSourcePlaythrough(source)
+    const log = campaign.scenarioLogs[0]
+    log.rosterBefore = structuredClone(campaign.currentRoster!)
+    log.rosterBefore[1].seatId = log.rosterBefore[0].seatId
+    log.investigators = [...assignments].reverse()
+    log.investigatorOutcomes = log.rosterBefore.map(entry => ({
+      seatId: entry.seatId, slotId: entry.slotId, playerName: entry.playerName,
+      investigatorName: entry.investigator.investigatorName,
+      status: 'survived', xpEarned: 0, traumaGainedPhysical: 0, traumaGainedMental: 0,
+    }))
+    log.rosterBefore.unshift({
+      ...log.rosterBefore[1], seatId: 'different-seat', investigator: assignments[0],
+    })
+    // Neither a later replacement nor list position identifies the historical participant.
+    campaign.currentRoster = campaign.currentRoster!.map(entry => ({
+      ...entry, slotId: `${entry.slotId}:replacement`, investigator: investigators[0],
+    }))
+    const playthroughs = sourceKind === 'legacy' ? [{ ...source, ...log }] : []
+    const runs = sourceKind === 'run' ? [campaign] : []
+    const before = JSON.stringify([playthroughs, runs])
+    for (const player of [null, 'Alice']) {
+      expect(getPlayerCampaignHistory(player, playthroughs, runs)
+        .get('The Dunwich Legacy')?.[0].investigators).toEqual(assignments)
+    }
+    expect(JSON.stringify([playthroughs, runs])).toBe(before)
+  })
+
+  it('uses the exact historical after-snapshot slot when before-snapshot identity is unavailable', () => {
+    const chapterTwo: Playthrough['investigators'][number] = {
+      playerName: 'Alice', investigatorName: 'Joe Diamond', investigatorId: 'joe-diamond',
+      chapter: 2, investigatorSet: 'Core 2026', archetype: 'Seeker',
+    }
+    const campaign = buildCampaignRunFromSourcePlaythrough(legacy({
+      scenarioName: 'Extracurricular Activity', investigators: [chapterTwo],
+    }))
+    const log = campaign.scenarioLogs[0]
+    log.rosterAfter = structuredClone(campaign.currentRoster!)
+    log.investigators = []
+    const entry = log.rosterAfter[0]
+    log.investigatorOutcomes = [{
+      seatId: entry.seatId, slotId: entry.slotId, playerName: entry.playerName,
+      investigatorName: chapterTwo.investigatorName,
+      status: 'survived', xpEarned: 0, traumaGainedPhysical: 0, traumaGainedMental: 0,
+    }]
+    expect(getPlayerCampaignHistory('Alice', [], [campaign])
+      .get('The Dunwich Legacy')?.[0].investigators).toEqual([
+      { ...chapterTwo, archetypes: ['Seeker'] },
+    ])
+  })
+
+  it('uses name-only outcome fallback only for unambiguous historical identities', () => {
+    const joe = { playerName: 'Alice', investigatorName: 'Joe Diamond', archetype: 'Seeker' as const }
+    const outcome = {
+      seatId: 'alice', slotId: 'missing', playerName: 'Alice', investigatorName: 'Joe Diamond',
+      status: 'survived' as const, xpEarned: 0, traumaGainedPhysical: 0, traumaGainedMental: 0,
+    }
+    for (const assignments of [
+      [{ ...joe, chapter: 1 as const }, { ...joe, chapter: 2 as const }],
+      [joe],
+      [],
+    ]) {
+      const history = getPlayerCampaignHistory(null, [legacy({
+        investigators: assignments, investigatorOutcomes: [outcome],
+      })], [])
+      expect(history.get('The Dunwich Legacy')?.[0].investigators[0]).toMatchObject({
+        playerName: 'Alice', isUnknown: true, archetype: 'Unknown',
+      })
+    }
+    const chapterTwo = { ...joe, chapter: 2 as const, investigatorSet: 'Core 2026' }
+    expect(getPlayerCampaignHistory('Alice', [legacy({
+      investigators: [chapterTwo], investigatorOutcomes: [outcome],
+    })], []).get('The Dunwich Legacy')?.[0].investigators).toEqual([
+      { ...chapterTwo, archetypes: ['Seeker'] },
+    ])
+  })
+
+  it('uses the same real history rows for multipart closure without fabricating sessions or pooling individual players', () => {
+    const first = 'The Eternal Slumber'
+    const second = "The Night's Usurper"
+    const parent = 'Guardians of the Abyss'
+    const records = [legacy({
+      campaignName: first, campaignType: 'Scenario Pack', investigators: [investigators[0]],
+    }), legacy({
+      id: 'bob', campaignName: second, campaignType: 'Scenario Pack', investigators: [investigators[1]],
+    })]
+    const all = getPlayerCampaignHistory(null, records, [])
+    expect(all.get(parent)?.map(row => row.id)).toEqual(['legacy:legacy', 'legacy:bob'])
+    expect(all.get(first)).toHaveLength(1)
+    expect(all.get(second)).toHaveLength(1)
+    expect(getPlayerCampaignHistory('Alice', records, []).has(parent)).toBe(false)
+    expect(getPlayerCampaignHistory('Bob', records, []).has(parent)).toBe(false)
+    const explicit = getPlayerCampaignHistory('Alice', [legacy({
+      campaignName: parent, campaignType: 'Scenario Pack',
+    })], [])
+    for (const name of [parent, first, second]) {
+      expect(explicit.get(name)?.map(row => row.id)).toEqual(['legacy:legacy'])
+    }
+  })
+
+  it.each([undefined, '', 'The Dunwich Legacy', 'Extracurricular Activity'])(
+    'retains promoted side-story history for source scenario %s, deduplicating copied log evidence',
+    scenarioName => {
+      const source = legacy({ scenarioName, sideStories: ['Curse of the Rougarou', 'Curse of the Rougarou'] })
+      const promoted = buildCampaignRunFromSourcePlaythrough(source, { campaignRunId: 'promoted' })
+      const records = [{ ...source, promotedToCampaignRunId: promoted.id }]
+      const before = JSON.stringify([records, promoted])
+      const history = getPlayerCampaignHistory('Alice', records, [promoted])
+      expect(history.get('Curse of the Rougarou')).toHaveLength(1)
+      expect(history.get('Curse of the Rougarou')?.[0].investigators.map(inv => inv.playerName)).toEqual(['Alice'])
+      expect(history.has('The Dunwich Legacy')).toBe(scenarioName === 'Extracurricular Activity')
+      expect(JSON.stringify([records, promoted])).toBe(before)
+    },
+  )
+
+  it('keeps global empty-outcome and setup-only histories empty', () => {
+    expect(getPlayerCampaignHistory(null, [legacy({ investigatorOutcomes: [] })], [
+      run({ scenarioLogs: [] }),
+      run({ id: 'empty', scenarioLogs: [scenario({ investigatorOutcomes: [] })] }),
+    ])).toEqual(new Map())
+  })
+
   it('credits one scenario in an active full or small campaign, without requiring completion', () => {
     const runs = [run(), run({
       id: 'small', campaignName: 'Children of Blood', campaignType: 'Small Campaign',

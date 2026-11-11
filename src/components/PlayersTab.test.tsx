@@ -5,9 +5,8 @@ import userEvent from '@testing-library/user-event'
 import { PlayersTab } from './PlayersTab'
 import { ALL_CAMPAIGNS } from '@/lib/campaign-data'
 import { getCampaignSvgRaw } from '@/lib/campaign-icon-map'
+import { buildCampaignRunFromSourcePlaythrough } from '@/lib/campaign-runs'
 import type { CampaignRun, Playthrough } from '@/lib/types'
-
-vi.mock('./PlayersOverview', () => ({ PlayersOverview: () => <div>All player statistics</div> }))
 
 const records: Playthrough[] = [
   { id: 'legacy', date: '2026-01-01', campaignName: 'The Dunwich Legacy', campaignType: 'Full Campaign',
@@ -24,6 +23,56 @@ function Harness() {
 }
 
 describe('Players tab campaign view', () => {
+  it('renders distinct historical Joe Diamond chapters and link targets in aggregate and selected-player history', async () => {
+    const user = userEvent.setup()
+    const source: Playthrough = {
+      ...records[0], sideStories: undefined,
+      investigators: [
+        { playerName: 'Alice', investigatorName: 'Joe Diamond', investigatorId: 'joe-diamond',
+          chapter: 1, investigatorSet: 'The Circle Undone', archetype: 'Seeker' },
+        { playerName: 'Alice', investigatorName: 'Joe Diamond', investigatorId: 'joe-diamond-ch2',
+          chapter: 2, investigatorSet: 'Core 2026', archetype: 'Seeker' },
+        { playerName: 'Alice', investigatorName: 'Joe Diamond', investigatorId: 'custom-joe',
+          isCustom: true, customInvestigatorName: 'Joe Diamond', archetype: 'Mystic' },
+      ],
+    }
+    const campaign = buildCampaignRunFromSourcePlaythrough(source)
+    const log = campaign.scenarioLogs[0]
+    log.rosterBefore = structuredClone(campaign.currentRoster!)
+    log.investigatorOutcomes = log.rosterBefore.map(entry => ({
+      seatId: entry.seatId, slotId: entry.slotId, playerName: entry.playerName,
+      investigatorName: entry.investigator.investigatorName,
+      status: 'survived', xpEarned: 0, traumaGainedPhysical: 0, traumaGainedMental: 0,
+    }))
+    campaign.currentRoster = campaign.currentRoster!.map(entry => ({
+      ...entry, slotId: `${entry.slotId}:replacement`, investigator: records[0].investigators[0],
+    }))
+    const props = {
+      isLoading: false, playthroughs: [source], campaignPlaythroughs: [], campaignRuns: [campaign],
+      allPlayers: ['Alice'], onSelectPlayer: vi.fn(),
+    }
+    const { rerender } = render(<PlayersTab {...props} selectedPlayer={null} />)
+    await user.click(screen.getByRole('tab', { name: 'Campaigns & Scenarios' }))
+    for (const player of [null, 'Alice']) {
+      rerender(<PlayersTab {...props} selectedPlayer={player} />)
+      const panel = within(screen.getByRole('region', {
+        name: player ? "Alice's campaigns" : 'All players’ campaigns',
+      }))
+      const toggle = panel.getByText('History for The Dunwich Legacy (1)')
+      const historyElement = toggle.parentElement!
+      if (!within(historyElement).queryByRole('link')) await user.click(toggle)
+      const history = within(historyElement)
+      const links = history.getAllByRole('link', { name: 'Joe Diamond' })
+      expect(links.map(link => link.getAttribute('href'))).toEqual([
+        'https://arkhamdb.com/card/05002', 'https://arkhamdb.com/card/12004',
+      ])
+      expect(links[0].parentElement).toHaveTextContent('Ch. 1')
+      expect(links[1].parentElement).toHaveTextContent('Ch. 2')
+      expect(history.getAllByText('Joe Diamond')).toHaveLength(3)
+      expect(history.getByText('Mystic')).toBeVisible()
+    }
+  })
+
   it('uses canonical decorative campaign and multipart artwork in the unplayed catalog, with readable fallback labels', async () => {
     const user = userEvent.setup()
     render(<PlayersTab isLoading={false} playthroughs={records} campaignPlaythroughs={[]} campaignRuns={[]}
@@ -58,7 +107,7 @@ describe('Players tab campaign view', () => {
   it('keeps existing summary cards above an accessible pivot and preserves player and filters across pivots', async () => {
     const user = userEvent.setup()
     render(<Harness />)
-    expect(screen.getByText('All player statistics')).toBeVisible()
+    expect(screen.getByRole('textbox', { name: 'Search investigators' })).toBeVisible()
     await user.click(screen.getAllByRole('button', { name: 'Alice' })[0])
     const pivot = screen.getByRole('tablist', { name: 'Player drilldown' })
     for (const name of ['Top Campaigns', 'Top Players', 'Top Investigators', 'Class Ranking']) {
@@ -91,8 +140,9 @@ describe('Players tab campaign view', () => {
     await user.click(screen.getAllByRole('button', { name: 'Bob' })[0])
     expect(screen.getByRole('heading', { name: 'Bob', exact: true })).toBeVisible()
     const bob = within(screen.getByRole('region', { name: "Bob's campaigns" }))
-    expect(bob.getByRole('textbox')).toHaveValue('')
-    expect(bob.getByRole('tab', { name: 'Played (1)' })).toHaveAttribute('aria-selected', 'true')
+    expect(bob.getByRole('textbox')).toHaveValue('Carnevale')
+    expect(bob.getByRole('button', { name: 'Scenario Pack' })).toHaveAttribute('aria-pressed', 'true')
+    expect(bob.getByRole('tab', { name: 'Not Played (1)' })).toHaveAttribute('aria-selected', 'true')
   })
 
   it.each([
@@ -128,10 +178,14 @@ describe('Players tab campaign view', () => {
     for (const name of [parent, first, second]) {
       expect(panel.getByRole('heading', { name })).toBeVisible()
     }
+    expect(panel.getByText(`History for ${parent} (2)`)).toBeVisible()
+    expect(panel.getByText(`History for ${first} (1)`)).toBeVisible()
+    expect(panel.getByText(`History for ${second} (1)`)).toBeVisible()
     rerender(<PlayersTab {...props} campaignPlaythroughs={[pack(parent)]} />)
     expect(panel.getByRole('tab', { name: 'Played (3)' })).toBeVisible()
     for (const name of [parent, first, second]) {
       expect(panel.getByRole('heading', { name })).toBeVisible()
+      expect(panel.getByText(`History for ${name} (1)`)).toBeVisible()
     }
     await user.click(panel.getByRole('tab', { name: /^Not Played/ }))
     for (const name of [parent, first, second]) {
@@ -143,15 +197,19 @@ describe('Players tab campaign view', () => {
     const user = userEvent.setup()
     render(<Harness />)
     await user.click(screen.getByRole('tab', { name: 'Campaigns & Scenarios' }))
-    expect(screen.getByText(/Select a player to see their played and not played campaigns/)).toBeVisible()
+    const all = within(screen.getByRole('region', { name: 'All players’ campaigns' }))
+    expect(all.getByRole('tab', { name: 'Played (3)' })).toBeVisible()
+    expect(all.getByRole('heading', { name: 'Children of Blood' })).toBeVisible()
     await user.click(screen.getAllByRole('button', { name: 'Alice' })[0])
-    await user.click(screen.getByRole('tab', { name: 'Campaigns & Scenarios' }))
     let panel = within(screen.getByRole('region', { name: "Alice's campaigns" }))
     expect(panel.getByRole('tab', { name: 'Played (2)' })).toHaveAttribute('aria-selected', 'true')
     expect(panel.getByRole('heading', { name: 'The Dunwich Legacy' })).toBeVisible()
     expect(panel.getByRole('heading', { name: 'Curse of the Rougarou' })).toBeVisible()
     expect(panel.queryByRole('heading', { name: 'Children of Blood' })).not.toBeInTheDocument()
-    expect(panel.getByText(/at least one logged scenario, not campaign completion/)).toBeVisible()
+    expect(panel.queryByRole('heading', { name: 'Campaigns & Scenario Packs' })).not.toBeInTheDocument()
+    expect(panel.queryByText(/at least one logged scenario, not campaign completion/)).not.toBeInTheDocument()
+    expect(panel.getByRole('tablist', { name: 'Campaign play status' })).toBeVisible()
+    expect(panel.getByRole('textbox', { name: 'Search campaigns and scenario packs' })).toBeVisible()
     expect(screen.getByRole('heading', { name: 'Top Investigators' })).toBeVisible()
 
     await user.click(screen.getAllByRole('button', { name: 'Bob' })[0])
@@ -159,6 +217,89 @@ describe('Players tab campaign view', () => {
     expect(panel.getByRole('tab', { name: 'Played (1)' })).toBeInTheDocument()
     expect(panel.getByRole('heading', { name: 'Children of Blood' })).toBeVisible()
     expect(panel.queryByRole('heading', { name: 'Curse of the Rougarou' })).not.toBeInTheDocument()
+  })
+
+  it('shows real all-player history and preserves the pivot and catalog filters when selecting and clearing a player', async () => {
+    const user = userEvent.setup()
+    render(<Harness />)
+    await user.click(screen.getByRole('tab', { name: 'Campaigns & Scenarios' }))
+    let panel = within(screen.getByRole('region', { name: 'All players’ campaigns' }))
+    await user.click(panel.getByRole('button', { name: 'Small Campaign' }))
+    await user.type(panel.getByRole('textbox'), ' blood ')
+    await user.click(panel.getByText('History for Children of Blood (1)'))
+    expect(panel.getByText('By the Book')).toBeVisible()
+    expect(panel.getByRole('link', { name: 'Daisy Walker' })).toBeVisible()
+    expect(panel.getByText('Bob ·')).toBeVisible()
+    await user.click(screen.getAllByRole('button', { name: 'Alice' })[0])
+    panel = within(screen.getByRole('region', { name: "Alice's campaigns" }))
+    expect(panel.getByRole('textbox')).toHaveValue(' blood ')
+    expect(panel.getByRole('tab', { name: 'Played (0)' })).toHaveAttribute('aria-selected', 'true')
+    expect(panel.getByText('No campaigns or scenario packs played match this view.')).toBeVisible()
+    await user.click(panel.getByRole('tab', { name: 'Not Played (1)' }))
+    expect(panel.getByRole('heading', { name: 'Children of Blood' })).toBeVisible()
+    expect(panel.queryByText(/History for/)).not.toBeInTheDocument()
+    await user.click(screen.getAllByRole('button', { name: 'Alice' })[0])
+    panel = within(screen.getByRole('region', { name: 'All players’ campaigns' }))
+    expect(panel.getByRole('button', { name: 'Small Campaign' })).toHaveAttribute('aria-pressed', 'true')
+    expect(panel.getByRole('textbox')).toHaveValue(' blood ')
+    expect(panel.getByRole('tab', { name: 'Not Played (0)' })).toHaveAttribute('aria-selected', 'true')
+    await user.click(panel.getByRole('tab', { name: 'Played (1)' }))
+    expect(panel.getByRole('heading', { name: 'Children of Blood' })).toBeVisible()
+  })
+
+  it('searches investigators in the selected-player catalog, combines filters and preserves them across the outer pivot', async () => {
+    const user = userEvent.setup()
+    render(<Harness />)
+    await user.click(screen.getAllByRole('button', { name: 'Alice' })[0])
+    const search = screen.getByRole('textbox', { name: 'Search investigators' })
+    await user.type(search, ' roLAND ')
+    expect(screen.getByRole('heading', { name: 'Roland Banks', exact: true })).toBeVisible()
+    await user.click(screen.getByRole('button', { name: 'Filters' }))
+    await user.click(screen.getByRole('button', { name: 'Chapter 2' }))
+    expect(screen.getByText('No investigators match the selected filters')).toBeVisible()
+    await user.click(screen.getByRole('button', { name: 'Chapter 1' }))
+    await user.click(screen.getByRole('button', { name: 'Guardian' }))
+    await user.click(screen.getByRole('button', { name: 'Core', exact: true }))
+    expect(screen.getByRole('heading', { name: 'Roland Banks', exact: true })).toBeVisible()
+    await user.click(screen.getByRole('tab', { name: 'Unplayed', exact: true }))
+    expect(screen.getByText('No unplayed investigators match the selected filters')).toBeVisible()
+    await user.clear(search)
+    await user.type(search, 'Zoey')
+    expect(screen.getByText('No unplayed investigators match the selected filters')).toBeVisible()
+    await user.click(screen.getByRole('button', { name: 'Core', exact: true }))
+    expect(screen.getByRole('heading', { name: 'Zoey Samaras', exact: true })).toBeVisible()
+    await user.click(screen.getByRole('tab', { name: 'Campaigns & Scenarios' }))
+    await user.click(screen.getByRole('tab', { name: 'Investigators', exact: true }))
+    expect(search).toHaveValue('Zoey')
+    expect(screen.getByRole('tab', { name: 'Unplayed', exact: true })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('heading', { name: 'Zoey Samaras', exact: true })).toBeVisible()
+    expect(screen.getByRole('heading', { name: 'Alice', exact: true })).toBeVisible()
+  })
+
+  it('keeps the all-player catalogs available with no logged evidence or named players', async () => {
+    const user = userEvent.setup()
+    render(<PlayersTab isLoading={false} playthroughs={[]} allPlayers={[]} selectedPlayer={null} onSelectPlayer={vi.fn()} />)
+    expect(screen.getByRole('textbox', { name: 'Search investigators' })).toBeVisible()
+    await user.click(screen.getByRole('tab', { name: 'Campaigns & Scenarios' }))
+    const panel = within(screen.getByRole('region', { name: 'All players’ campaigns' }))
+    expect(panel.getByRole('tab', { name: 'Played (0)' })).toBeVisible()
+    await user.click(panel.getByRole('tab', { name: `Not Played (${ALL_CAMPAIGNS.length})` }))
+    expect(panel.getByRole('heading', { name: 'The Dunwich Legacy', exact: true })).toBeVisible()
+    expect(panel.queryByText(/History for/)).not.toBeInTheDocument()
+  })
+
+  it('preserves all-player investigator search and filters across the campaign pivot', async () => {
+    const user = userEvent.setup()
+    render(<Harness />)
+    await user.click(screen.getByRole('button', { name: 'Filters' }))
+    await user.click(screen.getByRole('button', { name: 'Seeker' }))
+    await user.type(screen.getByRole('textbox', { name: 'Search investigators' }), 'daisy')
+    expect(screen.getByRole('tab', { name: 'Played (1)' })).toBeVisible()
+    await user.click(screen.getByRole('tab', { name: 'Campaigns & Scenarios' }))
+    await user.click(screen.getByRole('tab', { name: 'Investigators', exact: true }))
+    expect(screen.getByRole('textbox', { name: 'Search investigators' })).toHaveValue('daisy')
+    expect(screen.getByRole('tab', { name: 'Played (1)' })).toBeVisible()
+    expect(screen.getByRole('heading', { name: 'Daisy Walker', exact: true })).toBeVisible()
   })
 
   it('combines status, scope and search, preserving filters across status tabs with useful empty states', async () => {
@@ -214,5 +355,55 @@ describe('Players tab campaign view', () => {
     const panel = within(screen.getByRole('region', { name: "Bob's campaigns" }))
     expect(panel.getByRole('heading', { name: 'Curse of the Rougarou' })).toBeVisible()
     expect(panel.queryByRole('heading', { name: 'The Dunwich Legacy' })).not.toBeInTheDocument()
+  })
+
+  it('renders deduplicated promoted, embedded and multipart history using actual participants in all-player and individual views', async () => {
+    const user = userEvent.setup()
+    const first = 'The Eternal Slumber'
+    const second = "The Night's Usurper"
+    const source: Playthrough = { ...records[0], sideStories: [first, first] }
+    const run = buildCampaignRunFromSourcePlaythrough(source, { campaignRunId: 'promoted' })
+    run.scenarioLogs.push({
+      id: 'bob-part', date: '2026-02-01', scenarioName: second, scenarioType: 'side_scenario',
+      investigators: records[0].investigators,
+      investigatorOutcomes: [{
+        seatId: 'bob', slotId: 'daisy', playerName: 'Bob', investigatorName: 'Daisy Walker',
+        status: 'survived', xpEarned: 3, traumaGainedPhysical: 0, traumaGainedMental: 0,
+      }],
+    }, {
+      id: 'empty', date: '2026-03-01', scenarioName: 'Carnevale of Horrors', scenarioType: 'side_scenario',
+      investigators: records[0].investigators, investigatorOutcomes: [],
+    })
+    const props = {
+      isLoading: false, playthroughs: records, allPlayers: ['Alice', 'Bob'], onSelectPlayer: vi.fn(),
+      campaignPlaythroughs: [{ ...source, promotedToCampaignRunId: run.id }], campaignRuns: [run],
+    }
+    const before = JSON.stringify(props)
+    const { rerender } = render(<PlayersTab {...props} selectedPlayer={null} />)
+    await user.click(screen.getByRole('tab', { name: 'Campaigns & Scenarios' }))
+    let panel = within(screen.getByRole('region', { name: 'All players’ campaigns' }))
+    expect(panel.getByRole('tab', { name: 'Played (4)' })).toBeVisible()
+    expect(panel.queryByRole('heading', { name: 'Carnevale of Horrors' })).not.toBeInTheDocument()
+    await user.click(panel.getByText('History for Guardians of the Abyss (2)'))
+    const history = within(panel.getByText('History for Guardians of the Abyss (2)').parentElement!)
+    expect(history.getAllByRole('link')).toHaveLength(2)
+    expect(history.getByRole('link', { name: 'Roland Banks' })).toBeVisible()
+    expect(history.getByRole('link', { name: 'Daisy Walker' })).toBeVisible()
+    expect(history.getByText('Extracurricular Activity')).toBeVisible()
+    expect(history.getByText(second)).toBeVisible()
+    rerender(<PlayersTab {...props} selectedPlayer="Alice" />)
+    panel = within(screen.getByRole('region', { name: "Alice's campaigns" }))
+    expect(panel.getByRole('tab', { name: 'Played (2)' })).toBeVisible()
+    expect(panel.queryByRole('heading', { name: 'Guardians of the Abyss' })).not.toBeInTheDocument()
+    expect(panel.getByText(`History for ${first} (1)`)).toBeVisible()
+    await user.click(panel.getByText(`History for ${first} (1)`))
+    expect(panel.getByRole('link', { name: 'Roland Banks' })).toBeVisible()
+    expect(panel.queryByRole('link', { name: 'Daisy Walker' })).not.toBeInTheDocument()
+    rerender(<PlayersTab {...props} selectedPlayer="Bob" />)
+    panel = within(screen.getByRole('region', { name: "Bob's campaigns" }))
+    expect(panel.getByRole('tab', { name: 'Played (1)' })).toBeVisible()
+    expect(panel.getByText(`History for ${second} (1)`)).toBeVisible()
+    expect(panel.queryByRole('heading', { name: first })).not.toBeInTheDocument()
+    expect(JSON.stringify(props)).toBe(before)
   })
 })

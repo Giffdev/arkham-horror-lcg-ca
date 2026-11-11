@@ -1,7 +1,8 @@
 import { ALL_CAMPAIGNS, MULTIPART_SCENARIO_PACKS, SCENARIO_PACK_SCENARIOS, STANDALONE_SCENARIO_GUIDES, resolveCampaignMetadata } from './campaign-data'
 import { shouldSuppressPromotedPlaythrough } from './campaign-runs'
 import { isActualCampaignScenarioNight } from './scenario-night-utils'
-import type { CampaignRun, CampaignScenarioLog, CampaignType, Playthrough } from './types'
+import { INVESTIGATORS, resolveInvestigator } from './investigator-data'
+import type { CampaignRun, CampaignScenarioInvestigatorOutcome, CampaignScenarioLog, CampaignType, InvestigatorAssignment, Playthrough } from './types'
 
 type ScenarioIdentity = Pick<Playthrough, 'campaignName' | 'campaignType' | 'customCampaignName' | 'scenarioName' | 'sideStories'>
 
@@ -47,9 +48,57 @@ export function getCampaignScenarioPackNames(run: CampaignRun, log: CampaignScen
   })
 }
 
-function playerParticipated(record: Pick<Playthrough, 'investigators' | 'investigatorOutcomes'>, playerName: string): boolean {
-  const participants = record.investigatorOutcomes ?? record.investigators
-  return participants.some(participant => participant.playerName.trim() === playerName.trim())
+export interface PlayerCampaignHistoryRecord {
+  id: string
+  name: string
+  type: CampaignType
+  set?: string
+  date: string
+  scenarioName?: string
+  investigators: InvestigatorAssignment[]
+}
+
+function getHistoricalOutcomeInvestigator(
+  scenario: Playthrough | CampaignScenarioLog,
+  outcome: CampaignScenarioInvestigatorOutcome,
+): InvestigatorAssignment {
+  let assignment: InvestigatorAssignment | undefined
+  let ambiguous = false
+  // Slots belong to historical snapshots, never to the run's current/replacement roster.
+  for (const roster of [scenario.rosterBefore, scenario.rosterAfter]) {
+    const matches = roster?.filter(entry => entry.slotId === outcome.slotId && entry.seatId === outcome.seatId) ?? []
+    if (!matches.length) continue
+    ambiguous = matches.length > 1
+    assignment = matches.length === 1 ? matches[0].investigator : undefined
+    break
+  }
+  if (!assignment && !ambiguous) {
+    const matches = scenario.investigators.filter(inv =>
+      inv.playerName.trim() === outcome.playerName.trim() && inv.investigatorName === outcome.investigatorName)
+    ambiguous = matches.length > 1
+    assignment = matches.length === 1 ? matches[0] : undefined
+  }
+  const identity = assignment ?? outcome
+  const canonicalCandidates = INVESTIGATORS.filter(inv =>
+    inv.name === identity.investigatorName &&
+    (!assignment?.chapter || inv.chapter === assignment.chapter) &&
+    (!assignment?.investigatorSet || inv.set === assignment.investigatorSet))
+  const hasCanonicalId = INVESTIGATORS.some(inv => inv.id === assignment?.investigatorId)
+  const resolved = !ambiguous && !assignment?.isCustom && !assignment?.isUnknown &&
+    (hasCanonicalId || canonicalCandidates.length === 1) ? resolveInvestigator(identity) : undefined
+  if (ambiguous || (!assignment?.isCustom && !assignment?.isUnknown && !resolved)) {
+    return {
+      playerName: outcome.playerName, investigatorName: outcome.investigatorName,
+      archetype: 'Unknown', isUnknown: true,
+    }
+  }
+  return {
+    ...assignment,
+    playerName: outcome.playerName,
+    investigatorName: identity.investigatorName,
+    archetype: assignment?.archetype ?? resolved?.archetypes[0] ?? 'Unknown',
+    archetypes: assignment?.archetypes ?? resolved?.archetypes,
+  }
 }
 
 export function getPlayerPlayedCampaignNames(
@@ -57,21 +106,50 @@ export function getPlayerPlayedCampaignNames(
   playthroughs: Playthrough[],
   campaignRuns: CampaignRun[],
 ): Set<string> {
-  const played = new Set<string>()
-  const recordPlay = (root: ScenarioIdentity, scenario: Playthrough | CampaignScenarioLog, actualScenario = true) => {
-    if (scenario.scenarioType === 'interlude' || !playerParticipated(scenario, playerName)) return
+  return new Set(getPlayerCampaignHistory(playerName, playthroughs, campaignRuns).keys())
+}
+
+/** Catalog credit and history share the same participant and multipart evidence. */
+export function getPlayerCampaignHistory(
+  playerName: string | null,
+  playthroughs: Playthrough[],
+  campaignRuns: CampaignRun[],
+): Map<string, PlayerCampaignHistoryRecord[]> {
+  const history = new Map<string, Map<string, PlayerCampaignHistoryRecord>>()
+  const addRecord = (name: string, record: PlayerCampaignHistoryRecord) => {
+    if (!history.has(name)) history.set(name, new Map())
+    history.get(name)!.set(record.id, record)
+  }
+  const recordPlay = (
+    root: ScenarioIdentity & { campaignSet?: string },
+    scenario: Playthrough | CampaignScenarioLog,
+    id: string,
+    actualScenario = true,
+  ) => {
+    if (scenario.scenarioType === 'interlude') return
+    const participants = scenario.investigatorOutcomes == null
+      ? scenario.investigators
+      : scenario.investigatorOutcomes.map(outcome => getHistoricalOutcomeInvestigator(scenario, outcome))
+    const investigators = participants.filter(participant =>
+      playerName === null || participant.playerName.trim() === playerName.trim())
+    if (investigators.length === 0) return
     const identity = {
       ...root,
       campaignName: actualScenario ? root.campaignName : '',
       scenarioName: actualScenario ? scenario.scenarioName : undefined,
       sideStories: scenario.sideStories,
     }
-    resolveScenarioPackNames(identity, false).forEach(name => played.add(name))
+    const record: PlayerCampaignHistoryRecord = {
+      id, name: root.customCampaignName || root.campaignName, type: root.campaignType,
+      set: root.campaignSet, date: scenario.date,
+      scenarioName: actualScenario ? scenario.scenarioName : undefined, investigators,
+    }
+    resolveScenarioPackNames(identity, false).forEach(name => addRecord(name, record))
     if (actualScenario && scenario.scenarioType !== 'side_scenario' &&
       root.campaignType !== 'Fan-Made' && root.campaignType !== 'Unknown') {
       const campaign = resolveCampaignMetadata({ campaignName: root.campaignName })
       if (campaign && !MULTIPART_SCENARIO_PACKS.get(campaign.name)?.includes(scenario.scenarioName ?? '')) {
-        played.add(campaign.name)
+        addRecord(campaign.name, record)
       }
     }
   }
@@ -79,18 +157,25 @@ export function getPlayerPlayedCampaignNames(
   const runIds = new Set(campaignRuns.map(run => run.id))
   for (const playthrough of playthroughs) {
     // Promotion suppresses root credit, but explicit source side stories remain play evidence.
-    recordPlay(playthrough, playthrough, !shouldSuppressPromotedPlaythrough(playthrough, runIds))
+    const promoted = shouldSuppressPromotedPlaythrough(playthrough, runIds)
+    recordPlay(playthrough, playthrough, `legacy:${playthrough.id}`, !promoted)
   }
   for (const run of campaignRuns) {
     for (const log of run.scenarioLogs) {
-      recordPlay(run, log, isActualCampaignScenarioNight(run, log))
+      const id = log.legacySourcePlaythroughId ? `legacy:${log.legacySourcePlaythroughId}` : `run:${run.id}:${log.id}`
+      recordPlay(run, log, id, isActualCampaignScenarioNight(run, log))
     }
   }
   for (const [parent, children] of MULTIPART_SCENARIO_PACKS) {
-    if (played.has(parent) || children.every(name => played.has(name))) {
-      played.add(parent)
-      children.forEach(name => played.add(name))
+    const explicitParent = [...(history.get(parent)?.values() ?? [])]
+    if (explicitParent.length || children.every(name => history.has(name))) {
+      // Reuse real records, never synthesize a parent/child play session.
+      children.forEach(name => explicitParent.forEach(record => addRecord(name, record)))
+      children.forEach(name => history.get(name)?.forEach(record => addRecord(parent, record)))
     }
   }
-  return new Set(ALL_CAMPAIGNS.filter(campaign => played.has(campaign.name)).map(campaign => campaign.name))
+  return new Map(ALL_CAMPAIGNS.filter(campaign => history.has(campaign.name)).map(campaign => [
+    campaign.name,
+    [...history.get(campaign.name)!.values()].sort((a, b) => b.date.localeCompare(a.date)),
+  ]))
 }
