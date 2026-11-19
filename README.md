@@ -1,22 +1,16 @@
 # Arkham Horror LCG Tracker
 
-A web application for logging and exploring play history for *Arkham Horror: The Card Game*.
+When your group returns to Carcosa after a month away, pick up the story where you left off. This play journal for *Arkham Horror: The Card Game* keeps track of the investigators you brought, the choices you made, and how each game night ended.
 
 **[Open the tracker](https://arkham-horror-lcg-ca.vercel.app)** · [v1.1.0 release notes](https://github.com/Giffdev/arkham-horror-lcg-ca/releases/tag/v1.1.0) · [Changelog](CHANGELOG.md)
 
-## Using the tracker
+## At the table and between games
 
-Sign in with email/password or Google to keep your own play history. You can also browse community rankings on the homepage without signing in.
+- **Keep a campaign journal.** Record a one-night mystery or follow a full campaign from its opening scenario to its final resolution. Bring up the roster and last session’s notes when it’s time to play again.
+- **Explore your table’s history.** See which investigators each player keeps coming back to, look up a past campaign, or find one your group hasn’t tried yet.
+- **Find inspiration for your next game.** Browse the community’s favorite campaigns, standalone scenarios, and investigators. Explore investigator pairings to see who tends to take on the mythos together.
 
-- **All Games:** Log a campaign or standalone game, then record scenario nights with dates, investigators, XP, trauma, outcomes, and notes. Expand a campaign to revisit its scenarios or continue from its current roster. On portrait tablets, player and investigator names have the full card width instead of sharing a narrow column with the action buttons.
-- **Players:** Explore investigator use and campaign history for the whole group or one player. Search the Played and Not Played lists, then expand a played entry to see its recorded games.
-- **Community:** Browse campaign, investigator, class, and standalone-scenario rankings. Standalone breakdowns distinguish games played on their own from side stories played within campaigns.
-
-### Reading your campaign history
-
-An older whole-campaign log counts as played for its recorded participants even if it has no individual scenario logs. **Scenario progress not tracked** means the tracker has no scenario details to show; it does not infer completion or award XP. Starting a new campaign without logging a game night does not count as a play.
-
-Side-story entry guidance shows published costs separately from XP earned. It does not deduct XP, mark it as paid, or rewrite saved logs. Unknown costs are labeled, and conditional costs are explained where relevant. For *Fortune and Folly* and *Guardians of the Abyss*, choose the individual scenario under its group heading; the second scenario can also be logged directly.
+Community rankings are public. To start a private journal for your table, sign in with Google or email and choose **Log New Campaign**.
 
 ## Technology
 
