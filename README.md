@@ -11,7 +11,6 @@ Sign in with email/password or Google to keep your own play history. You can als
 - **All Games:** Log a campaign or standalone game, then record scenario nights with dates, investigators, XP, trauma, outcomes, and notes. Expand a campaign to revisit its scenarios or continue from its current roster. On portrait tablets, player and investigator names have the full card width instead of sharing a narrow column with the action buttons.
 - **Players:** Explore investigator use and campaign history for the whole group or one player. Search the Played and Not Played lists, then expand a played entry to see its recorded games.
 - **Community:** Browse campaign, investigator, class, and standalone-scenario rankings. Standalone breakdowns distinguish games played on their own from side stories played within campaigns.
-- **Backups:** Choose **Export Data** in the profile menu to download your campaign runs and playthroughs as JSON. Import tools still support older backups, but the normal profile menu does not offer an import action.
 
 ### Reading your campaign history
 
