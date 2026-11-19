@@ -460,8 +460,6 @@ function AuthenticatedApp({ currentUser, onSignOut }: AuthenticatedAppProps) {
           <TabsContent value="games" className="space-y-6">
             <GamesTab
               isLoading={isLoadingGames}
-              playthroughs={playthroughs}
-              campaignRuns={campaignRuns}
               topLevelRows={topLevelRows}
               filteredTopLevelRows={filteredTopLevelRows}
               filterPlaythroughs={topLevelFilterPlaythroughs}

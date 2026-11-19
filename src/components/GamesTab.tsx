@@ -1,4 +1,4 @@
-import { Playthrough, Archetype, CampaignRun, CampaignScenarioLog } from '@/lib/types'
+import type { Playthrough, Archetype, CampaignRun, CampaignScenarioLog, CampaignType } from '@/lib/types'
 import { PlaythroughCard } from '@/components/PlaythroughCard'
 import { PlaythroughCardSkeleton } from '@/components/PlaythroughCardSkeleton'
 import { EmptyState } from '@/components/EmptyState'
@@ -8,19 +8,17 @@ import type { TopLevelGameRow } from '@/lib/top-level-game-rows'
 
 interface GamesTabProps {
   isLoading: boolean
-  playthroughs: Playthrough[] | undefined
-  campaignRuns: CampaignRun[]
   topLevelRows: TopLevelGameRow[]
   filteredTopLevelRows: TopLevelGameRow[]
   filterPlaythroughs: Playthrough[]
   filters: {
     selectedArchetypes: Archetype[]
-    selectedCampaignTypes: import('@/lib/types').CampaignType[]
+    selectedCampaignTypes: CampaignType[]
     selectedCampaigns: string[]
   }
   filterHandlers: {
     onArchetypeToggle: (archetype: Archetype) => void
-    onCampaignTypeToggle: (type: import('@/lib/types').CampaignType) => void
+    onCampaignTypeToggle: (type: CampaignType) => void
     onCampaignToggle: (campaign: string) => void
     onClearFilters: () => void
   }
@@ -38,8 +36,6 @@ interface GamesTabProps {
 
 export function GamesTab({
   isLoading,
-  playthroughs,
-  campaignRuns,
   topLevelRows,
   filteredTopLevelRows,
   filterPlaythroughs,
@@ -112,7 +108,6 @@ export function GamesTab({
                 onEdit={onEdit}
                 onContinueCampaign={onContinueCampaign}
                 onDelete={onDelete}
-                activeArchetypeFilters={filters.selectedArchetypes}
               />
             )
           })}

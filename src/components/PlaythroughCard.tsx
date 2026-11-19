@@ -1,5 +1,5 @@
 import { memo } from 'react'
-import { Playthrough, Archetype } from '@/lib/types'
+import type { InvestigatorAssignment, Playthrough } from '@/lib/types'
 import { Card } from '@/components/ui/card'
 import { ArchetypeBadge } from './ArchetypeBadge'
 import { Badge } from '@/components/ui/badge'
@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button'
 import { PencilSimple, Trash, Clock, Sparkle, Notepad, Plus } from '@phosphor-icons/react'
 import { formatDate } from '@/lib/date-utils'
 import { getDisplaySetName, getArkhamDBUrl, getArkhamDBUrlById, resolveInvestigator, getChapterBadgeLabel, isChapterBadgeSpecial } from '@/lib/investigator-data'
-import type { InvestigatorAssignment } from '@/lib/types'
 import { CampaignSvgIcon } from './CampaignSvgIcon'
 import { hasDedicatedCampaignIcon } from '@/lib/campaign-icon-map'
 import { CardActionArea } from './CardActionArea'
@@ -98,7 +97,6 @@ interface PlaythroughCardProps {
   onEdit: (playthrough: Playthrough) => void
   onContinueCampaign?: (playthrough: Playthrough) => void
   onDelete: (id: string) => void
-  activeArchetypeFilters?: Archetype[]
 }
 
 export const PlaythroughCard = memo(function PlaythroughCard({
@@ -106,7 +104,6 @@ export const PlaythroughCard = memo(function PlaythroughCard({
   onEdit,
   onContinueCampaign = () => {},
   onDelete,
-  activeArchetypeFilters = [],
 }: PlaythroughCardProps) {
   const displayName = playthrough.campaignType === 'Fan-Made' 
     ? playthrough.customCampaignName || playthrough.campaignName

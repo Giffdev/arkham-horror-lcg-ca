@@ -2,6 +2,8 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import type { ComponentProps } from 'react'
+import type { GamesTab } from '@/components/GamesTab'
 import type { CampaignRun, Playthrough } from '@/lib/types'
 import App from './App'
 
@@ -106,28 +108,28 @@ vi.mock('@/components/AppHeader', () => ({
 }))
 
 vi.mock('@/components/GamesTab', () => ({
-  GamesTab: (props: any) => (
-    <div>
-      <div data-testid="campaign-run-count">{props.campaignRuns?.length ?? 0}</div>
-      <div data-testid="playthrough-count">{props.playthroughs?.length ?? 0}</div>
-      <div data-testid="expanded-run-ids">{Array.from(props.expandedCampaignRunIds).join(',')}</div>
-      {props.campaignRuns?.[0] ? (
-        <button type="button" onClick={() => props.onContinueCampaignRun(props.campaignRuns[0])}>
-          continue-run
-        </button>
-      ) : null}
-      {props.playthroughs?.[0] ? (
-        <button type="button" onClick={() => props.onContinueCampaign(props.playthroughs[0])}>
-          continue-legacy
-        </button>
-      ) : null}
-      {props.campaignRuns?.[0] ? (
-        <button type="button" onClick={() => props.onDeleteCampaignRun(props.campaignRuns[0])}>
-          delete-run
-        </button>
-      ) : null}
-    </div>
-  ),
+  GamesTab: (props: ComponentProps<typeof GamesTab>) => {
+    const runs = props.filteredTopLevelRows.filter(row => row.kind === 'campaign-run')
+    const logs = props.filteredTopLevelRows.filter(row => row.kind === 'playthrough')
+    const run = runs[0]?.campaignRun
+    const log = logs[0]?.playthrough
+    return (
+      <div>
+        <div data-testid="campaign-run-count">{runs.length}</div>
+        <div data-testid="playthrough-count">{logs.length}</div>
+        <div data-testid="expanded-run-ids">{Array.from(props.expandedCampaignRunIds).join(',')}</div>
+        {run && (
+          <>
+            <button type="button" onClick={() => props.onContinueCampaignRun(run)}>continue-run</button>
+            <button type="button" onClick={() => props.onDeleteCampaignRun(run)}>delete-run</button>
+          </>
+        )}
+        {log && (
+          <button type="button" onClick={() => props.onContinueCampaign?.(log)}>continue-legacy</button>
+        )}
+      </div>
+    )
+  },
 }))
 
 vi.mock('@/components/PlaythroughForm', () => ({

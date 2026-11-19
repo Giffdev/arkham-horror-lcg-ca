@@ -28,8 +28,6 @@ describe('GamesTab', () => {
     render(
       <GamesTab
         isLoading={false}
-        playthroughs={[]}
-        campaignRuns={[]}
         topLevelRows={[]}
         filteredTopLevelRows={[]}
         filterPlaythroughs={[]}

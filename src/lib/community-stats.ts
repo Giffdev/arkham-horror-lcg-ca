@@ -8,9 +8,6 @@ import {
   hasCurrentCommunityStatsSchema,
   isCommunityStatsFresh,
   type CommunityStats,
-  type CommunityPairing,
-  type CompletionBreakdown,
-  type StandalonePlayBreakdown,
 } from './community-stats-core'
 import { ALL_CAMPAIGNS } from './campaign-data'
 

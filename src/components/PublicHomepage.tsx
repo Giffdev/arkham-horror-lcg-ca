@@ -10,13 +10,10 @@ import {
   type CommunityStats,
   type CommunityStatsAvailability,
 } from '@/lib/community-stats'
-import { ArchetypeBadge } from '@/components/ArchetypeBadge'
+import { communityCampaignItem, communityClassItems, communityStandaloneItem } from '@/components/CommunityRankingItems'
 import { mostPlayedInvestigatorItem } from '@/components/MostPlayedInvestigator'
 import { StatsListCard } from '@/components/StatsListCard'
-import { ALL_CAMPAIGNS, campaignTypeLabel } from '@/lib/campaign-data'
-import { CampaignSvgIcon } from '@/components/CampaignSvgIcon'
-import { getBrandSvgRaw, hasDedicatedCampaignIcon } from '@/lib/campaign-icon-map'
-import { completeClassPopularity } from '@/lib/class-popularity'
+import { getBrandSvgRaw } from '@/lib/campaign-icon-map'
 import { cn } from '@/lib/utils'
 
 function injectSize(svgString: string, size: number): string {
@@ -40,19 +37,6 @@ function BrandSvg({ brandKey, size = 24, className }: { brandKey: 'codex' | 'log
 
 interface PublicHomepageProps {
   onAuthSuccess: (user: User) => void
-}
-
-function campaignSetKey(name: string): string {
-  if (hasDedicatedCampaignIcon(name)) return name
-  const c = ALL_CAMPAIGNS.find(x => x.name === name)
-  if (c?.type === 'Scenario Pack') return name
-  return c?.set ?? name
-}
-
-function standaloneIconKey(s: { name: string; set?: string }): string {
-  if (hasDedicatedCampaignIcon(s.name)) return s.name
-  if (s.set && hasDedicatedCampaignIcon(s.set)) return s.set
-  return s.name
 }
 
 function formatLastUpdated(lastUpdated?: number): string | null {
@@ -86,67 +70,10 @@ export function PublicHomepage({ onAuthSuccess }: PublicHomepageProps) {
     setAuthDialogOpen(true)
   }
 
-  // Build StatsListCard items from community stats (with safety defaults for missing fields)
   const investigatorItems = (communityStats?.topInvestigators ?? []).map(investigator => mostPlayedInvestigatorItem(investigator))
-
-  const campaignItems = (communityStats?.topCampaigns ?? []).map(campaign => {
-    const typeLabel = campaignTypeLabel(campaign.name)
-    return {
-      key: campaign.name,
-      countLabel: `${campaign.count} ${campaign.count === 1 ? 'play' : 'plays'}`,
-      renderContent: () => (
-        <div className="flex items-center gap-2 flex-wrap min-w-0">
-          <span className="inline-flex items-center gap-1.5 min-w-0">
-            <CampaignSvgIcon
-              campaignSet={campaignSetKey(campaign.name)}
-              size={14}
-              aria-hidden="true"
-              className="flex-shrink-0 text-primary/60"
-            />
-            <span className="font-medium text-foreground">{campaign.name}</span>
-          </span>
-          {typeLabel && (
-            <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded flex-shrink-0">
-              {typeLabel}
-            </span>
-          )}
-        </div>
-      ),
-    }
-  })
-
-  const completeClasses = communityStats?.topClasses?.length
-    ? completeClassPopularity(communityStats.topClasses)
-    : []
-  const classTotal = completeClasses.reduce((s, c) => s + c.count, 0)
-  const classItems = completeClasses.map(cls => ({
-    key: cls.archetype,
-    countLabel: `${cls.count} plays (${classTotal > 0 ? Math.round((cls.count / classTotal) * 100) : 0}%)`,
-    renderContent: () => <ArchetypeBadge archetype={cls.archetype} />,
-  }))
-
-  const standaloneItems = (communityStats?.topStandalones ?? []).map(s => ({
-    key: s.name,
-    countLabel: `${s.count} ${s.count === 1 ? 'play' : 'plays'}`,
-    renderContent: () => (
-      <div>
-        <span className="inline-flex items-center gap-1.5 min-w-0">
-          <CampaignSvgIcon
-            campaignSet={standaloneIconKey(s)}
-            size={14}
-            aria-hidden="true"
-            className="flex-shrink-0 text-primary/60"
-          />
-          <span className="font-medium text-foreground">{s.name}</span>
-        </span>
-        {s.breakdown && (
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {s.breakdown.asStandalone} standalone · {s.breakdown.asSideStory} side story
-          </p>
-        )}
-      </div>
-    ),
-  }))
+  const campaignItems = (communityStats?.topCampaigns ?? []).map(communityCampaignItem)
+  const classItems = communityClassItems(communityStats?.topClasses)
+  const standaloneItems = (communityStats?.topStandalones ?? []).map(communityStandaloneItem)
 
   const lastUpdatedLabel = formatLastUpdated(communityStats?.generatedAt ?? communityStats?.lastUpdated)
   const aggregateWarning = communityStatsAvailability === 'failed'

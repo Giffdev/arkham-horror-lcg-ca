@@ -328,7 +328,6 @@ function MobileHeatmap({ data, countUnit }: MobileHeatmapProps) {
           ) : (
             <div className="space-y-2">
               {selectedPairings.map((pair, idx) => {
-                const intensity = maxCount > 0 ? pair.count / maxCount : 0
                 return (
                   <div
                     key={pair.name}

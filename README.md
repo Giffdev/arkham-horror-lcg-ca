@@ -79,7 +79,7 @@ The client requires the `VITE_FIREBASE_*` values documented in [`.env.example`](
 | --- | --- |
 | `npm run dev` | Start the Vite development server |
 | `npm test` | Run the Vitest suite |
-| `npm run typecheck` | Type-check the frontend and backend |
+| `npm run typecheck` | Type-check the frontend and backend; flag unused locals and parameters in the frontend app |
 | `npm run build` | Build the backend artifact and production frontend |
 | `npm run preview` | Preview the production build locally |
 | `npm run test:firestore:unit` | Run Firestore-related unit tests |

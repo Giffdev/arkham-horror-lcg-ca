@@ -34,7 +34,7 @@ import {
   getCampaignProgressionScenarioNames,
   getNextCampaignScenarioResolution,
 } from '@/lib/campaign-progression'
-import { INVESTIGATORS, getInvestigatorById, getInvestigatorDisplayName, getChapterBadgeLabel, isChapterBadgeSpecial, type Investigator } from '@/lib/investigator-data'
+import { INVESTIGATORS, getInvestigatorById, getInvestigatorDisplayName, getChapterBadgeLabel, isChapterBadgeSpecial } from '@/lib/investigator-data'
 import { MAX_PLAYERS_PER_PLAYTHROUGH, getPlayerLimitError } from '@/lib/playthrough-validation'
 import { matchesSearchText } from '@/lib/search'
 import { toDateInputValue, todayDateInputValue } from '@/lib/date-utils'
