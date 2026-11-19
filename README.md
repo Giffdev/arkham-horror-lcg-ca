@@ -2,22 +2,22 @@
 
 A web application for logging and exploring play history for *Arkham Horror: The Card Game*.
 
-**Live app:** [arkham-horror-lcg-ca.vercel.app](https://arkham-horror-lcg-ca.vercel.app)
+**[Open the tracker](https://arkham-horror-lcg-ca.vercel.app)** · [v1.1.0 release notes](https://github.com/Giffdev/arkham-horror-lcg-ca/releases/tag/v1.1.0) · [Changelog](CHANGELOG.md)
 
-## What the app does
+## Using the tracker
 
-- Log standalone games, short campaigns, full campaigns, and individual scenario nights.
-- Track investigators, players, dates, campaign progress, outcomes, and notes.
-- Continue an active campaign while preserving its investigator roster and scenario history.
-- See published side-story entry costs separately from XP earned, without automatic deductions. Multipart entries and The Scarlet Keys include conditional guidance; unknown costs are labeled rather than assumed free.
-- Entry guidance also appears on existing saved scenario logs; it does not rewrite records or establish whether entry XP was paid.
-- Logging pickers group Fortune and Folly and Guardians of the Abyss under nonselectable headings, with their individual parts/scenarios kept together. Either second scenario may be selected directly; historical package-only entries remain unchanged.
-- Filter and browse your game history across desktop and mobile layouts.
-- Review player statistics, investigator usage, completion progress, and investigator pairings.
-- Historical whole-campaign records count as played for their recorded participants, including after promotion to campaign tracking. Without individual scenario details, cards show “Scenario progress not tracked”; no scenarios, completion, or XP are inferred. New setup-only runs do not count as played.
-- Explore community-wide campaign, investigator, class, and standalone-scenario popularity.
-- Import and export tracker data for backup or migration.
-- Sign in with email/password or Google through Firebase Authentication.
+Sign in with email/password or Google to keep your own play history. You can also browse community rankings on the homepage without signing in.
+
+- **All Games:** Log a campaign or standalone game, then record scenario nights with dates, investigators, XP, trauma, outcomes, and notes. Expand a campaign to revisit its scenarios or continue from its current roster. On portrait tablets, player and investigator names have the full card width instead of sharing a narrow column with the action buttons.
+- **Players:** Explore investigator use and campaign history for the whole group or one player. Search the Played and Not Played lists, then expand a played entry to see its recorded games.
+- **Community:** Browse campaign, investigator, class, and standalone-scenario rankings. Standalone breakdowns distinguish games played on their own from side stories played within campaigns.
+- **Backups:** Choose **Export Data** in the profile menu to download your campaign runs and playthroughs as JSON. Import tools still support older backups, but the normal profile menu does not offer an import action.
+
+### Reading your campaign history
+
+An older whole-campaign log counts as played for its recorded participants even if it has no individual scenario logs. **Scenario progress not tracked** means the tracker has no scenario details to show; it does not infer completion or award XP. Starting a new campaign without logging a game night does not count as a play.
+
+Side-story entry guidance shows published costs separately from XP earned. It does not deduct XP, mark it as paid, or rewrite saved logs. Unknown costs are labeled, and conditional costs are explained where relevant. For *Fortune and Folly* and *Guardians of the Abyss*, choose the individual scenario under its group heading; the second scenario can also be logged directly.
 
 ## Technology
 
@@ -32,7 +32,7 @@ A web application for logging and exploring play history for *Arkham Horror: The
 
 ### Prerequisites
 
-- Node.js 22
+- Node.js 22 (see [`.nvmrc`](.nvmrc) for the pinned version)
 - npm
 - A Firebase project with Authentication and Cloud Firestore enabled
 
@@ -87,7 +87,7 @@ The client requires the `VITE_FIREBASE_*` values documented in [`.env.example`](
 
 ## Deployment
 
-The production application is hosted on Vercel. Firebase provides authentication and persistent data storage, while the community-stat endpoint publishes trusted aggregate data without exposing individual users' game logs.
+The production application is deployed manually to Vercel; pushing a commit or publishing a GitHub release does not deploy the site. Firebase provides authentication and persistent data storage, while the community-stat endpoint publishes aggregate statistics without exposing individual users' game logs.
 
 See [DEPLOYMENT.md](DEPLOYMENT.md) for the deployment architecture, required server configuration, bootstrap process, and operational checks.
 

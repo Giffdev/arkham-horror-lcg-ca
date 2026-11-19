@@ -4,14 +4,21 @@ All notable user-facing changes to this project are documented here.
 
 This project follows the spirit of [Keep a Changelog](https://keepachangelog.com/).
 
-## [Unreleased]
+## [Unreleased](https://github.com/Giffdev/arkham-horror-lcg-ca/compare/v1.1.0...main)
+
+## [v1.1.0](https://github.com/Giffdev/arkham-horror-lcg-ca/releases/tag/v1.1.0)
+
+- **Campaign logs are easier to read on phones and portrait tablets.** Dense rosters and expanded scenario player lists use the card width below 1024px; wider screens retain the desktop columns.
+- **Player history distinguishes playing from setup.** Browse campaign and standalone history for all players or one participant. Recorded whole campaigns count without inventing scenario progress or XP; setup-only runs do not count.
+- **Side-story logging includes entry guidance.** Published costs are shown separately from earned XP. Multipart scenario packs offer individual scenario choices without changing older package-only entries.
+- **Community rankings reflect campaign participation more accurately.** Investigator counts and pairings distinguish campaign participation from multiple scenario nights, and campaign artwork, investigator chapters, and class rows are displayed consistently.
+- **Backups and maintenance.** Export remains available in the profile menu; import is hidden in the normal interface. The public and signed-in rankings now share their row rendering. The maintenance cleanup requires no account or saved-log migration.
+
+[Full comparison with v1.0.0](https://github.com/Giffdev/arkham-horror-lcg-ca/compare/v1.0.0...v1.1.0)
+
+## Through [v1.0.0](https://github.com/Giffdev/arkham-horror-lcg-ca/releases/tag/v1.0.0)
 
 ### Changed
-
-- **Campaign logs stay readable on portrait tablets.** Campaign rosters and
-  expanded scenario player lists keep their full-width layout below 1024px,
-  rather than squeezing names between desktop-sized title and action columns.
-  Phone and wider desktop layouts are unchanged.
 
 - **Ready community statistics remain visible between backend refreshes.** A trusted
   aggregate marked `ready` no longer shows a refreshing warning solely because its
