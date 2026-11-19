@@ -135,11 +135,11 @@ export const CampaignRunCard = memo(function CampaignRunCard({
     <Card className="p-4 md:p-6 border-border/80 bg-card text-foreground">
       <div className="flex flex-col gap-4">
         <div
-          className="grid grid-cols-1 items-start gap-4 md:grid-cols-[minmax(280px,320px)_minmax(0,1fr)_auto] md:gap-6"
+          className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(280px,320px)_minmax(0,1fr)_auto] lg:gap-6"
           data-slot="campaign-card-layout"
         >
           <div className="contents">
-            <div className="order-1 min-w-0 space-y-2 md:order-none">
+            <div className="order-1 min-w-0 space-y-2 lg:order-none">
               <h3 className="flex items-center gap-2 text-lg font-semibold leading-snug text-foreground md:text-xl">
                 <span aria-hidden="true" className="flex-shrink-0">
                   <CampaignSvgIcon
@@ -174,7 +174,7 @@ export const CampaignRunCard = memo(function CampaignRunCard({
               </div>
             </div>
             <div
-              className="order-3 min-w-0 text-sm text-foreground/90 md:order-none md:self-center"
+              className="order-3 min-w-0 text-sm text-foreground/90 lg:order-none lg:self-center"
               data-testid="campaign-roster-column"
             >
               <p className="text-xs uppercase tracking-wide text-muted-foreground">Roster</p>
@@ -357,7 +357,7 @@ export const CampaignRunCard = memo(function CampaignRunCard({
             </div>
           </div>
 
-          <CardActionArea className="order-2 justify-start gap-2 md:order-none md:justify-end">
+          <CardActionArea className="order-2 justify-start gap-2 lg:order-none lg:justify-end">
             {(!isStandaloneScenario || totalGameNightsLogged === 0) && (
               <Button
                 type="button"

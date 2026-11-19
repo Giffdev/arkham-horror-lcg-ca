@@ -44,6 +44,45 @@ const basePlaythrough: Playthrough = {
 }
 
 describe('PlaythroughCard campaign log actions', () => {
+  it('keeps investigators below the heading until the wider desktop layout fits', () => {
+    render(
+      <PlaythroughCard
+        playthrough={{
+          ...basePlaythrough,
+          investigators: [{
+            playerName: 'Alexandria Montgomery',
+            investigatorName: 'Winifred Habbamock',
+            archetype: 'Rogue',
+          }],
+        }}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    )
+
+    const heading = screen.getByRole('heading', { level: 3 })
+    const layout = heading.parentElement?.parentElement
+    expect(layout).toHaveClass(
+      'grid-cols-[minmax(0,1fr)_auto]',
+      'lg:grid-cols-[320px_minmax(0,1fr)_auto]',
+    )
+    for (const className of ['md:grid-cols-[320px_minmax(0,1fr)_auto]', 'md:gap-6']) {
+      expect(layout).not.toHaveClass(className)
+    }
+    const investigators = layout?.children[1]
+    expect(investigators).toHaveClass(
+      'col-span-2', 'row-start-2', 'lg:col-span-1', 'lg:col-start-2', 'lg:row-start-1',
+    )
+    for (const className of ['md:col-span-1', 'md:col-start-2', 'md:row-start-1']) {
+      expect(investigators).not.toHaveClass(className)
+    }
+    expect(screen.getByText('Alexandria Montgomery')).toBeVisible()
+    const actions = document.querySelector('[data-slot="card-action-area"]')
+    expect(actions).toHaveClass('col-start-2', 'lg:col-start-3')
+    expect(actions).not.toHaveClass('md:col-start-3')
+    expect(actions).not.toHaveClass('md:max-w-none')
+  })
+
   it.each([
     {
       campaignName: 'Return to the Circle Undone',

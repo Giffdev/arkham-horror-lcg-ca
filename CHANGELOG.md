@@ -8,6 +8,11 @@ This project follows the spirit of [Keep a Changelog](https://keepachangelog.com
 
 ### Changed
 
+- **Campaign logs stay readable on portrait tablets.** Campaign rosters and
+  expanded scenario player lists keep their full-width layout below 1024px,
+  rather than squeezing names between desktop-sized title and action columns.
+  Phone and wider desktop layouts are unchanged.
+
 - **Ready community statistics remain visible between backend refreshes.** A trusted
   aggregate marked `ready` no longer shows a refreshing warning solely because its
   generation timestamp is older than 15 minutes.

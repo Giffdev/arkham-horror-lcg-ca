@@ -140,8 +140,8 @@ describe('CampaignRunCard', () => {
     expect(continueButton.closest('[data-slot="card-action-area"]')).toHaveClass(
       'order-2',
       'justify-start',
-      'md:order-none',
-      'md:justify-end',
+      'lg:order-none',
+      'lg:justify-end',
     )
   })
 
@@ -877,8 +877,8 @@ describe('CampaignRunCard', () => {
     expect(screen.getByTestId('campaign-roster-column')).toHaveClass(
       'order-3',
       'min-w-0',
-      'md:order-none',
-      'md:self-center',
+      'lg:order-none',
+      'lg:self-center',
     )
     const rosterRows = within(rosterList).getAllByRole('listitem')
     expect(rosterList.textContent).not.toContain('--')
@@ -1016,7 +1016,7 @@ describe('CampaignRunCard', () => {
     expect(screen.queryByText(/^6 XP$/)).not.toBeInTheDocument()
   })
 
-  it('uses the card width for dense four-player rosters and multi-scenario history on phones', () => {
+  it('uses the card width for dense four-player rosters and scenario history on phones and portrait tablets', () => {
     const investigators = [
       { playerName: 'Alexandria Montgomery', investigatorName: 'William Yorick', archetype: 'Survivor' as const },
       { playerName: 'Christopher Livingston', investigatorName: 'Jacqueline Fine', archetype: 'Mystic' as const },
@@ -1090,8 +1090,12 @@ describe('CampaignRunCard', () => {
 
     expect(document.querySelector('[data-slot="campaign-card-layout"]')).toHaveClass(
       'grid-cols-1',
+      'lg:grid-cols-[minmax(280px,320px)_minmax(0,1fr)_auto]',
+    )
+    expect(document.querySelector('[data-slot="campaign-card-layout"]')).not.toHaveClass(
       'md:grid-cols-[minmax(280px,320px)_minmax(0,1fr)_auto]',
     )
+    expect(screen.getByTestId('campaign-roster-column')).not.toHaveClass('md:order-none')
 
     const roster = screen.getByRole('list', { name: /campaign roster summary/i })
     const rosterSeats = Array.from(roster.querySelectorAll(':scope > li'))
@@ -1108,16 +1112,23 @@ describe('CampaignRunCard', () => {
     scenarioLayouts.forEach((layout) => {
       expect(layout).toHaveClass(
         'grid-cols-[minmax(0,1fr)_auto]',
-        'md:grid-cols-[minmax(280px,320px)_minmax(0,1fr)_auto]',
+        'lg:grid-cols-[minmax(280px,320px)_minmax(0,1fr)_auto]',
       )
+      expect(layout).not.toHaveClass('md:grid-cols-[minmax(280px,320px)_minmax(0,1fr)_auto]')
+      expect(layout).not.toHaveClass('md:gap-x-6')
+      expect(layout.lastElementChild).toHaveClass('col-start-2', 'lg:col-start-3')
+      expect(layout.lastElementChild).not.toHaveClass('md:col-start-3')
     })
 
     for (const scenarioName of ['Curtain Call', 'The Last King']) {
       const players = screen.getByRole('list', { name: `${scenarioName} players` })
       expect(players).toHaveClass(
+        'col-span-2',
+        'lg:col-span-1',
         'space-y-3',
         'text-left',
       )
+      expect(players).not.toHaveClass('md:col-span-1')
       expect(players.className).not.toContain('min-[380px]:grid-cols-2')
       expect(players).not.toHaveClass('grid-cols-[repeat(2,minmax(0,1fr))]')
       const playerRows = within(players).getAllByRole('listitem')

@@ -134,7 +134,7 @@ export const PlaythroughCard = memo(function PlaythroughCard({
 
   return (
     <Card className="p-4 md:p-6 hover:border-accent transition-all duration-200 hover:shadow-lg group overflow-hidden">
-      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4 md:grid-cols-[320px_minmax(0,1fr)_auto] md:gap-6">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4 lg:grid-cols-[320px_minmax(0,1fr)_auto] lg:gap-6">
         <div className="min-w-0">
             <h3 className="mb-1 flex items-center gap-2 text-lg font-semibold leading-snug md:text-xl">
               <span aria-hidden="true" className="flex-shrink-0">
@@ -146,7 +146,7 @@ export const PlaythroughCard = memo(function PlaythroughCard({
               </span>
               <span className="min-w-0 truncate">{displayName || 'Untitled Campaign'}</span>
             </h3>
-            <div className="flex md:hidden flex-wrap items-center gap-2 text-sm text-muted-foreground">
+            <div className="flex lg:hidden flex-wrap items-center gap-2 text-sm text-muted-foreground">
               <div className="flex items-center gap-1">
                 <Clock size={16} weight="duotone" />
                 <span>{formattedDate}</span>
@@ -161,7 +161,7 @@ export const PlaythroughCard = memo(function PlaythroughCard({
               </p>
             )}
             {playthrough.sideStories && playthrough.sideStories.length > 0 && (
-              <div className="mt-2 md:hidden flex items-start gap-2 flex-wrap">
+              <div className="mt-2 lg:hidden flex items-start gap-2 flex-wrap">
                 <div className="flex items-center gap-1 text-xs font-medium text-muted-foreground uppercase tracking-wide flex-shrink-0">
                   <Sparkle size={14} weight="duotone" />
                   <span>Side Stories:</span>
@@ -175,17 +175,17 @@ export const PlaythroughCard = memo(function PlaythroughCard({
                 </div>
               </div>
             )}
-            <div className="hidden md:flex flex-wrap items-center gap-2 text-sm mb-1">
+            <div className="hidden lg:flex flex-wrap items-center gap-2 text-sm mb-1">
               <Badge variant="secondary" className="text-xs">
                 {playthrough.campaignType}
               </Badge>
             </div>
-            <div className="hidden md:flex items-center gap-1 text-sm text-muted-foreground">
+            <div className="hidden lg:flex items-center gap-1 text-sm text-muted-foreground">
               <Clock size={16} weight="duotone" />
               <span>{formattedDate}</span>
             </div>
             {playthrough.sideStories && playthrough.sideStories.length > 0 && (
-              <div className="mt-3 hidden md:flex items-start gap-2 flex-wrap">
+              <div className="mt-3 hidden lg:flex items-start gap-2 flex-wrap">
                 <div className="flex items-center gap-1 text-xs font-medium text-muted-foreground uppercase tracking-wide flex-shrink-0">
                   <Sparkle size={14} weight="duotone" />
                   <span>Side Stories:</span>
@@ -201,7 +201,7 @@ export const PlaythroughCard = memo(function PlaythroughCard({
             )}
         </div>
 
-        <div className="col-span-2 row-start-2 flex min-w-0 flex-col gap-3 md:col-span-1 md:col-start-2 md:row-start-1">
+        <div className="col-span-2 row-start-2 flex min-w-0 flex-col gap-3 lg:col-span-1 lg:col-start-2 lg:row-start-1">
           {playthrough.investigators.length > 0 && (
             <>
               {isDreamEaters ? (
@@ -289,7 +289,7 @@ export const PlaythroughCard = memo(function PlaythroughCard({
 
 
 
-        <CardActionArea className="col-start-2 row-start-1 max-w-44 md:col-start-3 md:max-w-none">
+        <CardActionArea className="col-start-2 row-start-1 max-w-44 lg:col-start-3 lg:max-w-none">
           {canContinueCampaign && (
             <Button
               variant="outline"

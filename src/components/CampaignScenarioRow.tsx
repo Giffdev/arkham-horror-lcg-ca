@@ -83,7 +83,7 @@ export function CampaignScenarioRow({
   return (
     <div className="rounded-md border border-border/70 bg-muted/20 p-3 text-foreground">
       <div
-        className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-3 md:grid-cols-[minmax(280px,320px)_minmax(0,1fr)_auto] md:gap-x-6"
+        className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-3 lg:grid-cols-[minmax(280px,320px)_minmax(0,1fr)_auto] lg:gap-x-6"
         data-slot="scenario-row-layout"
       >
         <div className="min-w-0">
@@ -141,7 +141,7 @@ export function CampaignScenarioRow({
 
         {playerPairs.length > 0 && (
           <ul
-            className="col-span-2 min-w-0 space-y-3 text-left text-sm text-muted-foreground md:col-span-1 md:space-y-2.5 md:self-center"
+            className="col-span-2 min-w-0 space-y-3 text-left text-sm text-muted-foreground lg:col-span-1 md:space-y-2.5 md:self-center"
             aria-label={`${scenarioLog.scenarioName} players`}
           >
             {playerPairs.slice(0, 4).map((pair, pairIndex) => (
@@ -197,7 +197,7 @@ export function CampaignScenarioRow({
           </ul>
         )}
 
-        <div className="col-start-2 row-start-1 flex flex-shrink-0 items-center justify-end gap-1 md:col-start-3">
+        <div className="col-start-2 row-start-1 flex flex-shrink-0 items-center justify-end gap-1 lg:col-start-3">
           <Button
             type="button"
             variant="ghost"
